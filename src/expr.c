@@ -99,3 +99,33 @@ expr_t expr_new_call(long line, long column, cstring_t identifier)
 
     return expr;
 }
+
+expr_t expr_new_plus(long line, long column, expr_t exp)
+{
+    expr_t expr = heap_alloc(sizeof(struct expr_s));
+    if (!expr) {
+        return NULL;
+    }
+
+    expr->type = EXPR_TYPE_PLUS;
+    expr->line = line;
+    expr->column = column;
+    expr->u.plus = exp;
+
+    return expr;
+}
+
+expr_t expr_new_minus(long line, long column, expr_t exp)
+{
+    expr_t expr = heap_alloc(sizeof(struct expr_s));
+    if (!expr) {
+        return NULL;
+    }
+
+    expr->type = EXPR_TYPE_MINUS;
+    expr->line = line;
+    expr->column = column;
+    expr->u.minus = exp;
+
+    return expr;
+}

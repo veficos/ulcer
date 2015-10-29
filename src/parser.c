@@ -404,26 +404,30 @@ static expr_t __parser_multiplicative_expression__(parser_t parse)
 static expr_t __parser_unary_expression__(parser_t parse)
 {
     expr_t expr = NULL;
-    switch (lexer_peek(parse->lex)->value) {
+    token_t tok = lexer_peek(parse->lex);
+    switch (tok->value) {
     case TOKEN_VALUE_ADD:
         lexer_next(parse->lex);
+        expr = expr_new_plus(tok->line, tok->column, __parser_primary_expression__(parse));
         break;
     case TOKEN_VALUE_SUB:
         lexer_next(parse->lex);
+        expr = expr_new_minus(tok->line, tok->column, __parser_primary_expression__(parse));
         break;
     default:
         expr = __parser_primary_expression__(parse);
         break;
     }
+    assert(expr != NULL);
     return expr;
 }
 
 static expr_t __parser_primary_expression__(parser_t parse)
 {
-    token_t tok;
-    expr_t expr = NULL;
-    cstring_t identifier;
     long line, column;
+    token_t tok;
+    cstring_t identifier;
+    expr_t expr = NULL;
 
     tok = lexer_peek(parse->lex);
     switch (tok->value) {
@@ -509,6 +513,7 @@ static expr_t __parser_primary_expression__(parser_t parse)
         break;
     }
 
+    assert(expr != NULL);
     return expr;
 }
 

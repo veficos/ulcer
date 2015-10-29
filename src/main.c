@@ -125,6 +125,7 @@ int main(void)
     lexer_t lex = lexer_new(sc);
     parser_t parse = parser_new(lex);
 
+ 
     parser_translation(parse);
 
     parser_free(parse);

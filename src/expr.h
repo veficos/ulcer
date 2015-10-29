@@ -25,6 +25,8 @@ enum expr_type_e {
     EXPR_TYPE_IDENTIFIER,
     EXPR_TYPE_ASSIGN,
     EXPR_TYPE_CALL,
+    EXPR_TYPE_PLUS,
+    EXPR_TYPE_MINUS,
 };
 
 struct expr_assign_s {
@@ -35,6 +37,11 @@ struct expr_assign_s {
 struct expr_call_s {
     cstring_t function_name;
     list_t    args;
+};
+
+struct expr_binary_s {
+    expr_t left;
+    expr_t right;
 };
 
 typedef struct expr_s {
@@ -52,6 +59,8 @@ typedef struct expr_s {
         cstring_t identifier;
         expr_assign_t assign;
         expr_call_t   call;
+        expr_t        minus;
+        expr_t        plus;
     }u;
 
     list_node_t link;
@@ -62,5 +71,7 @@ expr_t expr_new(expr_type_t type, token_t tok);
 expr_t expr_new_assign(long line, long column, cstring_t lvalue, expr_t rvalue);
 expr_t expr_new_identifier(long line, long column, cstring_t identifier);
 expr_t expr_new_call(long line, long column, cstring_t identifier);
+expr_t expr_new_plus(long line, long column, expr_t expr);
+expr_t expr_new_minus(long line, long column, expr_t expr);
 
 #endif
