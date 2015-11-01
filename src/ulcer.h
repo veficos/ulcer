@@ -19,13 +19,13 @@ typedef enum value_type_e {
 typedef struct value_s {
     value_type_t type;
     union {
-        char      ch;
-        bool      b;
-        int       i;
-        long      l;
-        float     f;
-        double    d;
-        cstring_t s;
+        char      char_value;
+        bool      bool_value;
+        int       int_value;
+        long      long_value;
+        float     float_value;
+        double    double_value;
+        cstring_t string_value;
     }u;
 }value_t;
 

@@ -1,3 +1,11 @@
-function a(a,b,c) {
- a = +1024;
+global a,b,c;
+ab = 1023;
+
+for (int = 10; i < 10; i= i+2) {
+    b(1,2,3,4,5,6);
+}
+
+function abc() {
+}
+function bcd() {
 }

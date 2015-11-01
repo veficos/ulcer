@@ -2,13 +2,13 @@
 
 #include "list.h"
 
-bool __list_is_empty__(list_t *head)
+bool __list_is_empty__(list_node_t *head)
 {
     list_node_t *next = head->next;
     return (next == head) && (next == head->prev);
 }
 
-bool __list_is_singular__(list_t *head)
+bool __list_is_singular__(list_node_t *head)
 {
     return (!__list_is_empty__(head)) && (head->next == head->prev);
 }
@@ -42,7 +42,7 @@ void __list_replace__(list_node_t *o, list_node_t *n)
     n->prev->next = n;
 }
 
-static void __list_splice_assist__(list_node_t *prev, list_node_t *next, const list_t *head)
+static void __list_splice_assist__(list_node_t *prev, list_node_t *next, const list_node_t *head)
 {
     list_node_t *first = head->next;
     list_node_t *last = head->prev;
@@ -54,16 +54,16 @@ static void __list_splice_assist__(list_node_t *prev, list_node_t *next, const l
     next->prev = last;
 }
 
-void __list_splice__(list_node_t *pos, list_t *head)
+void __list_splice__(list_node_t *pos, list_node_t *head)
 {
     __list_splice_assist__(pos, pos->next, head);
     head->prev = head;
     head->next = head;
 }
 
-void __list_split__(list_t *n, list_t *o, list_node_t *cut)
+void __list_split__(list_node_t *n, list_node_t *o, list_node_t *cut)
 {
-    list_t *first = cut->next;
+    list_node_t *first = cut->next;
 
     n->next = o->next;
     n->next->prev = n;
@@ -75,7 +75,7 @@ void __list_split__(list_t *n, list_t *o, list_node_t *cut)
     first->prev = o;
 }
 
-void __list_insertion_sort__(list_t *head, list_compare_pt compare)
+void __list_insertion_sort__(list_node_t *head, list_compare_pt compare)
 {
     list_node_t *node;
     list_node_t *prev;
@@ -105,7 +105,7 @@ void __list_insertion_sort__(list_t *head, list_compare_pt compare)
     }
 }
 
-void __list_reverse__(list_t *head)
+void __list_reverse__(list_node_t *head)
 {
     list_node_t *current = head, *next = current->next;
     list_node_t *temp;
@@ -120,7 +120,7 @@ void __list_reverse__(list_t *head)
     } while (current != head);
 }
 
-void __list_magic__(list_t *head, list_magic_pt magic)
+void __list_magic__(list_node_t *head, list_magic_pt magic)
 {
     list_iter_t iter;
 
@@ -131,7 +131,7 @@ void __list_magic__(list_t *head, list_magic_pt magic)
     }
 }
 
-void __list_clear__(list_t *head, list_magic_pt magic)
+void __list_clear__(list_node_t *head, list_magic_pt magic)
 {
     list_node_t *node;
 

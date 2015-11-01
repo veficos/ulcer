@@ -93,7 +93,7 @@ static void hlist_insert_back(hlist_node_t *prev, hlist_node_t *node)
     __hlist_move__(&(o), &(n))
 
 #define hlist_element(ptr, type, member)                                      \
-    ((type*)(((unsigned char*)(ptr)) - (unsigned char*)(&(((type*)0)->member))))
+    ((type)(((unsigned char*)(ptr)) - (unsigned char*)(&(((type)0)->member))))
 
 #define hlist_for_each(hlist, it)                                             \
     for ((it) = (&(hlist))->first; (it); (it)=(it)->next)

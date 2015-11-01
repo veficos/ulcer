@@ -7,6 +7,7 @@
 #include "stack.h"
 #include "list.h"
 #include "parser.h"
+#include "interpreter.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -113,21 +114,46 @@ static  void __dump_lexer_result__(lexer_t lex)
    
 }
 
+struct node {
+    int i;
+    list_node_t link;
+}nodes[1000];
+
+void func(list_t list)
+{
+    list_t l;
+    int i = 0;
+    for (; i < 100; i++) {
+        nodes[i].i = i;
+        list_push_back(list, nodes[i].link);
+    }
+
+    list_init(l);
+
+    list_split(l, list, nodes[50].link);
+
+    list_push_front_list(list, l);
+}
+
 int main(void)
 {
 
 #ifdef WIN32
     _CrtSetDbgFlag(_CrtSetDbgFlag(_CRTDBG_REPORT_FLAG) | _CRTDBG_LEAK_CHECK_DF);  
 #endif
- 
+
 {
     source_code_t sc = source_code_new("test.u", SOURCE_CODE_TYPE_FILE);
     lexer_t lex = lexer_new(sc);
     parser_t parse = parser_new(lex);
+    interpreter_t inter;
 
- 
     parser_translation(parse);
 
+    inter = interpreter_new(parser_get_statements(parse), parser_get_functions(parse));
+    interpreter_execute(inter);
+
+    interpreter_free(inter);
     parser_free(parse);
     lexer_free(lex);
     source_code_free(sc);

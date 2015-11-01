@@ -4,6 +4,7 @@
 #include "alloc.h"
 
 #include <stdio.h>
+#include <assert.h>
 
 expr_t expr_new(expr_type_t type, token_t tok)
 {
@@ -60,7 +61,7 @@ expr_t expr_new_identifier(long line, long column, cstring_t identifier)
         return NULL;
     }
 
-    expr->type   = EXPR_TYPE_ASSIGN;
+    expr->type   = EXPR_TYPE_IDENTIFIER;
     expr->line   = line;
     expr->column = column;
     expr->u.identifier = identifier;
@@ -128,4 +129,87 @@ expr_t expr_new_minus(long line, long column, expr_t exp)
     expr->u.minus = exp;
 
     return expr;
+}
+
+expr_t expr_new_binary(expr_type_t type, long line, long column, expr_t left, expr_t right)
+{
+    expr_t expr = heap_alloc(sizeof(struct expr_s));
+    if (!expr) {
+        return NULL;
+    }
+
+    assert(left != NULL);
+    assert(right != NULL);
+
+    expr->type          = type;
+    expr->line          = line;
+    expr->column        = column;
+    expr->u.binary.left = left;
+    expr->u.binary.right = right;
+
+    return expr;
+}
+
+void expr_free(expr_t expr)
+{
+    list_iter_t iter = NULL, next_iter = NULL;
+
+    switch (expr->type) {
+    case EXPR_TYPE_CHAR:
+    case EXPR_TYPE_BOOL:
+    case EXPR_TYPE_INT:
+    case EXPR_TYPE_LONG:
+    case EXPR_TYPE_FLOAT:
+    case EXPR_TYPE_DOUBLE:
+    case EXPR_TYPE_NULL:
+        break;
+
+    case EXPR_TYPE_STRING:
+        cstring_free(expr->u.string_value);
+        break;
+
+    case EXPR_TYPE_IDENTIFIER:
+        cstring_free(expr->u.identifier);
+        break;
+
+    case EXPR_TYPE_ASSIGN:
+        cstring_free(expr->u.assign.lvalue);
+        expr_free(expr->u.assign.rvalue);
+        break;
+
+    case EXPR_TYPE_CALL:
+        cstring_free(expr->u.assign.lvalue);
+        list_safe_for_each(expr->u.call.args, iter, next_iter) {
+            list_erase(*iter);
+            expr_free(list_element(iter, expr_t, link));
+        }
+        break;
+
+    case EXPR_TYPE_PLUS:
+        expr_free(expr->u.plus);
+        break;
+        
+    case EXPR_TYPE_MINUS:
+        expr_free(expr->u.minus);
+        break;
+
+    case EXPR_TYPE_MUL:
+    case EXPR_TYPE_DIV:
+    case EXPR_TYPE_MOD:
+    case EXPR_TYPE_ADD:
+    case EXPR_TYPE_SUB:
+    case EXPR_TYPE_GT:
+    case EXPR_TYPE_GEQ:
+    case EXPR_TYPE_LT:
+    case EXPR_TYPE_LEQ:
+    case EXPR_TYPE_EQ:
+    case EXPR_TYPE_NEQ:
+    case EXPR_TYPE_AND:
+    case EXPR_TYPE_OR:
+        expr_free(expr->u.binary.left);
+        expr_free(expr->u.binary.right);
+        break;
+    }
+
+    heap_free(expr);
 }
