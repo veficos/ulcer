@@ -7,7 +7,7 @@
 
 parameter_t parameter_new(cstring_t name)
 {
-    parameter_t parameter = (parameter_t) heap_alloc(sizeof(struct parameter_s));
+    parameter_t parameter = (parameter_t) mem_alloc(sizeof(struct parameter_s));
     if (!parameter) {
         return NULL;
     }
@@ -20,12 +20,12 @@ parameter_t parameter_new(cstring_t name)
 void parameter_free(parameter_t parameter)
 {
     cstring_free(parameter->name);
-    heap_free(parameter);
+    mem_free(parameter);
 }
 
 function_t function_new(long line, long column, cstring_t name)
 {
-    function_t function = (function_t) heap_alloc(sizeof(struct function_s));
+    function_t function = (function_t) mem_alloc(sizeof(struct function_s));
     if (!function) {
         return NULL;
     }
@@ -43,7 +43,7 @@ void function_free(function_t function)
 {
     cstring_free(function->name);
     stmt_free(function->u.self.block);
-    heap_free(function);
+    mem_free(function);
 }
 
 static int __function_compare__(const hlist_node_t *lhs, const hlist_node_t *rhs)
@@ -63,7 +63,7 @@ unsigned long __function_hashfn__(const hlist_node_t *hnode)
 functions_t function_library_new()
 {
     functions_t fl = (functions_t) 
-        heap_alloc(sizeof(struct functions_s));
+        mem_alloc(sizeof(struct functions_s));
     if (!fl) {
         return NULL;
     }
@@ -116,5 +116,5 @@ void functions_free(functions_t fl)
     hash_table_iter_free(iter);
     
     hash_table_free(fl->htable);
-    heap_free(fl);
+    mem_free(fl);
 }

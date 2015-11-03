@@ -4,10 +4,10 @@
 #define _ULCER_EVAL_H_
 
 #include "config.h"
-#include "interpreter.h"
+#include "executor.h"
 #include "ulcer.h"
 #include "expr.h"
 
-value_t eval_expression(interpreter_t inter, expr_t expr);
+void eval_expression(executor_t inter, expr_t expr);
 
 #endif

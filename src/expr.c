@@ -8,7 +8,7 @@
 
 expr_t expr_new(expr_type_t type, token_t tok)
 {
-    expr_t expr = heap_alloc(sizeof(struct expr_s));
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
     if (!expr) {
         return NULL;
     }
@@ -56,7 +56,7 @@ expr_t expr_new(expr_type_t type, token_t tok)
 
 expr_t expr_new_identifier(long line, long column, cstring_t identifier)
 {
-    expr_t expr = heap_alloc(sizeof(struct expr_s));
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
     if (!expr) {
         return NULL;
     }
@@ -71,7 +71,7 @@ expr_t expr_new_identifier(long line, long column, cstring_t identifier)
 
 expr_t expr_new_assign(long line, long column, cstring_t lvalue, expr_t rvalue)
 {
-    expr_t expr = heap_alloc(sizeof(struct expr_s));
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
     if (!expr) {
         return NULL;
     }
@@ -87,7 +87,7 @@ expr_t expr_new_assign(long line, long column, cstring_t lvalue, expr_t rvalue)
 
 expr_t expr_new_call(long line, long column, cstring_t identifier)
 {
-    expr_t expr = heap_alloc(sizeof(struct expr_s));
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
     if (!expr) {
         return NULL;
     }
@@ -103,7 +103,7 @@ expr_t expr_new_call(long line, long column, cstring_t identifier)
 
 expr_t expr_new_plus(long line, long column, expr_t exp)
 {
-    expr_t expr = heap_alloc(sizeof(struct expr_s));
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
     if (!expr) {
         return NULL;
     }
@@ -118,7 +118,7 @@ expr_t expr_new_plus(long line, long column, expr_t exp)
 
 expr_t expr_new_minus(long line, long column, expr_t exp)
 {
-    expr_t expr = heap_alloc(sizeof(struct expr_s));
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
     if (!expr) {
         return NULL;
     }
@@ -133,7 +133,7 @@ expr_t expr_new_minus(long line, long column, expr_t exp)
 
 expr_t expr_new_binary(expr_type_t type, long line, long column, expr_t left, expr_t right)
 {
-    expr_t expr = heap_alloc(sizeof(struct expr_s));
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
     if (!expr) {
         return NULL;
     }
@@ -211,5 +211,5 @@ void expr_free(expr_t expr)
         break;
     }
 
-    heap_free(expr);
+    mem_free(expr);
 }

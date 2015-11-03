@@ -1,13 +1,13 @@
 
 #include "config.h"
 #include "alloc.h"
-#include "source_code.h"
 #include "lexer.h"
 #include "token.h"
 #include "stack.h"
 #include "list.h"
 #include "parser.h"
-#include "interpreter.h"
+#include "executor.h"
+#include "source_code.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -146,14 +146,14 @@ int main(void)
     source_code_t sc = source_code_new("test.u", SOURCE_CODE_TYPE_FILE);
     lexer_t lex = lexer_new(sc);
     parser_t parse = parser_new(lex);
-    interpreter_t inter;
+    executor_t exec;
 
     parser_translation(parse);
 
-    inter = interpreter_new(parser_get_statements(parse), parser_get_functions(parse));
-    interpreter_execute(inter);
+    exec = executor_new(parser_get_statements(parse), parser_get_functions(parse));
+    executor_run(exec);
 
-    interpreter_free(inter);
+    executor_free(exec);
     parser_free(parse);
     lexer_free(lex);
     source_code_free(sc);

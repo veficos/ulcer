@@ -44,7 +44,7 @@ static void __parser_argument_list__(parser_t parse, list_t args);
 
 parser_t parser_new(lexer_t lex)
 {
-    parser_t parse = (parser_t)heap_alloc(sizeof(struct parser_s));
+    parser_t parse = (parser_t)mem_alloc(sizeof(struct parser_s));
     if (!parse) {
         return NULL;
     }
@@ -68,7 +68,7 @@ void parser_free(parser_t parse)
 
     functions_free(parse->functions);
 
-    heap_free(parse);
+    mem_free(parse);
 }
 
 void parser_translation(parser_t parse)
@@ -280,7 +280,7 @@ static void __parser_identifier_list__(parser_t parse, list_t vars)
 {
     token_t tok = lexer_peek(parse->lex);
     while (tok->type != TOKEN_TYPE_END && TOKEN_VALUE_IDENTIFIER) {
-        stmt_global_t *global = heap_alloc(sizeof(stmt_global_t));
+        stmt_global_t *global = mem_alloc(sizeof(stmt_global_t));
 
         global->name = cstring_dup(tok->token);
         list_push_back(vars, global->link);

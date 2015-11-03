@@ -5,7 +5,7 @@
 
 static stmt_t __stmt_new__(stmt_type_t type, long line, long column)
 {
-    stmt_t stmt = heap_alloc(sizeof(struct stmt_s));
+    stmt_t stmt = mem_alloc(sizeof(struct stmt_s));
     if (!stmt) {
         return NULL;
     }
@@ -176,7 +176,7 @@ void stmt_free(stmt_t stmt)
 
             cstring_free(global->name);
 
-            heap_free(global);
+            mem_free(global);
         }
         break;
 
@@ -221,5 +221,5 @@ void stmt_free(stmt_t stmt)
         break;
     }
 
-    heap_free(stmt);
+    mem_free(stmt);
 }

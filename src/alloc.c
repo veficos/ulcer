@@ -4,7 +4,7 @@
 
 #include <malloc.h>
 
-void* heap_alloc(unsigned long size)
+void* mem_alloc(unsigned long size)
 {
     void *ptr = malloc(size);
     if (!ptr) {
@@ -13,7 +13,7 @@ void* heap_alloc(unsigned long size)
     return ptr;
 }
 
-void *heap_realloc(void *ptr, unsigned long size)
+void *mem_realloc(void *ptr, unsigned long size)
 {
     void *reptr = realloc(ptr, size);
     if (!reptr) {
@@ -22,7 +22,7 @@ void *heap_realloc(void *ptr, unsigned long size)
     return reptr;
 }
 
-void *heap_calloc(unsigned long size)
+void *mem_calloc(unsigned long size)
 {
     void *ptr = calloc(size, 1);
     if (!ptr) {
@@ -31,7 +31,7 @@ void *heap_calloc(unsigned long size)
     return ptr;
 }
 
-void heap_free(void *ptr)
+void mem_free(void *ptr)
 {
     free(ptr);
 }

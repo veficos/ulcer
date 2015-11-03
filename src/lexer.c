@@ -74,7 +74,7 @@ static void __lexer_parse_escape_char__(lexer_t lex);
 
 lexer_t lexer_new(source_code_t source_code)
 {
-    lexer_t lex = (lexer_t) heap_alloc(sizeof(struct lexer_s));
+    lexer_t lex = (lexer_t) mem_alloc(sizeof(struct lexer_s));
     if (!lex) {
         return NULL;
     }
@@ -102,7 +102,7 @@ void lexer_free(lexer_t lex)
     if (lex->last) {
         token_free(lex->last);
     }
-    heap_free(lex);
+    mem_free(lex);
 }
 
 token_t lexer_next(lexer_t lex)

@@ -7,15 +7,15 @@
 
 #if (defined(_WIN32) || defined(WIN32)) && defined(DEBUG)
 #include <malloc.h>
-#   define heap_calloc(n)   calloc(n, sizeof(char))   
-#   define heap_alloc       malloc   
-#   define heap_realloc     realloc  
-#   define heap_free        free
+#   define mem_calloc(n)   calloc(n, sizeof(char))   
+#   define mem_alloc       malloc   
+#   define mem_realloc     realloc  
+#   define mem_free        free
 #else 
-    void *heap_alloc(unsigned long size);
-    void *heap_calloc(unsigned long size);
-    void *heap_realloc(void *ptr, unsigned long size);
-    void heap_free(void *ptr);
+    void *mem_alloc(unsigned long size);
+    void *mem_calloc(unsigned long size);
+    void *mem_realloc(void *ptr, unsigned long size);
+    void mem_free(void *ptr);
 #endif
 
 #endif

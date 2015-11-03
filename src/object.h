@@ -4,7 +4,7 @@
 #define _ULCER_OBJECT_H_
 
 #include "config.h"
-#include "interpreter.h"
+#include "executor.h"
 #include "cstring.h"
 #include "list.h"
 

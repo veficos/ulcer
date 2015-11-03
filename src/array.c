@@ -7,11 +7,11 @@
 
 static bool __array_resize__(array_t a, unsigned long n);
 
-array_t array_create(unsigned long size)
+array_t array_new(unsigned long size)
 {
     array_t a;
 
-    a = (array_t) heap_alloc(sizeof(struct array_s));
+    a = (array_t) mem_alloc(sizeof(struct array_s));
     if (!a) {
         return NULL;
     }
@@ -24,16 +24,16 @@ array_t array_create(unsigned long size)
     return a;
 }
 
-array_t array_create_n(unsigned long size, unsigned long n)
+array_t array_newlen(unsigned long size, unsigned long n)
 {
     array_t a;
 
-    a = (array_t) heap_alloc(sizeof(struct array_s));
+    a = (array_t) mem_alloc(sizeof(struct array_s));
     if (!a) {
         return NULL;
     }
 
-    a->elts = (array_t) heap_alloc(size * n);
+    a->elts = (array_t) mem_alloc(size * n);
     if (!a->elts) {
         return NULL;
     }
@@ -45,17 +45,17 @@ array_t array_create_n(unsigned long size, unsigned long n)
     return a;
 }
 
-void array_destroy(array_t a)
+void array_free(array_t a)
 {
     if (a->elts) {
-        heap_free(a->elts);
+        mem_free(a->elts);
     }
-    heap_free(a);
+    mem_free(a);
 }
 
 array_t array_dup(array_t a)
 {
-    array_t dst = array_create_n(a->size, a->nelts);
+    array_t dst = array_newlen(a->size, a->nelts);
     if (!dst) {
         return NULL;
     }
@@ -294,7 +294,7 @@ static bool __array_resize__(array_t a, unsigned long n)
     unsigned long size = a->size * n;
  
     if (size) {
-        a->elts = heap_realloc(a->elts, size);
+        a->elts = mem_realloc(a->elts, size);
         if (!a->elts) {
             return false;
         }

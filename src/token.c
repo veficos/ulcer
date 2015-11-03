@@ -7,7 +7,7 @@
 
 token_t token_new(const char *filename)
 {
-    token_t token = (token_t)heap_alloc(sizeof(struct token_s));
+    token_t token = (token_t)mem_alloc(sizeof(struct token_s));
     if (!token) {
         return NULL;
     }
@@ -29,7 +29,7 @@ void token_free(token_t token)
 {
     cstring_free(token->token);
     cstring_free(token->filename);
-    heap_free(token);
+    mem_free(token);
 }
 
 void token_reset(token_t token, long line, long column, token_type_t type, token_value_t value)
@@ -45,7 +45,7 @@ void token_reset(token_t token, long line, long column, token_type_t type, token
 
 token_t token_dup(token_t from)
 {
-    token_t to = (token_t)heap_alloc(sizeof(struct token_s));
+    token_t to = (token_t)mem_alloc(sizeof(struct token_s));
     if (!to) {
         return NULL;
     }

@@ -51,9 +51,9 @@ typedef bool (*array_magic_pt)(void *);
          (unsigned long)(index) < (a)->nelts;                                 \
          (index)++)
 
-array_t array_create(unsigned long size);
-array_t array_create_n(unsigned long size, unsigned long n);
-void array_destroy(array_t a);
+array_t array_new(unsigned long size);
+array_t array_newlen(unsigned long size, unsigned long n);
+void array_free(array_t a);
 array_t array_dup(array_t a);
 void array_swap(array_t lhs, array_t rhs);
 void array_shrink_to_fit(array_t a);

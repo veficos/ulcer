@@ -27,9 +27,9 @@ cstring_t cstring_newlen(const void *data, unsigned long len)
     struct cstring_hdr_s *hdr;
 
     if (data) {
-        hdr = heap_alloc(sizeof(struct cstring_hdr_s) + len);
+        hdr = mem_alloc(sizeof(struct cstring_hdr_s) + len);
     } else {
-        hdr = heap_calloc(sizeof(struct cstring_hdr_s) + len);
+        hdr = mem_calloc(sizeof(struct cstring_hdr_s) + len);
     }
 
     if (!hdr) {
@@ -52,7 +52,7 @@ cstring_t cstring_newempty(unsigned long len)
 {
     struct cstring_hdr_s *hdr;
 
-    hdr = heap_alloc(sizeof(struct cstring_hdr_s) + len);
+    hdr = mem_alloc(sizeof(struct cstring_hdr_s) + len);
     if (!hdr) {
         return NULL;
     }
@@ -73,7 +73,7 @@ cstring_t cstring_new(const char *s)
 void cstring_free(cstring_t cstr)
 {
     if (cstr) {
-        heap_free(cstring_of(cstr));
+        mem_free(cstring_of(cstr));
     }
 }
 
@@ -225,7 +225,7 @@ cstring_t cstring_shrink_to_fit(cstring_t cstr)
 {
     struct cstring_hdr_s *hdr = cstring_of(cstr);
 
-    hdr = heap_realloc(hdr, sizeof(struct cstring_hdr_s) + hdr->length);
+    hdr = mem_realloc(hdr, sizeof(struct cstring_hdr_s) + hdr->length);
 
     hdr->free = 0;
     
@@ -284,7 +284,7 @@ static cstring_t __cstring_make_some_space__(cstring_t cstr, unsigned long addle
     }
 
     newhdr = (struct cstring_hdr_s *)
-        heap_realloc(hdr, sizeof(struct cstring_hdr_s) + newlen);
+        mem_realloc(hdr, sizeof(struct cstring_hdr_s) + newlen);
     if (!newhdr) {
         return NULL;
     }

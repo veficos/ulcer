@@ -27,13 +27,13 @@ static void __hash_table_clear_bucket(hash_table_t ht, struct hash_bucket_s *hb)
 
 hash_table_t hash_table_new(hlist_node_ops_t *ops)
 {
-    hash_table_t ht = (hash_table_t) heap_alloc(sizeof(struct hash_table_s));
+    hash_table_t ht = (hash_table_t) mem_alloc(sizeof(struct hash_table_s));
     if (!ht) {
         return NULL;
     }
 
     if (!__hash_table_init__(ht, ops)) {
-        heap_free(ht);
+        mem_free(ht);
         return NULL;
     }
     return ht;
@@ -44,7 +44,7 @@ void hash_table_free(hash_table_t ht)
     __hash_table_clear_bucket(ht, &ht->hb[0]);
     __hash_table_clear_bucket(ht, &ht->hb[1]);
 
-    heap_free(ht);
+    mem_free(ht);
 }
 
 void hash_table_clear(hash_table_t ht)
@@ -222,7 +222,7 @@ bool hash_table_expand_bucket(hash_table_t ht, unsigned long size)
         return false;
     }
 
-    hb.bucket = (hlist_t*) heap_alloc(sizeof(hlist_t) * realsize);
+    hb.bucket = (hlist_t*) mem_alloc(sizeof(hlist_t) * realsize);
     for (i = 0; i < realsize; i++) {
         hlist_init(hb.bucket[i]);
     }
@@ -324,7 +324,7 @@ static bool __hash_table_rehash__(hash_table_t ht, unsigned long step)
     }
 
     if (ht->hb[0].used == 0) {
-        heap_free(ht->hb[0].bucket);
+        mem_free(ht->hb[0].bucket);
         ht->hb[0] = ht->hb[1];
         __hash_table_reset_bucket__(&ht->hb[1]);
         ht->rehashidx = -1;
@@ -403,7 +403,7 @@ static void __hash_table_clear_bucket(hash_table_t ht, struct hash_bucket_s *hb)
         }
     }
 
-    heap_free(hb->bucket);
+    mem_free(hb->bucket);
 
     __hash_table_reset_bucket__(hb);
 }

@@ -19,13 +19,13 @@ struct source_code_s {
 
 source_code_t source_code_new(const char *s, source_code_type_t sctype)
 {
-    source_code_t sc = heap_alloc(sizeof(struct source_code_s));
+    source_code_t sc = mem_alloc(sizeof(struct source_code_s));
 
     switch (sctype) {
     case SOURCE_CODE_TYPE_FILE:
         sc->u.fp = fopen(s, "rb");
         if (!sc->u.fp) {
-            heap_free(sc);
+            mem_free(sc);
             return NULL;
         }
         sc->name = s;
@@ -34,7 +34,7 @@ source_code_t source_code_new(const char *s, source_code_type_t sctype)
     case SOURCE_CODE_TYPE_STRING:
         sc->u.s = strdup(s);
         if (!sc->u.s) {
-            heap_free(sc);
+            mem_free(sc);
             return NULL;
         }
         sc->name = "<string>";
@@ -58,11 +58,11 @@ void source_code_free(source_code_t sc)
         break;
 
     case SOURCE_CODE_TYPE_STRING:
-        heap_free(sc->u.s);
+        mem_free(sc->u.s);
         break;
     }
 
-    heap_free(sc);
+    mem_free(sc);
 }
 
 bool source_code_iseof(source_code_t sc)
