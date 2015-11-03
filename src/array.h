@@ -19,7 +19,7 @@ typedef bool (*array_magic_pt)(void *);
     (a)->nelts == 0
 
 #define array_base(a, type)                                                   \
-    ((type*)((a)->elts))
+    ((type)((a)->elts))
 
 #define array_clear(a)                                                        \
     ((a)->nelts = 0) 

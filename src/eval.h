@@ -5,9 +5,8 @@
 
 #include "config.h"
 #include "executor.h"
-#include "ulcer.h"
 #include "expr.h"
 
-void eval_expression(executor_t inter, expr_t expr);
+void eval_expression(executor_t exec, expr_t expr);
 
 #endif
