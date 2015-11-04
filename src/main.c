@@ -64,9 +64,7 @@ static  void __dump_lexer_result__(lexer_t lex)
         "not            ",
         "dot            ",
         "literal int    ",
-        "literal uint   ",
         "literal long   ",
-        "literal ulong  ",
         "literal float  ",
         "literal double ",
         "literal char   ",
@@ -152,6 +150,7 @@ int main(void)
     environment_add_module(env, parser_generate_module(parse));
 
     exec = executor_new(env);
+
     executor_run(exec);
 
     executor_free(exec);

@@ -63,8 +63,7 @@ static void __lexer_parse_hexadecimal__(lexer_t lex);
 static void __lexer_parse_float__(lexer_t lex);
 static void __lexer_parse_exponent__(lexer_t lex);
 static void __lexer_parse_fpostfix__(lexer_t lex);
-static void __lexer_parse_lpostfix(lexer_t lex, bool u);
-static void __lexer_parse_ulpostfix__(lexer_t lex);
+static void __lexer_parse_lpostfix__(lexer_t lex);
 static void __lexer_parse_operator__(lexer_t lex, token_value_t value);
 static bool __lexer_parse_div_operator__(lexer_t lex);
 static void __lexer_parse_delimiter__(lexer_t lex, token_value_t value);
@@ -393,7 +392,7 @@ static void __lexer_parse_number__(lexer_t lex)
             __lexer_parse_fpostfix__(lex);
             break;
         default:
-            __lexer_parse_ulpostfix__(lex);
+            __lexer_parse_lpostfix__(lex);
             break;
         }
     }
@@ -413,7 +412,7 @@ static void __lexer_parse_octal__(lexer_t lex)
         __lexer_parse_fpostfix__(lex);
         break;
     default:
-        __lexer_parse_ulpostfix__(lex);
+        __lexer_parse_lpostfix__(lex);
         break;
     }
 
@@ -467,34 +466,13 @@ static void __lexer_parse_exponent__(lexer_t lex)
     }
 }
 
-static void __lexer_parse_ulpostfix__(lexer_t lex)
-{
-    bool u = false;
-
-    switch (__lexer_peek_char__(lex)) {
-    case 'u': case 'U':
-        lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
-        lex->tok->value = TOKEN_VALUE_LITERAL_UINT;
-        u = true;
-
-        /* parse ul postfix. */
-    default:
-        __lexer_parse_lpostfix(lex, u);
-        break;
-    }
-}
-
-static void __lexer_parse_lpostfix(lexer_t lex, bool u)
+static void __lexer_parse_lpostfix__(lexer_t lex)
 {
     char ch = __lexer_peek_char__(lex);
 
     if (ch == 'l' || ch == 'L') {
         lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
-        if (u) {
-            lex->tok->value = TOKEN_VALUE_LITERAL_ULONG;
-        } else {
-            lex->tok->value = TOKEN_VALUE_LITERAL_LONG;
-        }
+        lex->tok->value = TOKEN_VALUE_LITERAL_LONG;
 
     } else if (isalpha(ch)) {
         error(source_code_file_name(lex->sc), 

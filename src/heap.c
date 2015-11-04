@@ -66,6 +66,8 @@ static object_t __heap_alloc_object__(environment_t env, object_type_t type)
 {
     object_t object;
 
+    __heap_need_gc__(env);
+
     object = mem_alloc(sizeof(struct object_s));
     if (!object) {
         return NULL;
@@ -75,8 +77,6 @@ static object_t __heap_alloc_object__(environment_t env, object_type_t type)
     object->marked = false;
 
     list_push_back(env->heap->objects, object->link);
-
-    __heap_need_gc__(env);
 
     return object;
 }
@@ -90,7 +90,6 @@ static void __heap_need_gc__(environment_t env)
     }
     */
 
-    
     heap_gc(env);
 }
 
@@ -125,7 +124,7 @@ static void __heap_sweep_objects__(environment_t env)
 
     list_safe_for_each(env->heap->objects, iter, next_iter) {
         object = list_element(iter, object_t, link);
-        if (object->marked) {
+        if (!object->marked) {
             list_erase(*iter);
             __heap_dispose_object__(object);
         }

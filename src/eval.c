@@ -50,6 +50,8 @@ void eval_expression(environment_t env, expr_t expr)
         break;
 
     case EXPR_TYPE_IDENTIFIER:
+        break;
+
     case EXPR_TYPE_ASSIGN:
     case EXPR_TYPE_CALL:
         __eval_call_expr__(env, expr->u.call);
@@ -141,5 +143,4 @@ static void __eval_null_expr__(environment_t env)
 static void __eval_call_expr__(environment_t env, expr_call_t call)
 {
 
-    printf("");
 }

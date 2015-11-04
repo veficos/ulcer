@@ -5,16 +5,22 @@
 
 #include "config.h"
 #include "list.h"
+#include "hlist.h"
 #include "array.h"
 #include "module.h"
 #include "cstring.h"
+#include "hash_table.h"
 
-typedef enum object_type_e    object_type_t;
-typedef struct object_s*      object_t;
-typedef enum value_type_e     value_type_t;
-typedef struct value_s*       value_t;
-typedef struct heap_s*        heap_t;
-typedef struct environment_s* environment_t;
+typedef enum object_type_e        object_type_t;
+typedef struct object_s*          object_t;
+typedef enum value_type_e         value_type_t;
+typedef struct value_s*           value_t;
+typedef struct heap_s*            heap_t;
+typedef struct variable_s*        variable_t;
+typedef struct local_variable_s*  local_variable_t;
+typedef struct local_reference_s* local_reference_t;
+typedef struct global_variable_s* global_variable_t;
+typedef struct environment_s*     environment_t;
 
 enum object_type_e {
     OBJECT_TYPE_STRING,
@@ -32,7 +38,6 @@ struct object_s {
 };
 
 enum value_type_e {
-    VALUE_TYPE_RESERVE,
     VALUE_TYPE_CHAR,
     VALUE_TYPE_BOOL,
     VALUE_TYPE_INT,
@@ -56,24 +61,45 @@ struct value_s {
     }u;
 };
 
-struct variable_s {
+struct local_variable_s {
     cstring_t name;
-    value_t   value;
+    value_t value;
+    list_node_t link;
+};
+
+struct local_reference_s {
+    value_t     value;
+    list_node_t link;
+};
+
+struct local_context_s {
+    list_t variables;
+    list_t references;
+    list_node_t link;
 };
 
 struct global_variable_s {
-    list_node_t link;
+    cstring_t    name;
+    value_t      value;
+    hlist_node_t link;
 };
 
 struct environment_s {
     module_t module;
     array_t  stack;
     heap_t   heap;
+    hash_table_t global_context;
+    list_t       local_context;
 };
 
 environment_t environment_new(void);
 void environment_free(environment_t env);
 void environment_add_module(environment_t env, module_t module);
-void environment_add_native_function(environment_t env);
+
+local_variable_t environment_new_local_variable(environment_t env, cstring_t name, value_t value);
+local_reference_t environment_new_local_reference(environment_t env, value_t value);
+void environment_reset_local_context(environment_t env);
+
+global_variable_t environment_new_global_variable(environment_t env, cstring_t name, value_t value);
 
 #endif

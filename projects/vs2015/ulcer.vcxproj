@@ -22,17 +22,19 @@
     <ClCompile Include="..\..\src\alloc.c" />
     <ClCompile Include="..\..\src\array.c" />
     <ClCompile Include="..\..\src\cstring.c" />
+    <ClCompile Include="..\..\src\environment.c" />
     <ClCompile Include="..\..\src\error.c" />
     <ClCompile Include="..\..\src\eval.c" />
     <ClCompile Include="..\..\src\executor.c" />
     <ClCompile Include="..\..\src\expr.c" />
-    <ClCompile Include="..\..\src\function.c" />
     <ClCompile Include="..\..\src\hashfn.c" />
     <ClCompile Include="..\..\src\hash_table.c" />
+    <ClCompile Include="..\..\src\heap.c" />
     <ClCompile Include="..\..\src\lexer.c" />
     <ClCompile Include="..\..\src\list.c" />
     <ClCompile Include="..\..\src\main.c" />
-    <ClCompile Include="..\..\src\heap.c" />
+    <ClCompile Include="..\..\src\module.c" />
+    <ClCompile Include="..\..\src\native.c" />
     <ClCompile Include="..\..\src\parser.c" />
     <ClCompile Include="..\..\src\source_code.c" />
     <ClCompile Include="..\..\src\stmt.c" />
@@ -43,23 +45,28 @@
     <ClInclude Include="..\..\src\array.h" />
     <ClInclude Include="..\..\src\config.h" />
     <ClInclude Include="..\..\src\cstring.h" />
+    <ClInclude Include="..\..\src\environment.h" />
     <ClInclude Include="..\..\src\error.h" />
     <ClInclude Include="..\..\src\eval.h" />
     <ClInclude Include="..\..\src\executor.h" />
     <ClInclude Include="..\..\src\expr.h" />
-    <ClInclude Include="..\..\src\function.h" />
     <ClInclude Include="..\..\src\hashfn.h" />
     <ClInclude Include="..\..\src\hash_table.h" />
+    <ClInclude Include="..\..\src\heap.h" />
     <ClInclude Include="..\..\src\hlist.h" />
     <ClInclude Include="..\..\src\lexer.h" />
     <ClInclude Include="..\..\src\list.h" />
-    <ClInclude Include="..\..\src\heap.h" />
+    <ClInclude Include="..\..\src\module.h" />
+    <ClInclude Include="..\..\src\native.h" />
     <ClInclude Include="..\..\src\parser.h" />
     <ClInclude Include="..\..\src\queue.h" />
     <ClInclude Include="..\..\src\source_code.h" />
     <ClInclude Include="..\..\src\stack.h" />
     <ClInclude Include="..\..\src\stmt.h" />
     <ClInclude Include="..\..\src\token.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="test.u" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{09549DA9-64BE-4FF5-A5C8-7FD0C6694227}</ProjectGuid>
