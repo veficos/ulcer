@@ -6,10 +6,12 @@
 #include "config.h"
 #include "expr.h"
 #include "list.h"
+#include "hlist.h"
+#include "cstring.h"
+#include "hash_table.h"
 
 typedef enum stmt_type_e     stmt_type_t;
 typedef struct stmt_s*       stmt_t;
-typedef struct stmt_return_s stmt_return_t;
 typedef struct stmt_global_s stmt_global_t;
 typedef struct stmt_if_s     stmt_if_t;
 typedef struct stmt_elif_s   stmt_elif_t;
@@ -89,5 +91,45 @@ stmt_t stmt_new_while(long line, long column, expr_t condition, stmt_t block);
 stmt_t stmt_new_for(long line, long column, expr_t init, expr_t condition, expr_t post, stmt_t block);
 stmt_t stmt_new_block(long line, long column);
 void stmt_free(stmt_t stmt);
+
+typedef struct parameter_s*  parameter_t;
+typedef struct function_s*   function_t;
+typedef enum function_type_e function_type_t;
+typedef struct functions_s*  functions_t;
+
+struct parameter_s {
+    cstring_t   name;
+    list_node_t link;
+};
+
+enum function_type_e {
+    FUNCTION_TYPE_SELF,
+    FUNCTION_TYPE_NATIVE,
+};
+
+struct function_s {
+    cstring_t       name;
+    function_type_t type;
+    long            line;
+    long            column;
+    union {
+        struct {
+            list_t parameters;
+            stmt_t block;
+        }self;
+    }u;
+    hlist_node_t link;
+};
+
+struct functions_s {
+    hash_table_t     htable;
+    hlist_node_ops_t ops;
+};
+
+parameter_t parameter_new(cstring_t name);
+void parameter_free(parameter_t parameter);
+
+function_t function_new_self(long line, long column, cstring_t name);
+void function_free(function_t func);
 
 #endif

@@ -1,56 +1,63 @@
 
 
-
-#include "alloc.h"
 #include "executor.h"
+#include "environment.h"
+#include "alloc.h"
+#include "stmt.h"
+#include "eval.h"
 
-static void __executor_statement__(executor_t inter, stmt_t stmt);
-static void __executor_expr_statement__(executor_t inter, stmt_t stmt);
+struct executor_s {
+    environment_t env;
+};
 
-executor_t executor_new(list_t statements, functions_t functions)
+static void __executor_statement__(environment_t env, stmt_t stmt);
+static void __executor_expr_statement__(environment_t env, stmt_t stmt);
+
+executor_t executor_new(environment_t env)
 {
-    executor_t inter = (executor_t)mem_alloc(sizeof(struct executor_s));
-    if (!inter) {
+    executor_t exec = (executor_t) 
+        mem_alloc(sizeof(struct executor_s));
+    if (!exec) {
         return NULL;
     }
 
-    inter->statements = statements;
-    inter->functions  = functions;
-    inter->stack      = array_new(128);
+    exec->env = env;
 
-    return inter;
+    return exec;
 }
 
-void executor_free(executor_t inter)
+void executor_free(executor_t exec)
 {
-    array_free(inter->stack);
-    mem_free(inter);
+    mem_free(exec);
 }
 
-void executor_run(executor_t inter)
+void executor_run(executor_t exec)
 {
-    list_iter_t iter;
+    list_iter_t iter, next_iter;
+    environment_t env = exec->env;
+    list_t statements;
     stmt_t stmt;
 
-    list_for_each(inter->statements, iter) {
+    statements = env->module->statements;
+    list_safe_for_each(statements, iter, next_iter) {
         stmt = list_element(iter, stmt_t, link);
-        __executor_statement__(inter, stmt);
+        __executor_statement__(env, stmt);
     }
 }
 
-static void __executor_statement__(executor_t inter, stmt_t stmt)
+static void __executor_statement__(environment_t env, stmt_t stmt)
 {
     switch (stmt->type)
     {
     case STMT_TYPE_EXPR:
-        __executor_expr_statement__(inter, stmt);
+        __executor_expr_statement__(env, stmt);
         break;
     default:
         break;
     }
 }
 
-static void __executor_expr_statement__(executor_t inter, stmt_t stmt)
+static void __executor_expr_statement__(environment_t env, stmt_t stmt)
 {
-
+    eval_expression(env, stmt->u.expr);
 }

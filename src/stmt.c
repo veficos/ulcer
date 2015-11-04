@@ -223,3 +223,59 @@ void stmt_free(stmt_t stmt)
 
     mem_free(stmt);
 }
+
+parameter_t parameter_new(cstring_t name)
+{
+    parameter_t parameter = (parameter_t) mem_alloc(sizeof(struct parameter_s));
+    if (!parameter) {
+        return NULL;
+    }
+
+    parameter->name = name;
+
+    return parameter;
+}
+
+void parameter_free(parameter_t parameter)
+{
+    cstring_free(parameter->name);
+    mem_free(parameter);
+}
+
+function_t function_new_self(long line, long column, cstring_t name)
+{
+    function_t func = (function_t) mem_alloc(sizeof(struct function_s));
+    if (!func) {
+        return NULL;
+    }
+
+    func->name         = name;
+    func->type         = FUNCTION_TYPE_SELF;
+    func->line         = line;
+    func->column       = column;
+
+    list_init(func->u.self.parameters);
+
+    return func;
+}
+
+void function_free(function_t func)
+{
+    list_iter_t iter, next_iter;
+    parameter_t parameter;
+
+    cstring_free(func->name);
+
+    switch (func->type) {
+    case FUNCTION_TYPE_SELF:
+        list_safe_for_each(func->u.self.parameters, iter, next_iter) {
+            list_erase(*iter);
+            parameter = list_element(iter, parameter_t, link);
+            parameter_free(parameter);
+        }
+        break;
+    }
+
+    stmt_free(func->u.self.block);
+    mem_free(func);
+}

@@ -1,7 +1,7 @@
 
 
 #include "parser.h"
-#include "function.h"
+#include "module.h"
 #include "alloc.h"
 #include "error.h"
 #include "expr.h"
@@ -10,15 +10,14 @@
 #include <assert.h>
 
 struct parser_s {
-    lexer_t lex;
-    list_t  statements;
-    functions_t functions;
+    lexer_t  lex;
+    module_t module;
 };
 
 static void __parser_translation_unit__(parser_t parse);
 static void __parser_definition_or_statement__(parser_t parse);
 static function_t __parser_function_definition__(parser_t parse);
-static void __parser_parameter_list__(parser_t parse, function_t function);
+static void __parser_parameter_list__(parser_t parse, function_t func);
 static stmt_t __parser_block__(parser_t parse);
 static stmt_t __parser_statement__(parser_t parse);
 static stmt_t __parser_global_statement__(parser_t parse);
@@ -49,41 +48,23 @@ parser_t parser_new(lexer_t lex)
         return NULL;
     }
 
+    parse->module    = module_new();
     parse->lex       = lex;
-    parse->functions = function_library_new();
-
-    list_init(parse->statements);
 
     return parse;
 }
 
 void parser_free(parser_t parse)
 {
-    list_iter_t iter, next_iter;
-
-    list_safe_for_each(parse->statements, iter, next_iter) {
-        list_erase(*iter);
-        stmt_free(list_element(iter, stmt_t, link));
-    }
-
-    functions_free(parse->functions);
-
+    module_free(parse->module);
     mem_free(parse);
 }
 
-void parser_translation(parser_t parse)
+module_t parser_generate_module(parser_t parse)
 {
     __parser_translation_unit__(parse);
-}
 
-list_t parser_get_statements(parser_t parse)
-{
-    return parse->statements;
-}
-
-functions_t parser_get_functions(parser_t parse)
-{
-    return parse->functions;
+    return parse->module;
 }
 
 static void __parser_need__(parser_t parse, token_value_t tv, const char *emsg)
@@ -122,19 +103,21 @@ static void __parser_definition_or_statement__(parser_t parse)
 {
     token_t tok;
     long line, column;
-    function_t function;
+    function_t func;
+    stmt_t stmt;
 
     tok    = lexer_peek(parse->lex);
     line   = tok->line;
     column = tok->column;
     if (tok->value == TOKEN_VALUE_FUNCTION) {
-        function = __parser_function_definition__(parse);
-        if (!functions_add(parse->functions, function)) {
-            error(tok->filename, line, column, "redefinition of '%s'", function->name);
+        func = __parser_function_definition__(parse);
+        if (!module_add_function(parse->module, func)) {
+            error(tok->filename, line, column, "redefinition function of '%s'", func->name);
         }
 
     } else {
-        list_push_back(parse->statements, __parser_statement__(parse)->link);
+        stmt = __parser_statement__(parse);
+        module_add_statment(parse->module, stmt);
     }
 }
 
@@ -142,7 +125,7 @@ static function_t __parser_function_definition__(parser_t parse)
 {
     token_t tok;
     long line, column;
-    function_t function = NULL;
+    function_t func = NULL;
 
     tok      = lexer_peek(parse->lex);
     line     = tok->line;
@@ -151,29 +134,29 @@ static function_t __parser_function_definition__(parser_t parse)
     __parser_expect_next__(parse, TOKEN_VALUE_IDENTIFIER,
         "expected a function name");
 
-    function = function_new(line, column, cstring_dup(lexer_peek(parse->lex)->token));
+    func = function_new_self(line, column, cstring_dup(lexer_peek(parse->lex)->token));
 
     __parser_expect_next__(parse, TOKEN_VALUE_LP, 
         "expected '(' after 'function'");
 
     lexer_next(parse->lex);
 
-    __parser_parameter_list__(parse, function);
+    __parser_parameter_list__(parse, func);
 
     __parser_expect__(parse, TOKEN_VALUE_RP,
         "expected ')'");
     
-    function->u.self.block = __parser_block__(parse);
+    func->u.self.block = __parser_block__(parse);
 
-    return function;
+    return func;
 }
 
-static void __parser_parameter_list__(parser_t parse, function_t function)
+static void __parser_parameter_list__(parser_t parse, function_t func)
 {
     token_t tok = lexer_peek(parse->lex);
 
     while (tok->type != TOKEN_TYPE_END && tok->value == TOKEN_VALUE_IDENTIFIER) {
-        list_push_back(function->u.self.parameters, parameter_new(cstring_dup(tok->token))->link);
+        list_push_back(func->u.self.parameters, parameter_new(cstring_dup(tok->token))->link);
         tok = lexer_next(parse->lex);
         if (tok->value != TOKEN_VALUE_COMMA) {
             break;
@@ -786,7 +769,7 @@ static expr_t __parser_primary_expression__(parser_t parse)
         break;
 
     case TOKEN_VALUE_LITERAL_STRING:
-        expr = expr_new(EXPR_TYPE_DOUBLE, tok);
+        expr = expr_new(EXPR_TYPE_STRING, tok);
         lexer_next(parse->lex);
         break;
 

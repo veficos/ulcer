@@ -4,9 +4,7 @@
 #define _ULCER_EVAL_H_
 
 #include "config.h"
-#include "executor.h"
-#include "expr.h"
 
-void eval_expression(executor_t exec, expr_t expr);
+void eval_expression(environment_t env, expr_t expr);
 
 #endif

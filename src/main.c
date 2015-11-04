@@ -146,14 +146,17 @@ int main(void)
     source_code_t sc = source_code_new("test.u", SOURCE_CODE_TYPE_FILE);
     lexer_t lex = lexer_new(sc);
     parser_t parse = parser_new(lex);
+    environment_t env = environment_new();
     executor_t exec;
 
-    parser_translation(parse);
+    environment_add_module(env, parser_generate_module(parse));
 
-    exec = executor_new(parser_get_statements(parse), parser_get_functions(parse));
+    exec = executor_new(env);
     executor_run(exec);
 
     executor_free(exec);
+
+    environment_free(env);
     parser_free(parse);
     lexer_free(lex);
     source_code_free(sc);
