@@ -134,7 +134,7 @@ static function_t __parser_function_definition__(parser_t parse)
     __parser_expect_next__(parse, TOKEN_VALUE_IDENTIFIER,
         "expected a function name");
 
-    func = function_new_self(line, column, cstring_dup(lexer_peek(parse->lex)->token));
+    func = function_new_user(line, column, cstring_dup(lexer_peek(parse->lex)->token));
 
     __parser_expect_next__(parse, TOKEN_VALUE_LP, 
         "expected '(' after 'function'");
@@ -146,7 +146,7 @@ static function_t __parser_function_definition__(parser_t parse)
     __parser_expect__(parse, TOKEN_VALUE_RP,
         "expected ')'");
     
-    func->u.self.block = __parser_block__(parse);
+    func->u.user.block = __parser_block__(parse);
 
     return func;
 }
@@ -156,7 +156,7 @@ static void __parser_parameter_list__(parser_t parse, function_t func)
     token_t tok = lexer_peek(parse->lex);
 
     while (tok->type != TOKEN_TYPE_END && tok->value == TOKEN_VALUE_IDENTIFIER) {
-        list_push_back(func->u.self.parameters, parameter_new(cstring_dup(tok->token))->link);
+        list_push_back(func->u.user.parameters, parameter_new(cstring_dup(tok->token))->link);
         tok = lexer_next(parse->lex);
         if (tok->value != TOKEN_VALUE_COMMA) {
             break;

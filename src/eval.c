@@ -1,5 +1,6 @@
 
 #include "environment.h"
+#include "error.h"
 #include "array.h"
 #include "eval.h"
 #include "heap.h"
@@ -12,7 +13,9 @@ static void __eval_float_expr__(environment_t env, float float_value);
 static void __eval_double_expr__(environment_t env, double double_value);
 static void __eval_string_expr__(environment_t env, cstring_t string_value);
 static void __eval_null_expr__(environment_t env);
-static void __eval_call_expr__(environment_t env, expr_call_t call);
+static void __eval_call_expr__(environment_t env, expr_t call_expr);
+static void __eval_native_function_call_expr__(environment_t env, expr_call_t call, native_function_pt function);
+static void __eval_binary_expr__(environment_t env, expr_type_t type, expr_t left, expr_t right);
 
 void eval_expression(environment_t env, expr_t expr)
 {
@@ -53,12 +56,16 @@ void eval_expression(environment_t env, expr_t expr)
         break;
 
     case EXPR_TYPE_ASSIGN:
+        break;
+
     case EXPR_TYPE_CALL:
-        __eval_call_expr__(env, expr->u.call);
+        __eval_call_expr__(env, expr);
         break;
 
     case EXPR_TYPE_PLUS:
     case EXPR_TYPE_MINUS:
+        break;
+
     case EXPR_TYPE_MUL:
     case EXPR_TYPE_DIV:
     case EXPR_TYPE_MOD:
@@ -70,6 +77,9 @@ void eval_expression(environment_t env, expr_t expr)
     case EXPR_TYPE_LEQ:
     case EXPR_TYPE_EQ:
     case EXPR_TYPE_NEQ:
+        __eval_binary_expr__(env, expr->type, expr->u.binary.left, expr->u.binary.right);
+        break;
+
     case EXPR_TYPE_AND:
         break;
     case EXPR_TYPE_OR:
@@ -140,7 +150,43 @@ static void __eval_null_expr__(environment_t env)
     value->type = VALUE_TYPE_NULL;
 }
 
-static void __eval_call_expr__(environment_t env, expr_call_t call)
+static void __eval_call_expr__(environment_t env, expr_t call_expr)
 {
+    function_t function;
+    
+    function = environment_search_function(env, call_expr->u.call.function_name);
+    if (!function) {
+        runtime_error(call_expr->line,
+                      call_expr->column,
+                      "undefined reference to '%s'",
+                      call_expr->u.call.function_name);
+    }
 
+    switch (function->type) {
+    case FUNCTION_TYPE_NATIVE:
+        __eval_native_function_call_expr__(env, call_expr->u.call, function->u.native.function);
+        break;
+    }
+}
+
+static void __eval_native_function_call_expr__(environment_t env, expr_call_t call, native_function_pt function)
+{
+    list_iter_t iter;
+    unsigned long argc = 0;
+
+    list_for_each(call.args, iter) {
+        eval_expression(env, list_element(iter, expr_t, link));
+        argc++;
+    }
+
+    function(env->stack);
+
+    array_pop_n(env->stack, argc);
+}
+
+static void __eval_binary_expr__(environment_t env, expr_type_t type, expr_t left, expr_t right)
+{
+    switch (type) {
+
+    }
 }

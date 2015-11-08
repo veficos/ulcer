@@ -52,6 +52,7 @@ static void __executor_statement__(environment_t env, stmt_t stmt)
     case STMT_TYPE_EXPR:
         __executor_expr_statement__(env, stmt);
         break;
+
     case STMT_TYPE_BREAK:
     case STMT_TYPE_CONTINUE:
     case STMT_TYPE_RETURN:

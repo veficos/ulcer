@@ -17,6 +17,7 @@ struct module_s {
 module_t module_new(void);
 void module_free(module_t module);
 bool module_add_function(module_t module, function_t func);
+function_t module_search_function(module_t module, cstring_t func_name);
 void module_add_statment(module_t module, stmt_t stmt);
 
 #endif

@@ -102,4 +102,6 @@ void environment_reset_local_context(environment_t env);
 
 global_variable_t environment_new_global_variable(environment_t env, cstring_t name, value_t value);
 
+function_t environment_search_function(environment_t env, cstring_t function_name);
+
 #endif

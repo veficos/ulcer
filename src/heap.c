@@ -44,6 +44,15 @@ heap_t heap_new(void)
 
 void heap_free(heap_t heap)
 {
+    list_iter_t iter, next_iter;
+    object_t object;
+
+    list_safe_for_each(heap->objects, iter, next_iter) {
+        object = list_element(iter, object_t, link);
+        list_erase(*iter);
+        __heap_dispose_object__(object);
+    }
+
     mem_free(heap);
 }
 
@@ -134,7 +143,6 @@ static void __heap_sweep_objects__(environment_t env)
 static void __heap_dispose_object__(object_t obj)
 {
     if (obj->type == OBJECT_TYPE_STRING) {
-        printf("»ØÊÕ:%s\n", obj->u.string);
         cstring_free(obj->u.string);
     }
 

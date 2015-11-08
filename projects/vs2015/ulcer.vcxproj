@@ -34,7 +34,6 @@
     <ClCompile Include="..\..\src\list.c" />
     <ClCompile Include="..\..\src\main.c" />
     <ClCompile Include="..\..\src\module.c" />
-    <ClCompile Include="..\..\src\native.c" />
     <ClCompile Include="..\..\src\parser.c" />
     <ClCompile Include="..\..\src\source_code.c" />
     <ClCompile Include="..\..\src\stmt.c" />
@@ -57,7 +56,6 @@
     <ClInclude Include="..\..\src\lexer.h" />
     <ClInclude Include="..\..\src\list.h" />
     <ClInclude Include="..\..\src\module.h" />
-    <ClInclude Include="..\..\src\native.h" />
     <ClInclude Include="..\..\src\parser.h" />
     <ClInclude Include="..\..\src\queue.h" />
     <ClInclude Include="..\..\src\source_code.h" />

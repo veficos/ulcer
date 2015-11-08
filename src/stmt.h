@@ -6,6 +6,7 @@
 #include "config.h"
 #include "expr.h"
 #include "list.h"
+#include "array.h"
 #include "hlist.h"
 #include "cstring.h"
 #include "hash_table.h"
@@ -62,10 +63,8 @@ struct stmt_for_s {
 
 struct stmt_s {
     stmt_type_t type;
-
     long        line;
     long        column;
-    
     union {
         expr_t        expr;
         list_t        block;
@@ -76,7 +75,6 @@ struct stmt_s {
         stmt_while_t  stmt_while;
         stmt_for_t    stmt_for;
     }u;
-
     list_node_t link;
 };
 
@@ -103,9 +101,11 @@ struct parameter_s {
 };
 
 enum function_type_e {
-    FUNCTION_TYPE_SELF,
+    FUNCTION_TYPE_USER,
     FUNCTION_TYPE_NATIVE,
 };
+
+typedef array_t (*native_function_pt)(array_t args);
 
 struct function_s {
     cstring_t       name;
@@ -114,9 +114,12 @@ struct function_s {
     long            column;
     union {
         struct {
+            native_function_pt function;
+        }native;
+        struct {
             list_t parameters;
             stmt_t block;
-        }self;
+        }user;
     }u;
     hlist_node_t link;
 };
@@ -129,7 +132,8 @@ struct functions_s {
 parameter_t parameter_new(cstring_t name);
 void parameter_free(parameter_t parameter);
 
-function_t function_new_self(long line, long column, cstring_t name);
+function_t function_new_user(long line, long column, cstring_t name);
+function_t function_new_native(cstring_t name, native_function_pt function);
 void function_free(function_t func);
 
 #endif

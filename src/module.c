@@ -70,6 +70,21 @@ void module_add_statment(module_t module, stmt_t stmt)
      list_push_back(module->statements, stmt->link);
 }
 
+function_t module_search_function(module_t module, cstring_t func_name)
+{
+    hlist_node_t *result;
+    struct function_s search;
+
+    search.name = func_name;
+
+    result = hash_table_search(module->functions, &search.link);
+    if (!result) {
+        return NULL;
+    }
+    
+    return hlist_element(result, function_t, link);
+}
+
 static int __module_function_compare__(const hlist_node_t *lhs, const hlist_node_t *rhs)
 {
     function_t lfun  = hlist_element(lhs, function_t, link);

@@ -4,6 +4,17 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+void runtime_error(long line, long column, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    fprintf(stderr, "nc: runtime error: ");
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    va_end(ap);
+    exit(-1);
+}
+
 void error(const char *filename, long line, long column, const char *fmt, ...)
 {
     va_list ap;

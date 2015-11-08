@@ -242,7 +242,7 @@ void parameter_free(parameter_t parameter)
     mem_free(parameter);
 }
 
-function_t function_new_self(long line, long column, cstring_t name)
+function_t function_new_user(long line, long column, cstring_t name)
 {
     function_t func = (function_t) mem_alloc(sizeof(struct function_s));
     if (!func) {
@@ -250,11 +250,27 @@ function_t function_new_self(long line, long column, cstring_t name)
     }
 
     func->name         = name;
-    func->type         = FUNCTION_TYPE_SELF;
+    func->type         = FUNCTION_TYPE_USER;
     func->line         = line;
     func->column       = column;
 
-    list_init(func->u.self.parameters);
+    list_init(func->u.user.parameters);
+
+    return func;
+}
+
+function_t function_new_native(cstring_t name, native_function_pt function)
+{
+    function_t func = (function_t) mem_alloc(sizeof(struct function_s));
+    if (!func) {
+        return NULL;
+    }
+
+    func->name              = name;
+    func->type              = FUNCTION_TYPE_NATIVE;
+    func->line              = 0;
+    func->column            = 0;
+    func->u.native.function = function;
 
     return func;
 }
@@ -267,15 +283,19 @@ void function_free(function_t func)
     cstring_free(func->name);
 
     switch (func->type) {
-    case FUNCTION_TYPE_SELF:
-        list_safe_for_each(func->u.self.parameters, iter, next_iter) {
+    case FUNCTION_TYPE_USER:
+        list_safe_for_each(func->u.user.parameters, iter, next_iter) {
             list_erase(*iter);
             parameter = list_element(iter, parameter_t, link);
             parameter_free(parameter);
         }
+        stmt_free(func->u.user.block);
+        break;
+
+    case FUNCTION_TYPE_NATIVE:
         break;
     }
 
-    stmt_free(func->u.self.block);
+    
     mem_free(func);
 }
