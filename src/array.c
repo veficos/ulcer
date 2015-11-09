@@ -112,6 +112,15 @@ bool array_resize(array_t a, unsigned long n)
     return true;
 }
 
+void *array_index(array_t a, unsigned long index)
+{
+    if (a->nelts <= index) {
+        return NULL;
+    }
+
+    return (void*)((unsigned char *)a->elts + a->size * index);
+}
+
 void *array_push(array_t a)
 {
     void *elt;

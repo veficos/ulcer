@@ -16,6 +16,7 @@ static void __eval_null_expr__(environment_t env);
 static void __eval_call_expr__(environment_t env, expr_t call_expr);
 static void __eval_native_function_call_expr__(environment_t env, expr_call_t call, native_function_pt function);
 static void __eval_binary_expr__(environment_t env, expr_type_t type, expr_t left, expr_t right);
+static void __eval_int_binary_expr__(environment_t env, expr_type_t type, value_t left, value_t right);
 
 void eval_expression(environment_t env, expr_t expr)
 {
@@ -186,7 +187,63 @@ static void __eval_native_function_call_expr__(environment_t env, expr_call_t ca
 
 static void __eval_binary_expr__(environment_t env, expr_type_t type, expr_t left, expr_t right)
 {
-    switch (type) {
+    struct value_s l, r;
+    value_t lvalue = &l;
+    value_t rvalue = &r;
 
+    eval_expression(env, left);
+    eval_expression(env, right);
+
+    *lvalue = *(value_t) array_index(env->stack, array_length(env->stack) - 1);
+    *rvalue = *(value_t) array_index(env->stack, array_length(env->stack) - 2);
+
+    array_pop(env->stack);
+    array_pop(env->stack);
+
+    if (lvalue->type == VALUE_TYPE_CHAR && rvalue->type == VALUE_TYPE_CHAR) {
+    } else if (lvalue->type == VALUE_TYPE_BOOL && rvalue->type == VALUE_TYPE_BOOL) {
+    } else if (lvalue->type == VALUE_TYPE_INT && rvalue->type == VALUE_TYPE_INT) {
+        __eval_int_binary_expr__(env, type, lvalue, rvalue);
+
+    } else if (lvalue->type == VALUE_TYPE_FLOAT && rvalue->type == VALUE_TYPE_INT) {
+
+    } else if (lvalue->type == VALUE_TYPE_INT && rvalue->type == VALUE_TYPE_FLOAT) {
+    } else if (lvalue->type == VALUE_TYPE_DOUBLE && rvalue->type == VALUE_TYPE_INT) {
+    } else if (lvalue->type == VALUE_TYPE_INT && rvalue->type == VALUE_TYPE_DOUBLE) {
+    } else if (lvalue->type == VALUE_TYPE_LONG && rvalue->type == VALUE_TYPE_LONG) {
+    } else if (lvalue->type == VALUE_TYPE_FLOAT && rvalue->type == VALUE_TYPE_LONG) {
+    } else if (lvalue->type == VALUE_TYPE_LONG && rvalue->type == VALUE_TYPE_FLOAT) {
+    } else if (lvalue->type == VALUE_TYPE_DOUBLE && rvalue->type == VALUE_TYPE_LONG) {
+    } else if (lvalue->type == VALUE_TYPE_LONG && rvalue->type == VALUE_TYPE_DOUBLE) {
+    } else if (lvalue->type == VALUE_TYPE_FLOAT && rvalue->type == VALUE_TYPE_FLOAT) {
+    } else if (lvalue->type == VALUE_TYPE_DOUBLE && rvalue->type == VALUE_TYPE_FLOAT) {
+    } else if (lvalue->type == VALUE_TYPE_FLOAT && rvalue->type == VALUE_TYPE_DOUBLE) {
+    } else if (lvalue->type == VALUE_TYPE_DOUBLE && rvalue->type == VALUE_TYPE_DOUBLE) {
+    } else if (lvalue->type == VALUE_TYPE_STRING && rvalue->type == VALUE_TYPE_STRING) {
+    } else if (lvalue->type == VALUE_TYPE_NULL && rvalue->type == VALUE_TYPE_NULL) {
+    } else {
+    }
+}
+
+static void __eval_int_binary_expr__(environment_t env, expr_type_t type, value_t left, value_t right)
+{
+    value_t result = (value_t) array_push(env->stack);
+    result->type = VALUE_TYPE_INT;
+    switch (type) {
+    case EXPR_TYPE_ADD:
+        result->u.int_value = left->u.int_value + right->u.int_value;
+        break;
+    case EXPR_TYPE_SUB:
+        result->u.int_value = left->u.int_value - right->u.int_value;
+        break;
+    case EXPR_TYPE_MUL:
+        result->u.int_value = left->u.int_value * right->u.int_value;
+        break;
+    case EXPR_TYPE_DIV:
+        result->u.int_value = left->u.int_value / right->u.int_value;
+        break;
+    case EXPR_TYPE_MOD:
+        result->u.int_value = left->u.int_value % right->u.int_value;
+        break;
     }
 }

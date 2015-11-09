@@ -59,6 +59,7 @@ void array_swap(array_t lhs, array_t rhs);
 void array_shrink_to_fit(array_t a);
 bool array_reserve(array_t a, unsigned long n);
 bool array_resize(array_t a, unsigned long n);
+void *array_index(array_t a, unsigned long index);
 void *array_push(array_t a);
 void *array_push_n(array_t a, unsigned long n);
 bool array_erase(array_t a, unsigned int index);

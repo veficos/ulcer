@@ -296,6 +296,5 @@ void function_free(function_t func)
         break;
     }
 
-    
     mem_free(func);
 }

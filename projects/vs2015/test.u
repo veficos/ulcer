@@ -1,6 +1,6 @@
 
 
 
-print(1, 2, 3, 4+4, "helloworld", 'c', true, false, 123.4436f, 123.123, null);
+print(1, 2, 3, 4*20, "helloworld", 'c', true, false, 123.4436f, 123.123, null);
 
 print("\n");
