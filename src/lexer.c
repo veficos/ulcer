@@ -210,7 +210,7 @@ reparse:
 
     } else if (ch == '&') {
         __lexer_parse_operator__(lex, TOKEN_VALUE_NIL);
-        if ((__lexer_peek_char__(lex) == '&')) {
+        if ((__lexer_peek_char__(lex) != '&')) {
             error(source_code_file_name(lex->sc),
                   lex->current_line,
                   lex->current_column,
@@ -222,7 +222,7 @@ reparse:
 
     } else if (ch == '|') {
         __lexer_parse_operator__(lex, TOKEN_VALUE_NIL);
-        if (!(__lexer_peek_char__(lex) == '|')) {
+        if (!(__lexer_peek_char__(lex) != '|')) {
             error(source_code_file_name(lex->sc),
                   lex->current_line,
                   lex->current_column,

@@ -290,14 +290,6 @@
 			>
 		</File>
 		<File
-			RelativePath="..\..\src\native.c"
-			>
-		</File>
-		<File
-			RelativePath="..\..\src\native.h"
-			>
-		</File>
-		<File
 			RelativePath="..\..\src\parser.c"
 			>
 		</File>

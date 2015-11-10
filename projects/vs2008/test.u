@@ -1,8 +1,1 @@
-function a(a,b,c) {
-    b = a+b+c;
-   
-}
-
-
-"abc";
-"def";
+print((1>=1) && (2 <= 1));

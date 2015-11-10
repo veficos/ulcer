@@ -16,7 +16,7 @@ struct heap_s {
 #define HEAP_THRESHOLD_SIZE (1024*256)
 #endif
 
-#define __heap_is_object_value__(value)                                       \
+#define __heap_value_is_object__(value)                                       \
     ((value).type == VALUE_TYPE_STRING)
 
 static object_t __heap_alloc_object__(environment_t env, object_type_t type);
@@ -60,6 +60,14 @@ void heap_gc(environment_t env)
 {
     __heap_mark_objects__(env);
     __heap_sweep_objects__(env);
+}
+
+void heap_takeover_value(environment_t env, value_t value)
+{
+    if (__heap_value_is_object__(*value)) {
+        value->u.object_value->marked = false;
+        list_push_back(env->heap->objects, value->u.object_value->link);
+    }
 }
 
 object_t heap_alloc_string(environment_t env, cstring_t cstr)
@@ -120,7 +128,7 @@ static void __heap_mark_objects__(environment_t env)
     }
 
     array_for_each(stack, stack_base, index) {
-        if (__heap_is_object_value__(stack_base[index])) {
+        if (__heap_value_is_object__(stack_base[index])) {
             __heap_mark_object__(stack_base[index].u.object_value);
         }
     }

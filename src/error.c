@@ -8,7 +8,7 @@ void runtime_error(long line, long column, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    fprintf(stderr, "nc: runtime error: ");
+    fprintf(stderr, "ulcer:%ld:%ld: runtime error: ", line, column);
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
     va_end(ap);
