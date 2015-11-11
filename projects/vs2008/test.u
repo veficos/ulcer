@@ -1,1 +1,19 @@
-print((1>=1) && (2 <= 1));
+
+function fuck(a, b, c, d) {
+    return a+b+c+d;
+}
+
+print(fuck(1,2,4,5));
+print("\n");
+
+/*
+for (i=1; ; i=i+1) {
+
+    if (i == 10) {
+        break;
+    }
+    
+    print(i);
+    print("\n");
+}
+*/

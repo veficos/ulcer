@@ -83,6 +83,7 @@ typedef struct expr_s {
     list_node_t link;
 }* expr_t;
 
+const char* expr_type_string(expr_type_t expr_type);
 
 expr_t expr_new(expr_type_t type, token_t tok);
 expr_t expr_new_assign(long line, long column, cstring_t lvalue, expr_t rvalue);

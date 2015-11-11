@@ -112,24 +112,44 @@ static void __heap_need_gc__(environment_t env)
 
 static void __heap_mark_objects__(environment_t env)
 {
-    list_iter_t iter;
-    object_t object;
-    value_t stack_base;
-    array_t stack;
-    heap_t heap;
-    int index;
+    
+    {
+        /* clear mark */
+        list_iter_t iter;
+        object_t object;
 
-    heap = env->heap;
-    stack = env->stack;
-
-    list_for_each(heap->objects, iter) {
-        object = list_element(iter, object_t, link);
-        __heap_unmark_object__(object);
+        list_for_each(env->heap->objects, iter) {
+            object = list_element(iter, object_t, link);
+            __heap_unmark_object__(object);
+        }
     }
 
-    array_for_each(stack, stack_base, index) {
-        if (__heap_value_is_object__(stack_base[index])) {
-            __heap_mark_object__(stack_base[index].u.object_value);
+    {
+        /* mark global variable */
+        global_variable_t variable;
+        hash_table_iter_t iter;
+
+        iter = hash_table_iter_new(env->global_context);
+        hash_table_for_each(env->global_context, iter) {
+            variable = hash_table_iter_element(iter, global_variable_t, link);
+            if (__heap_value_is_object__(*variable->value)) {
+                __heap_mark_object__(variable->value->u.object_value);
+            }           
+        }
+        hash_table_iter_free(iter);
+    }
+
+    {
+        /* mark stack */
+        int index;
+        array_t stack;
+        value_t stack_base;
+        
+        stack = env->stack;
+        array_for_each(stack, stack_base, index) {
+            if (__heap_value_is_object__(stack_base[index])) {
+                __heap_mark_object__(stack_base[index].u.object_value);
+            }
         }
     }
 }

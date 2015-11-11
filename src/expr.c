@@ -6,6 +6,66 @@
 #include <stdio.h>
 #include <assert.h>
 
+const char* expr_type_string(expr_type_t expr_type)
+{
+    switch (expr_type) {
+    case EXPR_TYPE_CHAR:
+        return "char";
+    case EXPR_TYPE_BOOL:
+        return "bool";
+    case EXPR_TYPE_INT:
+        return "int";
+    case EXPR_TYPE_LONG:
+        return "long";
+    case EXPR_TYPE_FLOAT:
+        return "float";
+    case EXPR_TYPE_DOUBLE:
+        return "double";
+    case EXPR_TYPE_STRING:
+        return "string";
+    case EXPR_TYPE_NULL:
+        return "null";
+    case EXPR_TYPE_IDENTIFIER:
+        return "indentifier";
+    case EXPR_TYPE_ASSIGN:
+        return "=";
+    case EXPR_TYPE_CALL:
+        return "function call";
+    case EXPR_TYPE_PLUS:
+        return "+";
+    case EXPR_TYPE_MINUS:
+        return "-";
+    case EXPR_TYPE_MUL:
+        return "*";
+    case EXPR_TYPE_DIV:
+        return "/";
+    case EXPR_TYPE_MOD:
+        return "%";
+    case EXPR_TYPE_ADD:
+        return "+";
+    case EXPR_TYPE_SUB:
+        return "-";
+    case EXPR_TYPE_GT:
+        return ">";
+    case EXPR_TYPE_GEQ:
+        return ">=";
+    case EXPR_TYPE_LT:
+        return "<";
+    case EXPR_TYPE_LEQ:
+        return "<=";
+    case EXPR_TYPE_EQ:
+        return "==";
+    case EXPR_TYPE_NEQ:
+        return "!=";
+    case EXPR_TYPE_AND:
+        return "&&";
+    case EXPR_TYPE_OR:
+        return "||";
+    }
+
+    return "unkown";
+}
+
 expr_t expr_new(expr_type_t type, token_t tok)
 {
     expr_t expr = mem_alloc(sizeof(struct expr_s));

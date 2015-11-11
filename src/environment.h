@@ -16,9 +16,9 @@ typedef struct object_s*          object_t;
 typedef enum value_type_e         value_type_t;
 typedef struct value_s*           value_t;
 typedef struct heap_s*            heap_t;
-typedef struct variable_s*        variable_t;
 typedef struct local_variable_s*  local_variable_t;
 typedef struct local_reference_s* local_reference_t;
+typedef struct local_context_s*   local_context_t;
 typedef struct global_variable_s* global_variable_t;
 typedef struct environment_s*     environment_t;
 
@@ -61,6 +61,8 @@ struct value_s {
     }u;
 };
 
+const char* value_type_string(value_t value);
+
 struct local_variable_s {
     cstring_t name;
     value_t value;
@@ -96,12 +98,15 @@ environment_t environment_new(void);
 void environment_free(environment_t env);
 void environment_add_module(environment_t env, module_t module);
 
+function_t environment_search_function(environment_t env, cstring_t function_name);
+
+void environment_push_local_context(environment_t env);
+void environment_pop_local_context(environment_t env);
+value_t environment_search_global_variable(environment_t env, cstring_t name);
 local_variable_t environment_new_local_variable(environment_t env, cstring_t name, value_t value);
 local_reference_t environment_new_local_reference(environment_t env, value_t value);
-void environment_reset_local_context(environment_t env);
 
-global_variable_t environment_new_global_variable(environment_t env, cstring_t name, value_t value);
-
-function_t environment_search_function(environment_t env, cstring_t function_name);
+void environment_new_global_variable(environment_t env, cstring_t name, value_t value);
+value_t environment_search_global_variable(environment_t env, cstring_t name);
 
 #endif

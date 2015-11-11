@@ -1,9 +1,11 @@
 
 #include "environment.h"
+#include "executor.h"
 #include "error.h"
 #include "array.h"
 #include "eval.h"
 #include "heap.h"
+#include "expr.h"
 
 #include <math.h>
 
@@ -17,8 +19,6 @@
      (oper) == EXPR_TYPE_LT || (oper) == EXPR_TYPE_LEQ ||                     \
      (oper) == EXPR_TYPE_EQ || (oper) == EXPR_TYPE_NEQ)
 
-static const char* __get_value_type_string__(value_t value);
-static const char* __get_expt_type_string__(expr_type_t expt_type);
 static void __eval_char_expr__(environment_t env, char char_value);
 static void __eval_bool_expr__(environment_t env, bool bool_value);
 static void __eval_int_expr__(environment_t env, int int_value);
@@ -28,7 +28,10 @@ static void __eval_double_expr__(environment_t env, double double_value);
 static void __eval_string_expr__(environment_t env, cstring_t string_value);
 static void __eval_null_expr__(environment_t env);
 static void __eval_call_expr__(environment_t env, expr_t call_expr);
+static void __eval_identifier_expr__(environment_t env, cstring_t identifier);
+static void __eval_assign_expr__(environment_t env, cstring_t varname, expr_t rvalue_expr);
 static void __eval_native_function_call_expr__(environment_t env, expr_call_t call, native_function_pt function);
+static void __eval_function_call_expr__(environment_t env, expr_t call_expr, function_t func);
 static void __eval_binary_expr__(environment_t env, expr_type_t type, expr_t left, expr_t right);
 static void __eval_char_binary_expr__(environment_t env, long line, long column, expr_type_t type, value_t left, value_t right, value_t result);
 static void __eval_bool_binary_expr__(environment_t env, long line, long column, expr_type_t type, value_t left, value_t right, value_t result);
@@ -37,6 +40,7 @@ static void __eval_long_binary_expr__(environment_t env, long line, long column,
 static void __eval_float_binary_expr__(environment_t env, long line, long column, expr_type_t type, value_t left, value_t right, value_t result);
 static void __eval_double_binary_expr__(environment_t env, long line, long column, expr_type_t type, value_t left, value_t right, value_t result);
 static void __eval_string_binary_expr__(environment_t env, long line, long column, expr_type_t type, value_t left, value_t right, value_t result);
+static void __eval_null_binary_expr__(environment_t env, long line, long column, expr_type_t type, value_t left, value_t right, value_t result);
 static void __eval_logic_binary_expr__(environment_t env, expr_type_t type, expr_t left, expr_t right);
 
 void eval_expression(environment_t env, expr_t expr)
@@ -75,9 +79,11 @@ void eval_expression(environment_t env, expr_t expr)
         break;
 
     case EXPR_TYPE_IDENTIFIER:
+        __eval_identifier_expr__(env, expr->u.identifier);
         break;
 
     case EXPR_TYPE_ASSIGN:
+        __eval_assign_expr__(env, expr->u.assign.lvalue, expr->u.assign.rvalue);
         break;
 
     case EXPR_TYPE_CALL:
@@ -85,7 +91,7 @@ void eval_expression(environment_t env, expr_t expr)
         break;
 
     case EXPR_TYPE_PLUS:
-    case EXPR_TYPE_MINUS:
+    case EXPR_TYPE_MINUS:   
         break;
 
     case EXPR_TYPE_MUL:
@@ -107,90 +113,6 @@ void eval_expression(environment_t env, expr_t expr)
         __eval_logic_binary_expr__(env, expr->type, expr->u.binary.left, expr->u.binary.right);
         break;
     }
-}
-
-static const char* __get_value_type_string__(value_t value)
-{
-    switch (value->type) {
-    case VALUE_TYPE_CHAR:
-        return "char";
-    case VALUE_TYPE_BOOL:
-        return "bool";
-    case VALUE_TYPE_INT:
-        return "int";
-    case VALUE_TYPE_LONG:
-        return "long";
-    case VALUE_TYPE_FLOAT:
-        return "float";
-    case VALUE_TYPE_DOUBLE:
-        return "double";
-    case VALUE_TYPE_STRING:
-        return "string";
-    case VALUE_TYPE_NULL:
-        return "null";
-    }
-
-    return "unkown";
-}
-
-static const char* __get_expt_type_string__(expr_type_t expr_type)
-{
-    switch (expr_type) {
-    case EXPR_TYPE_CHAR:
-        return "char";
-    case EXPR_TYPE_BOOL:
-        return "bool";
-    case EXPR_TYPE_INT:
-        return "int";
-    case EXPR_TYPE_LONG:
-        return "long";
-    case EXPR_TYPE_FLOAT:
-        return "float";
-    case EXPR_TYPE_DOUBLE:
-        return "double";
-    case EXPR_TYPE_STRING:
-        return "string";
-    case EXPR_TYPE_NULL:
-        return "null";
-    case EXPR_TYPE_IDENTIFIER:
-        return "indentifier";
-    case EXPR_TYPE_ASSIGN:
-        return "=";
-    case EXPR_TYPE_CALL:
-        return "function call";
-    case EXPR_TYPE_PLUS:
-        return "+";
-    case EXPR_TYPE_MINUS:
-        return "-";
-    case EXPR_TYPE_MUL:
-        return "*";
-    case EXPR_TYPE_DIV:
-        return "/";
-    case EXPR_TYPE_MOD:
-        return "%";
-    case EXPR_TYPE_ADD:
-        return "+";
-    case EXPR_TYPE_SUB:
-        return "-";
-    case EXPR_TYPE_GT:
-        return ">";
-    case EXPR_TYPE_GEQ:
-        return ">=";
-    case EXPR_TYPE_LT:
-        return "<";
-    case EXPR_TYPE_LEQ:
-        return "<=";
-    case EXPR_TYPE_EQ:
-        return "==";
-    case EXPR_TYPE_NEQ:
-        return "!=";
-    case EXPR_TYPE_AND:
-        return "&&";
-    case EXPR_TYPE_OR:
-        return "||";
-    }
-
-    return "unkown";
 }
 
 static void __eval_char_expr__(environment_t env, char char_value)
@@ -272,6 +194,9 @@ static void __eval_call_expr__(environment_t env, expr_t call_expr)
     case FUNCTION_TYPE_NATIVE:
         __eval_native_function_call_expr__(env, call_expr->u.call, function->u.native.function);
         break;
+    case FUNCTION_TYPE_USER:
+        __eval_function_call_expr__(env, call_expr, function);
+        break;
     }
 }
 
@@ -288,6 +213,84 @@ static void __eval_native_function_call_expr__(environment_t env, expr_call_t ca
     function(env->stack);
 
     array_pop_n(env->stack, argc);
+}
+
+static void __eval_function_call_expr__(environment_t env, expr_t call_expr, function_t func)
+{
+    list_iter_t iter;
+    list_iter_t parameter;
+    cstring_t parameter_name;
+    value_t parameter_value;
+    unsigned long argc = 0;
+    unsigned long index = 0;
+  
+    list_for_each(call_expr->u.call.args, iter) {
+        eval_expression(env, list_element(iter, expr_t, link));
+        argc++;
+    }
+
+    parameter = list_begin(func->u.user.parameters);
+
+    for (; index < argc; index++) {
+        if (list_end(func->u.user.parameters) == parameter) {
+            continue;
+        }
+
+        parameter_name  = list_element(parameter, parameter_t, link)->name;
+        parameter_value = (value_t) array_index(env->stack, index);
+        environment_new_global_variable(env, parameter_name, parameter_value);
+
+        parameter = list_next(parameter);
+    }
+
+    array_pop_n(env->stack, argc);
+
+    switch (executor_block_statement(env, func->u.user.block)) {
+        case EXECUTOR_RESULT_BREAK:
+            runtime_error(call_expr->line, 
+                          call_expr->column,
+                          "break outside loop");
+            break;
+        case EXECUTOR_RESULT_CONTINUE:
+            runtime_error(call_expr->line, 
+                          call_expr->column,
+                          "continue outside loop");
+            break;
+        default:
+            break;
+    }
+}
+
+static void __eval_identifier_expr__(environment_t env, cstring_t identifier)
+{
+    value_t value;
+    
+    value = environment_search_global_variable(env, identifier);
+    if (!value) {
+
+        value = (value_t) array_push(env->stack);
+        value->type = VALUE_TYPE_NULL;
+    } else {
+        *(value_t) array_push(env->stack) = *value;
+    }
+}
+
+static void __eval_assign_expr__(environment_t env, cstring_t varname, expr_t rvalue_expr)
+{
+    value_t lvalue;
+    value_t expr_value;
+
+    eval_expression(env, rvalue_expr);
+
+    expr_value = (value_t) array_index(env->stack, array_length(env->stack) - 1);
+
+    lvalue = environment_search_global_variable(env, varname);
+
+    if (lvalue == NULL) {
+        environment_new_global_variable(env, varname, expr_value);
+    } else {
+        *lvalue = *expr_value;
+    }
 }
 
 static void __eval_binary_expr__(environment_t env, expr_type_t type, expr_t left, expr_t right)
@@ -372,15 +375,16 @@ static void __eval_binary_expr__(environment_t env, expr_type_t type, expr_t lef
     } else if (lvalue->type == VALUE_TYPE_STRING && rvalue->type == VALUE_TYPE_STRING) {
         __eval_string_binary_expr__(env, line, column, type, lvalue, rvalue, &result);
 
-    } else if (lvalue->type == VALUE_TYPE_NULL && rvalue->type == VALUE_TYPE_NULL) {
+    } else if (lvalue->type == VALUE_TYPE_NULL || rvalue->type == VALUE_TYPE_NULL) {
+        __eval_null_binary_expr__(env, line, column, type, lvalue, rvalue, &result);
 
     } else {
         runtime_error(line,
                       column,
                       "unsupported operand for : type(%s) %s type(%s)",
-                      __get_value_type_string__(lvalue),
-                      __get_expt_type_string__(type),
-                      __get_value_type_string__(rvalue));
+                      value_type_string(lvalue),
+                      expr_type_string(type),
+                      value_type_string(rvalue));
     }
 
     array_pop_n(env->stack, 2);
@@ -403,9 +407,9 @@ static void __eval_char_binary_expr__(environment_t env, long line, long column,
         runtime_error(line,
                       column,
                       "unsupported operand for : type(%s) %s type(%s)",
-                      __get_value_type_string__(left),
-                      __get_expt_type_string__(type),
-                      __get_value_type_string__(right));
+                      value_type_string(left),
+                      expr_type_string(type),
+                      value_type_string(right));
     }
 
     switch (type) {
@@ -457,9 +461,9 @@ static void __eval_bool_binary_expr__(environment_t env, long line, long column,
         runtime_error(line,
                       column,
                       "unsupported operand for : type(%s) %s type(%s)",
-                      __get_value_type_string__(left),
-                      __get_expt_type_string__(type),
-                      __get_value_type_string__(right));
+                      value_type_string(left),
+                      expr_type_string(type),
+                      value_type_string(right));
     }
 }
 
@@ -475,9 +479,9 @@ static void __eval_int_binary_expr__(environment_t env, long line, long column, 
         runtime_error(line,
                       column,
                       "unsupported operand for : type(%s) %s type(%s)",
-                      __get_value_type_string__(left),
-                      __get_expt_type_string__(type),
-                      __get_value_type_string__(right));
+                      value_type_string(left),
+                      expr_type_string(type),
+                      value_type_string(right));
     }
     
     switch (type) {
@@ -529,9 +533,9 @@ static void __eval_long_binary_expr__(environment_t env, long line, long column,
         runtime_error(line,
                       column,
                       "unsupported operand for : type(%s) %s type(%s)",
-                      __get_value_type_string__(left),
-                      __get_expt_type_string__(type),
-                      __get_value_type_string__(right));
+                      value_type_string(left),
+                      expr_type_string(type),
+                      value_type_string(right));
     }
 
     switch (type) {
@@ -583,9 +587,9 @@ static void __eval_float_binary_expr__(environment_t env, long line, long column
         runtime_error(line,
                       column,
                       "unsupported operand for : type(%s) %s type(%s)",
-                      __get_value_type_string__(left),
-                      __get_expt_type_string__(type),
-                      __get_value_type_string__(right));
+                      value_type_string(left),
+                      expr_type_string(type),
+                      value_type_string(right));
     }
 
     switch (type) {
@@ -637,9 +641,9 @@ static void __eval_double_binary_expr__(environment_t env, long line, long colum
         runtime_error(line,
                       column,
                       "unsupported operand for : type(%s) %s type(%s)",
-                      __get_value_type_string__(left),
-                      __get_expt_type_string__(type),
-                      __get_value_type_string__(right));
+                      value_type_string(left),
+                      expr_type_string(type),
+                      value_type_string(right));
     }
 
     switch (type) {
@@ -691,9 +695,9 @@ static void __eval_string_binary_expr__(environment_t env, long line, long colum
         runtime_error(line,
                       column,
                       "unsupported operand for : type(%s) %s type(%s)",
-                      __get_value_type_string__(left),
-                      __get_expt_type_string__(type),
-                      __get_value_type_string__(right));
+                      value_type_string(left),
+                      expr_type_string(type),
+                      value_type_string(right));
     }
 
     switch (type) {
@@ -723,6 +727,30 @@ static void __eval_string_binary_expr__(environment_t env, long line, long colum
     }
 }
 
+static void __eval_null_binary_expr__(environment_t env, long line, long column, expr_type_t type, value_t left, value_t right, value_t result)
+{
+    if (type == EXPR_TYPE_EQ || type == EXPR_TYPE_NEQ) {
+        result->type = VALUE_TYPE_BOOL;
+
+    } else {
+        runtime_error(line,
+                      column,
+                      "unsupported operand for : type(%s) %s type(%s)",
+                      value_type_string(left),
+                      expr_type_string(type),
+                      value_type_string(right));
+    }
+
+    switch (type) {
+    case EXPR_TYPE_EQ:
+        result->u.bool_value = left->type == VALUE_TYPE_NULL && left->type == VALUE_TYPE_NULL;
+        break;
+    case EXPR_TYPE_NEQ:
+        result->u.bool_value = !(left->type == VALUE_TYPE_NULL && left->type == VALUE_TYPE_NULL);
+        break;
+    }
+}
+
 static void __eval_logic_binary_expr__(environment_t env, expr_type_t type, expr_t left, expr_t right)
 {
     struct value_s l, r;
@@ -739,8 +767,8 @@ static void __eval_logic_binary_expr__(environment_t env, expr_type_t type, expr
         runtime_error(left->line,
                       left->column,
                       "unsupported operand for : type(%s) %s",
-                      __get_value_type_string__(lvalue),
-                      __get_expt_type_string__(type));
+                      value_type_string(lvalue),
+                      expr_type_string(type));
     }
 
     switch (type) {
@@ -765,9 +793,9 @@ static void __eval_logic_binary_expr__(environment_t env, expr_type_t type, expr
         runtime_error(left->line,
                       left->column,
                       "unsupported operand for : type(%s) %s type(%s)",
-                      __get_value_type_string__(lvalue),
-                      __get_expt_type_string__(type),
-                      __get_value_type_string__(rvalue));
+                      value_type_string(lvalue),
+                      expr_type_string(type),
+                      value_type_string(rvalue));
     }
 
     eval_result = rvalue->u.bool_value;
