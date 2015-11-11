@@ -1,6 +1,14 @@
 
+function abc(a) {
+    i = 1;
+    while (i < 10) {
+       print(i);
+       print("\n");
+       i = i + 1;
+    }
+}
 
+abc(1024);
 
-print(1, 2, 3, 4*20, "helloworld", 'c', true, false, 123.4436f, 123.123, null);
-
-print("\n");
+print(a);
+print(i);

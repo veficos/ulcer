@@ -11,10 +11,12 @@ struct executor_s {
     environment_t env;
 };
 
-static executor_result_t __executor_statement__(environment_t env, stmt_t stmt);
 static void __executor_expr_statement__(environment_t env, stmt_t stmt);
 static executor_result_t __executor_if_statement__(environment_t env, stmt_t stmt);
+static executor_result_t __executor_elif_statement__(environment_t env, stmt_t stmt);
 static executor_result_t __executor_for_statement__(environment_t env, stmt_t stmt);
+static executor_result_t __executor_while_statement__(environment_t env, stmt_t stmt);
+static executor_result_t __executor_block_statement__(environment_t env, stmt_t stmt_block);
 
 executor_t executor_new(environment_t env)
 {
@@ -46,7 +48,7 @@ void executor_run(executor_t exec)
     list_safe_for_each(statements, iter, next_iter) {
         stmt = list_element(iter, stmt_t, link);
 
-        switch (__executor_statement__(env, stmt)) {
+        switch (executor_statement(env, stmt)) {
         case EXECUTOR_RESULT_BREAK:
             runtime_error(stmt->line, 
                           stmt->column,
@@ -68,7 +70,7 @@ void executor_run(executor_t exec)
     }
 }
 
-static executor_result_t __executor_statement__(environment_t env, stmt_t stmt)
+executor_result_t executor_statement(environment_t env, stmt_t stmt)
 {
     switch (stmt->type)
     {
@@ -88,16 +90,37 @@ static executor_result_t __executor_statement__(environment_t env, stmt_t stmt)
         return EXECUTOR_RESULT_RETURN;
 
     case STMT_TYPE_BLOCK:
-        return executor_block_statement(env, stmt);
+        return __executor_block_statement__(env, stmt);
 
     case STMT_TYPE_GLOBAL:
     case STMT_TYPE_IF:
         return __executor_if_statement__(env, stmt);
 
-    case STMT_TYPE_ELIF:
     case STMT_TYPE_WHILE:
+        return __executor_while_statement__(env, stmt);
+
     case STMT_TYPE_FOR:
         return __executor_for_statement__(env, stmt);
+    }
+
+    return EXECUTOR_RESULT_NORMAL;
+}
+
+static executor_result_t __executor_block_statement__(environment_t env, stmt_t stmt_block)
+{
+    list_iter_t iter, next_iter;
+    executor_result_t result;
+    list_t statements;
+    stmt_t stmt;
+
+    statements = stmt_block->u.block;
+    list_safe_for_each(statements, iter, next_iter) {
+        stmt = list_element(iter, stmt_t, link);
+        result = executor_statement(env, stmt);
+
+        if (result != EXECUTOR_RESULT_NORMAL) {
+            return result;
+        }
     }
 
     return EXECUTOR_RESULT_NORMAL;
@@ -128,10 +151,46 @@ static executor_result_t __executor_if_statement__(environment_t env, stmt_t stm
     }
 
     if (value->u.bool_value) {
-        result = executor_block_statement(env, stmt_if.if_block);
+        result = __executor_block_statement__(env, stmt_if.if_block);
+    } else {
+        result = __executor_elif_statement__(env, stmt);
     }
 
     return result;
+}
+
+static executor_result_t __executor_elif_statement__(environment_t env, stmt_t stmt)
+{
+    value_t value;
+    stmt_if_t stmt_if;
+    stmt_elif_t stmt_elif;
+    list_iter_t iter;
+  
+    stmt_if = stmt->u.stmt_if;
+    list_for_each(stmt_if.elifs, iter) {
+        stmt_elif = list_element(iter, stmt_t, link)->u.stmt_elif;
+
+        eval_expression(env, stmt_elif.condition);
+        value = array_index(env->stack, array_length(env->stack) - 1);
+        array_pop(env->stack);
+
+        if (value->type != VALUE_TYPE_BOOL) {
+            runtime_error(stmt->line,
+                stmt->column,
+                "%s cannot be converted to bool",
+                value_type_string(value));
+        }
+
+        if (value->u.bool_value) {
+            return __executor_block_statement__(env, stmt_elif.block);
+        }
+    }
+
+    if (stmt_if.else_block) {
+        return __executor_block_statement__(env, stmt_if.else_block);
+    }
+
+    return EXECUTOR_RESULT_NORMAL;
 }
 
 static executor_result_t __executor_for_statement__(environment_t env, stmt_t stmt)
@@ -165,8 +224,7 @@ static executor_result_t __executor_for_statement__(environment_t env, stmt_t st
             }
         }
 
-        result = __executor_statement__(env, stmt_for.block);
-
+        result = executor_statement(env, stmt_for.block);
         if (result == EXECUTOR_RESULT_RETURN) {
             return EXECUTOR_RESULT_RETURN;
         } else if (result == EXECUTOR_RESULT_BREAK) {
@@ -182,22 +240,37 @@ static executor_result_t __executor_for_statement__(environment_t env, stmt_t st
     return EXECUTOR_RESULT_NORMAL;
 }
 
-executor_result_t executor_block_statement(environment_t env, stmt_t stmt_block)
+static executor_result_t __executor_while_statement__(environment_t env, stmt_t stmt)
 {
-    list_iter_t iter, next_iter;
-    executor_result_t result;
-    list_t statements;
-    stmt_t stmt;
+    value_t value;
+    stmt_while_t stmt_while;
+    executor_result_t result = EXECUTOR_RESULT_NORMAL;
 
-    statements = stmt_block->u.block;
-    list_safe_for_each(statements, iter, next_iter) {
-        stmt = list_element(iter, stmt_t, link);
-        result = __executor_statement__(env, stmt);
+    stmt_while = stmt->u.stmt_while;
 
-        if (result != EXECUTOR_RESULT_NORMAL) {
-            return result;
+    while (true) {
+        eval_expression(env, stmt_while.condition);
+        value = array_index(env->stack, array_length(env->stack) - 1);
+        array_pop(env->stack);
+
+        if (value->type != VALUE_TYPE_BOOL) {
+            runtime_error(stmt->line,
+                stmt->column,
+                "%s cannot be converted to bool",
+                value_type_string(value));
+        }
+
+        if (!value->u.bool_value) {
+            break;
+        }
+
+        result = executor_statement(env, stmt_while.block);
+        if (result == EXECUTOR_RESULT_RETURN) {
+            return EXECUTOR_RESULT_RETURN;
+        } else if (result == EXECUTOR_RESULT_BREAK) {
+            return EXECUTOR_RESULT_NORMAL;
         }
     }
 
-    return EXECUTOR_RESULT_NORMAL;
+    return result;
 }

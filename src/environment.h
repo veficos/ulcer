@@ -102,9 +102,9 @@ function_t environment_search_function(environment_t env, cstring_t function_nam
 
 void environment_push_local_context(environment_t env);
 void environment_pop_local_context(environment_t env);
-value_t environment_search_global_variable(environment_t env, cstring_t name);
-local_variable_t environment_new_local_variable(environment_t env, cstring_t name, value_t value);
-local_reference_t environment_new_local_reference(environment_t env, value_t value);
+void environment_new_local_variable(environment_t env, cstring_t name, value_t value);
+void environment_new_local_reference(environment_t env, cstring_t name, value_t value);
+value_t environment_search_local_variable(environment_t env, cstring_t name);
 
 void environment_new_global_variable(environment_t env, cstring_t name, value_t value);
 value_t environment_search_global_variable(environment_t env, cstring_t name);

@@ -97,6 +97,62 @@ void environment_pop_local_context(environment_t env)
     mem_free(lctx);
 }
 
+void environment_new_local_variable(environment_t env, cstring_t name, value_t value)
+{
+    local_context_t lctx;
+    local_variable_t variable;
+    value_t v;
+
+    assert(!list_is_empty(env->local_context));
+
+    lctx = list_element(list_rbegin(env->local_context), local_context_t, link);
+
+    variable = (local_variable_t) mem_alloc(sizeof(struct local_variable_s));
+    v = (value_t) mem_alloc(sizeof(struct value_s));
+
+    *v = *value;
+
+    variable->name = cstring_dup(name);
+    variable->value = v;
+
+    list_push_back(lctx->variables, variable->link);
+}
+
+void environment_new_local_reference(environment_t env, cstring_t name, value_t value)
+{
+    local_context_t lctx;
+    local_variable_t variable;
+    value_t v;
+
+    assert(!list_is_empty(env->local_context));
+
+    lctx = list_element(list_rbegin(env->local_context), local_context_t, link);
+
+    variable = (local_variable_t) mem_alloc(sizeof(struct local_variable_s));
+    v = (value_t) mem_alloc(sizeof(struct value_s));
+
+    *v = *value;
+
+    variable->name = cstring_dup(name);
+    variable->value = v;
+
+    list_push_back(lctx->references, variable->link);
+}
+
+value_t environment_search_local_variable(environment_t env, cstring_t name)
+{
+    local_context_t lctx;
+    local_variable_t variable;
+
+    if (list_is_empty(env->local_context)) {
+        return NULL;
+    }
+
+    lctx = list_element(list_rbegin(env->local_context), local_context_t, link);
+
+    return NULL;
+}
+
 function_t environment_search_function(environment_t env, cstring_t function_name)
 {
     return module_search_function(env->module, function_name);

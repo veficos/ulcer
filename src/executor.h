@@ -19,6 +19,6 @@ enum executor_result_e {
 executor_t executor_new(environment_t env);
 void executor_free(executor_t exec);
 void executor_run(executor_t exec);
-executor_result_t executor_block_statement(environment_t env, stmt_t stmt_block);
+executor_result_t executor_statement(environment_t env, stmt_t stmt);
 
 #endif

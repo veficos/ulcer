@@ -245,7 +245,7 @@ static void __eval_function_call_expr__(environment_t env, expr_t call_expr, fun
 
     array_pop_n(env->stack, argc);
 
-    switch (executor_block_statement(env, func->u.user.block)) {
+    switch (executor_statement(env, func->u.user.block)) {
         case EXECUTOR_RESULT_BREAK:
             runtime_error(call_expr->line, 
                           call_expr->column,
