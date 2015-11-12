@@ -262,7 +262,7 @@ static stmt_t __parser_global_statement__(parser_t parse)
 static void __parser_identifier_list__(parser_t parse, list_t vars)
 {
     token_t tok = lexer_peek(parse->lex);
-    while (tok->type != TOKEN_TYPE_END && TOKEN_VALUE_IDENTIFIER) {
+    while (tok->type != TOKEN_TYPE_END && tok->value == TOKEN_VALUE_IDENTIFIER) {
         stmt_global_t *global = mem_alloc(sizeof(stmt_global_t));
 
         global->name = cstring_dup(tok->token);

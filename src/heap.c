@@ -1,4 +1,5 @@
 
+
 #include "environment.h"
 #include "cstring.h"
 #include "alloc.h"
@@ -98,7 +99,6 @@ static object_t __heap_alloc_object__(environment_t env, object_type_t type)
     return object;
 }
 
-#include <stdio.h>
 static void __heap_need_gc__(environment_t env)
 {
     /*
@@ -126,17 +126,47 @@ static void __heap_mark_objects__(environment_t env)
 
     {
         /* mark global variable */
-        global_variable_t variable;
+        variable_t variable;
         hash_table_iter_t iter;
 
         iter = hash_table_iter_new(env->global_context);
         hash_table_for_each(env->global_context, iter) {
-            variable = hash_table_iter_element(iter, global_variable_t, link);
+            variable = hash_table_iter_element(iter, variable_t, link);
             if (__heap_value_is_object__(*variable->value)) {
                 __heap_mark_object__(variable->value->u.object_value);
-            }           
+            }
         }
         hash_table_iter_free(iter);
+    }
+
+    {
+         /* mark local variable */
+        local_context_t lctx;
+        list_iter_t iter;
+        hash_table_iter_t hiter;
+        variable_t variable;
+
+        list_reverse_for_each(env->local_context_stack, iter) {
+            lctx = list_element(iter, local_context_t, link);
+
+            hiter = hash_table_iter_new(lctx->variables);
+            hash_table_for_each(lctx->variables, hiter) {
+                variable = hash_table_iter_element(hiter, variable_t, link);
+                if (__heap_value_is_object__(*variable->value)) {
+                    __heap_mark_object__(variable->value->u.object_value);
+                }
+            }
+            hash_table_iter_free(hiter);
+
+            hiter = hash_table_iter_new(lctx->references);
+            hash_table_for_each(lctx->references, hiter) {
+                variable = hash_table_iter_element(hiter, variable_t, link);
+                if (variable->value && __heap_value_is_object__(*variable->value)) {
+                    __heap_mark_object__(variable->value->u.object_value);
+                }
+            }
+            hash_table_iter_free(hiter);
+        }
     }
 
     {
@@ -187,6 +217,5 @@ static void __heap_mark_object__(object_t obj)
     if (obj->marked) {
         return ;
     }
-
     obj->marked = true;
 }

@@ -16,10 +16,8 @@ typedef struct object_s*          object_t;
 typedef enum value_type_e         value_type_t;
 typedef struct value_s*           value_t;
 typedef struct heap_s*            heap_t;
-typedef struct local_variable_s*  local_variable_t;
-typedef struct local_reference_s* local_reference_t;
 typedef struct local_context_s*   local_context_t;
-typedef struct global_variable_s* global_variable_t;
+typedef struct variable_s*        variable_t;
 typedef struct environment_s*     environment_t;
 
 enum object_type_e {
@@ -45,6 +43,8 @@ enum value_type_e {
     VALUE_TYPE_FLOAT,
     VALUE_TYPE_DOUBLE,
     VALUE_TYPE_STRING,
+    VALUE_TYPE_POINTER,
+    VALUE_TYPE_REFERENCE,
     VALUE_TYPE_NULL,
 };
 
@@ -58,32 +58,22 @@ struct value_s {
         float     float_value;
         double    double_value;
         object_t  object_value;
+        void*     pointer_value;
     }u;
 };
 
 const char* value_type_string(value_t value);
 
-struct local_variable_s {
-    cstring_t name;
-    value_t value;
-    list_node_t link;
-};
-
-struct local_reference_s {
-    value_t     value;
-    list_node_t link;
-};
-
-struct local_context_s {
-    list_t variables;
-    list_t references;
-    list_node_t link;
-};
-
-struct global_variable_s {
+struct variable_s {
     cstring_t    name;
     value_t      value;
     hlist_node_t link;
+};
+
+struct local_context_s {
+    hash_table_t variables;
+    hash_table_t references;
+    list_node_t  link;
 };
 
 struct environment_s {
@@ -91,7 +81,7 @@ struct environment_s {
     array_t  stack;
     heap_t   heap;
     hash_table_t global_context;
-    list_t       local_context;
+    list_t       local_context_stack;
 };
 
 environment_t environment_new(void);
@@ -103,7 +93,7 @@ function_t environment_search_function(environment_t env, cstring_t function_nam
 void environment_push_local_context(environment_t env);
 void environment_pop_local_context(environment_t env);
 void environment_new_local_variable(environment_t env, cstring_t name, value_t value);
-void environment_new_local_reference(environment_t env, cstring_t name, value_t value);
+void environment_new_local_reference(environment_t env, cstring_t name);
 value_t environment_search_local_variable(environment_t env, cstring_t name);
 
 void environment_new_global_variable(environment_t env, cstring_t name, value_t value);

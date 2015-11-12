@@ -63,7 +63,7 @@ const char* expr_type_string(expr_type_t expr_type)
         return "||";
     }
 
-    return "unkown";
+    return "unknown";
 }
 
 expr_t expr_new(expr_type_t type, token_t tok)
@@ -171,7 +171,7 @@ expr_t expr_new_plus(long line, long column, expr_t exp)
     expr->type = EXPR_TYPE_PLUS;
     expr->line = line;
     expr->column = column;
-    expr->u.plus = exp;
+    expr->u.unary = exp;
 
     return expr;
 }
@@ -186,7 +186,7 @@ expr_t expr_new_minus(long line, long column, expr_t exp)
     expr->type = EXPR_TYPE_MINUS;
     expr->line = line;
     expr->column = column;
-    expr->u.minus = exp;
+    expr->u.unary = exp;
 
     return expr;
 }
@@ -246,11 +246,8 @@ void expr_free(expr_t expr)
         break;
 
     case EXPR_TYPE_PLUS:
-        expr_free(expr->u.plus);
-        break;
-        
     case EXPR_TYPE_MINUS:
-        expr_free(expr->u.minus);
+        expr_free(expr->u.unary);
         break;
 
     case EXPR_TYPE_MUL:

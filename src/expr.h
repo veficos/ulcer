@@ -58,7 +58,7 @@ struct expr_binary_s {
     expr_t right;
 };
 
-typedef struct expr_s {
+struct expr_s {
     expr_type_t type;
 
     long        line;
@@ -75,13 +75,12 @@ typedef struct expr_s {
         cstring_t     identifier;
         expr_assign_t assign;
         expr_call_t   call;
-        expr_t        minus;
-        expr_t        plus;
+        expr_t        unary;
         expr_binary_t binary;
     }u;
 
     list_node_t link;
-}* expr_t;
+};
 
 const char* expr_type_string(expr_type_t expr_type);
 

@@ -1,19 +1,16 @@
 
-function fuck(a, b, c, d) {
-    return a+b+c+d;
-}
 
-print(fuck(1,2,4,5));
-print("\n");
-
-/*
-for (i=1; ; i=i+1) {
-
-    if (i == 10) {
-        break;
+function fuck() {
+    i = 0;
+    i = 2;
+    while (i < 10) {
+        print(i);
+        print("\n");
+        i = i + 1;
     }
-    
-    print(i);
-    print("\n");
 }
-*/
+
+fuck();
+print(-10);
+print(+120);
+print(123 + +123 - -123);

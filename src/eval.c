@@ -1,4 +1,5 @@
 
+
 #include "environment.h"
 #include "executor.h"
 #include "error.h"
@@ -42,6 +43,7 @@ static void __eval_double_binary_expr__(environment_t env, long line, long colum
 static void __eval_string_binary_expr__(environment_t env, long line, long column, expr_type_t type, value_t left, value_t right, value_t result);
 static void __eval_null_binary_expr__(environment_t env, long line, long column, expr_type_t type, value_t left, value_t right, value_t result);
 static void __eval_logic_binary_expr__(environment_t env, expr_type_t type, expr_t left, expr_t right);
+static void __eval_unary_expr__(environment_t env, expr_type_t type, expr_t unary_expr);
 
 void eval_expression(environment_t env, expr_t expr)
 {
@@ -91,7 +93,8 @@ void eval_expression(environment_t env, expr_t expr)
         break;
 
     case EXPR_TYPE_PLUS:
-    case EXPR_TYPE_MINUS:   
+    case EXPR_TYPE_MINUS:
+        __eval_unary_expr__(env, expr->type, expr);
         break;
 
     case EXPR_TYPE_MUL:
@@ -229,6 +232,7 @@ static void __eval_function_call_expr__(environment_t env, expr_t call_expr, fun
         argc++;
     }
 
+    environment_push_local_context(env);
     parameter = list_begin(func->u.user.parameters);
 
     for (; index < argc; index++) {
@@ -238,7 +242,7 @@ static void __eval_function_call_expr__(environment_t env, expr_t call_expr, fun
 
         parameter_name  = list_element(parameter, parameter_t, link)->name;
         parameter_value = (value_t) array_index(env->stack, index);
-        environment_new_global_variable(env, parameter_name, parameter_value);
+        environment_new_local_variable(env, parameter_name, parameter_value);
 
         parameter = list_next(parameter);
     }
@@ -259,19 +263,26 @@ static void __eval_function_call_expr__(environment_t env, expr_t call_expr, fun
         default:
             break;
     }
+
+    environment_pop_local_context(env);
 }
 
 static void __eval_identifier_expr__(environment_t env, cstring_t identifier)
 {
     value_t value;
     
-    value = environment_search_global_variable(env, identifier);
-    if (!value) {
-
-        value = (value_t) array_push(env->stack);
-        value->type = VALUE_TYPE_NULL;
-    } else {
+    value = environment_search_local_variable(env, identifier);
+    if (value) {
         *(value_t) array_push(env->stack) = *value;
+
+    } else {
+        value = environment_search_global_variable(env, identifier);
+        if (value) {
+            *(value_t) array_push(env->stack) = *value;
+        } else {
+            value = (value_t) array_push(env->stack);
+            value->type = VALUE_TYPE_NULL;
+        }
     }
 }
 
@@ -283,13 +294,21 @@ static void __eval_assign_expr__(environment_t env, cstring_t varname, expr_t rv
     eval_expression(env, rvalue_expr);
 
     expr_value = (value_t) array_index(env->stack, array_length(env->stack) - 1);
+    if (!list_is_empty(env->local_context_stack)) {
+        lvalue = environment_search_local_variable(env, varname);
+        if (lvalue == NULL) {
+            environment_new_local_variable(env, varname, expr_value);
+        } else {
+            *lvalue = *expr_value;
+        }
 
-    lvalue = environment_search_global_variable(env, varname);
-
-    if (lvalue == NULL) {
-        environment_new_global_variable(env, varname, expr_value);
     } else {
-        *lvalue = *expr_value;
+        lvalue = environment_search_global_variable(env, varname);
+        if (lvalue == NULL) {
+            environment_new_global_variable(env, varname, expr_value);
+        } else {
+            *lvalue = *expr_value;
+        }
     }
 }
 
@@ -804,4 +823,48 @@ eval_success:
     result = (value_t) array_push(env->stack);
     result->type         = VALUE_TYPE_BOOL;
     result->u.bool_value = eval_result;
+}
+
+static void __eval_unary_expr__(environment_t env, expr_type_t type, expr_t unary_expr)
+{
+    value_t value;
+
+    eval_expression(env, unary_expr->u.unary);
+
+    value = (value_t) array_index(env->stack, array_length(env->stack) - 1);
+
+    switch (value->type) {
+    case VALUE_TYPE_CHAR:
+        if (type == EXPR_TYPE_MINUS) {
+            value->u.char_value = -value->u.char_value;
+        }
+        break;
+    case VALUE_TYPE_INT:
+        if (type == EXPR_TYPE_MINUS) {
+            value->u.int_value = -value->u.int_value;
+        }
+        break;
+    case VALUE_TYPE_LONG:
+        if (type == EXPR_TYPE_MINUS) {
+            value->u.long_value = -value->u.long_value;
+        }
+        break;
+    case VALUE_TYPE_FLOAT:
+        if (type == EXPR_TYPE_MINUS) {
+            value->u.float_value = -value->u.float_value;
+        }
+        break;
+    case VALUE_TYPE_DOUBLE:
+        if (type == EXPR_TYPE_MINUS) {
+            value->u.double_value = -value->u.double_value;
+        }
+        break;
+    default:
+        runtime_error(unary_expr->line,
+                      unary_expr->column,
+                      "unsupported operand for : %s type(%s)",
+                      expr_type_string(type),
+                      value_type_string(value));
+        break;
+    }
 }
