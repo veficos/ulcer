@@ -93,7 +93,6 @@ void stmt_free(stmt_t stmt);
 typedef struct parameter_s*  parameter_t;
 typedef struct function_s*   function_t;
 typedef enum function_type_e function_type_t;
-typedef struct functions_s*  functions_t;
 
 struct parameter_s {
     cstring_t   name;
@@ -108,10 +107,11 @@ enum function_type_e {
 typedef array_t (*native_function_pt)(array_t args);
 
 struct function_s {
-    cstring_t       name;
     function_type_t type;
     long            line;
     long            column;
+
+    cstring_t       name;
     union {
         struct {
             native_function_pt function;
@@ -124,16 +124,25 @@ struct function_s {
     hlist_node_t link;
 };
 
-struct functions_s {
-    hash_table_t     htable;
-    hlist_node_ops_t ops;
-};
-
 parameter_t parameter_new(cstring_t name);
 void parameter_free(parameter_t parameter);
 
 function_t function_new_user(long line, long column, cstring_t name);
 function_t function_new_native(cstring_t name, native_function_pt function);
 void function_free(function_t func);
+
+struct closure_s {
+    long       line;
+    long       column;
+
+    cstring_t  name;
+    list_t parameters;
+    stmt_t block;
+
+    hlist_node_t link;
+};
+
+closure_t closure_new(long line, long column, cstring_t name);
+void closure_free(closure_t closure);
 
 #endif

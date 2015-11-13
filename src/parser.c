@@ -17,7 +17,7 @@ struct parser_s {
 static void __parser_translation_unit__(parser_t parse);
 static void __parser_definition_or_statement__(parser_t parse);
 static function_t __parser_function_definition__(parser_t parse);
-static void __parser_parameter_list__(parser_t parse, function_t func);
+static void __parser_parameter_list__(parser_t parse, list_t parameters);
 static stmt_t __parser_block__(parser_t parse);
 static stmt_t __parser_statement__(parser_t parse);
 static stmt_t __parser_global_statement__(parser_t parse);
@@ -40,6 +40,7 @@ static expr_t __parser_multiplicative_expression__(parser_t parse);
 static expr_t __parser_unary_expression__(parser_t parse);
 static expr_t __parser_primary_expression__(parser_t parse);
 static void __parser_argument_list__(parser_t parse, list_t args);
+static closure_t __parser_closure_definition__(parser_t parse);
 
 parser_t parser_new(lexer_t lex)
 {
@@ -141,7 +142,7 @@ static function_t __parser_function_definition__(parser_t parse)
 
     lexer_next(parse->lex);
 
-    __parser_parameter_list__(parse, func);
+    __parser_parameter_list__(parse, func->u.user.parameters);
 
     __parser_expect__(parse, TOKEN_VALUE_RP,
         "expected ')'");
@@ -151,12 +152,12 @@ static function_t __parser_function_definition__(parser_t parse)
     return func;
 }
 
-static void __parser_parameter_list__(parser_t parse, function_t func)
+static void __parser_parameter_list__(parser_t parse, list_t parameters)
 {
     token_t tok = lexer_peek(parse->lex);
 
     while (tok->type != TOKEN_TYPE_END && tok->value == TOKEN_VALUE_IDENTIFIER) {
-        list_push_back(func->u.user.parameters, parameter_new(cstring_dup(tok->token))->link);
+        list_push_back(parameters, parameter_new(cstring_dup(tok->token))->link);
         tok = lexer_next(parse->lex);
         if (tok->value != TOKEN_VALUE_COMMA) {
             break;
@@ -788,6 +789,10 @@ static expr_t __parser_primary_expression__(parser_t parse)
         lexer_next(parse->lex);
         break;
 
+    case TOKEN_VALUE_CLOSURE:
+        expr = expr_new_closure(tok->line, tok->column, __parser_closure_definition__(parse));
+        break;
+
     default:
         expect(tok->filename, tok->line, tok->column, 
             "expected expression");
@@ -815,4 +820,35 @@ static void __parser_argument_list__(parser_t parse, list_t args)
 
         lexer_next(parse->lex);
     }
+}
+
+static closure_t __parser_closure_definition__(parser_t parse)
+{
+    token_t tok;
+    long line, column;
+    closure_t closure = NULL;
+
+    tok      = lexer_next(parse->lex);
+    line     = tok->line;
+    column   = tok->column;
+
+    if (tok->value == TOKEN_VALUE_IDENTIFIER) {
+        closure = closure_new(line, column, cstring_dup(tok->token));
+    } else {
+        closure = closure_new(line, column, cstring_new(""));
+    }
+
+    __parser_expect_next__(parse, TOKEN_VALUE_LP, 
+        "expected '(' after 'closure'");
+
+    lexer_next(parse->lex);
+
+    __parser_parameter_list__(parse, closure->parameters);
+
+    __parser_expect__(parse, TOKEN_VALUE_RP,
+        "expected ')'");
+
+    closure->block = __parser_block__(parse);
+
+    return closure;
 }

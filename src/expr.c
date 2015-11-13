@@ -1,6 +1,7 @@
 
 
 #include "expr.h"
+#include "stmt.h"
 #include "alloc.h"
 
 #include <stdio.h>
@@ -210,6 +211,23 @@ expr_t expr_new_binary(expr_type_t type, long line, long column, expr_t left, ex
     return expr;
 }
 
+expr_t expr_new_closure(long line, long column, closure_t closure)
+{
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
+    if (!expr) {
+        return NULL;
+    }
+ 
+    assert(closure != NULL);
+
+    expr->type          = EXPR_TYPE_CLOSURE;
+    expr->line          = line;
+    expr->column        = column;
+    expr->u.closure     = closure;
+
+    return expr;
+}
+
 void expr_free(expr_t expr)
 {
     list_iter_t iter = NULL, next_iter = NULL;
@@ -235,6 +253,10 @@ void expr_free(expr_t expr)
     case EXPR_TYPE_ASSIGN:
         cstring_free(expr->u.assign.lvalue);
         expr_free(expr->u.assign.rvalue);
+        break;
+
+    case EXPR_TYPE_CLOSURE:
+        closure_free(expr->u.closure);
         break;
 
     case EXPR_TYPE_CALL:

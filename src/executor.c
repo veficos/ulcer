@@ -113,11 +113,9 @@ executor_result_t executor_statement(environment_t env, stmt_t stmt)
 static executor_result_t __executor_block_statement__(environment_t env, stmt_t stmt_block)
 {
     list_iter_t iter, next_iter;
-    executor_result_t result;
     list_t statements;
     stmt_t stmt;
-
-    environment_push_local_context(env);
+    executor_result_t result = EXECUTOR_RESULT_NORMAL;
 
     statements = stmt_block->u.block;
     list_safe_for_each(statements, iter, next_iter) {
@@ -125,12 +123,9 @@ static executor_result_t __executor_block_statement__(environment_t env, stmt_t 
         result = executor_statement(env, stmt);
 
         if (result != EXECUTOR_RESULT_NORMAL) {
-            environment_pop_local_context(env);
-            return result;
+            break;
         }
     }
-
-    environment_pop_local_context(env);
 
     return EXECUTOR_RESULT_NORMAL;
 }
@@ -165,6 +160,8 @@ static executor_result_t __executor_if_statement__(environment_t env, stmt_t stm
 
     stmt_if = stmt->u.stmt_if;
 
+    environment_push_local_context(env);
+
     eval_expression(env, stmt_if.condition);
     value = array_index(env->stack, array_length(env->stack) - 1);
     array_pop(env->stack);
@@ -182,6 +179,7 @@ static executor_result_t __executor_if_statement__(environment_t env, stmt_t stm
         result = __executor_elif_statement__(env, stmt);
     }
 
+    environment_pop_local_context(env);
     return result;
 }
 
@@ -223,9 +221,11 @@ static executor_result_t __executor_for_statement__(environment_t env, stmt_t st
 {
     value_t value;
     stmt_for_t stmt_for;
-    executor_result_t result;
+    executor_result_t result = EXECUTOR_RESULT_NORMAL;
 
     stmt_for = stmt->u.stmt_for;
+
+    environment_push_local_context(env);
 
     if (stmt_for.init) {
         eval_expression(env, stmt_for.init);
@@ -252,9 +252,10 @@ static executor_result_t __executor_for_statement__(environment_t env, stmt_t st
 
         result = executor_statement(env, stmt_for.block);
         if (result == EXECUTOR_RESULT_RETURN) {
-            return EXECUTOR_RESULT_RETURN;
+            result = EXECUTOR_RESULT_NORMAL;
+            break;
         } else if (result == EXECUTOR_RESULT_BREAK) {
-            return EXECUTOR_RESULT_NORMAL;
+            break;
         }
 
         if (stmt_for.post) {
@@ -263,7 +264,8 @@ static executor_result_t __executor_for_statement__(environment_t env, stmt_t st
         }
     }
 
-    return EXECUTOR_RESULT_NORMAL;
+    environment_pop_local_context(env);
+    return result;
 }
 
 static executor_result_t __executor_while_statement__(environment_t env, stmt_t stmt)
@@ -273,6 +275,8 @@ static executor_result_t __executor_while_statement__(environment_t env, stmt_t 
     executor_result_t result = EXECUTOR_RESULT_NORMAL;
 
     stmt_while = stmt->u.stmt_while;
+
+    environment_push_local_context(env);
 
     while (true) {
         eval_expression(env, stmt_while.condition);
@@ -292,11 +296,13 @@ static executor_result_t __executor_while_statement__(environment_t env, stmt_t 
 
         result = executor_statement(env, stmt_while.block);
         if (result == EXECUTOR_RESULT_RETURN) {
-            return EXECUTOR_RESULT_RETURN;
+            result = EXECUTOR_RESULT_NORMAL;
+            break;
         } else if (result == EXECUTOR_RESULT_BREAK) {
-            return EXECUTOR_RESULT_NORMAL;
+            break;
         }
     }
 
+    environment_pop_local_context(env);
     return result;
 }

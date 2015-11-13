@@ -1,16 +1,19 @@
 
 
-function fuck() {
-    i = 0;
-    i = 2;
-    while (i < 10) {
-        print(i);
-        print("\n");
-        i = i + 1;
-    }
+
+ddd = 1024;
+
+
+function abc() {
+    print("helloworld\n");
 }
 
-fuck();
-print(-10);
-print(+120);
-print(123 + +123 - -123);
+closure shit() {
+    print("yes\n");
+};
+
+abc();
+
+for (ddd = 0; ddd < 100; ddd = ddd+1) {
+   
+}

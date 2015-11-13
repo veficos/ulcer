@@ -298,3 +298,37 @@ void function_free(function_t func)
 
     mem_free(func);
 }
+
+closure_t closure_new(long line, long column, cstring_t name)
+{
+    closure_t closure = (closure_t) mem_alloc(sizeof(struct closure_s));
+    if (!closure) {
+        return NULL;
+    }
+
+    closure->name   = name;
+    closure->line   = line;
+    closure->column = column;
+    
+    list_init(closure->parameters);
+    
+    return closure;
+}
+
+void closure_free(closure_t closure)
+{
+    list_iter_t iter, next_iter;
+    parameter_t parameter;
+
+    cstring_free(closure->name);
+
+    list_safe_for_each(closure->parameters, iter, next_iter) {
+        list_erase(*iter);
+        parameter = list_element(iter, parameter_t, link);
+        parameter_free(parameter);
+    }
+
+    stmt_free(closure->block);
+
+    mem_free(closure);
+}

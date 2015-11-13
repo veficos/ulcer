@@ -189,7 +189,7 @@ static void __eval_call_expr__(environment_t env, expr_t call_expr)
     if (!function) {
         runtime_error(call_expr->line,
                       call_expr->column,
-                      "undefined reference to '%s'",
+                      "undefined function to '%s'",
                       call_expr->u.call.function_name);
     }
 
@@ -271,9 +271,14 @@ static void __eval_identifier_expr__(environment_t env, cstring_t identifier)
 {
     value_t value;
     
-    value = environment_search_local_variable(env, identifier);
-    if (value) {
-        *(value_t) array_push(env->stack) = *value;
+    if (!list_is_empty(env->local_context_stack)) {
+        value = environment_search_local_variable(env, identifier);
+        if (value) {
+            *(value_t) array_push(env->stack) = *value;
+        } else {
+            value = (value_t) array_push(env->stack);
+            value->type = VALUE_TYPE_NULL;
+        }
 
     } else {
         value = environment_search_global_variable(env, identifier);

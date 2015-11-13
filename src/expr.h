@@ -13,6 +13,7 @@ typedef struct expr_s*       expr_t;
 typedef struct expr_call_s   expr_call_t;
 typedef struct expr_assign_s expr_assign_t;
 typedef struct expr_binary_s expr_binary_t;
+typedef struct closure_s*     closure_t;
 
 enum expr_type_e {
     EXPR_TYPE_CHAR,
@@ -26,6 +27,7 @@ enum expr_type_e {
     EXPR_TYPE_IDENTIFIER,
     EXPR_TYPE_ASSIGN,
     EXPR_TYPE_CALL,
+    EXPR_TYPE_CLOSURE,
     EXPR_TYPE_PLUS,
     EXPR_TYPE_MINUS,
     EXPR_TYPE_MUL,
@@ -77,6 +79,7 @@ struct expr_s {
         expr_call_t   call;
         expr_t        unary;
         expr_binary_t binary;
+        closure_t     closure;
     }u;
 
     list_node_t link;
@@ -91,6 +94,7 @@ expr_t expr_new_call(long line, long column, cstring_t identifier);
 expr_t expr_new_plus(long line, long column, expr_t expr);
 expr_t expr_new_minus(long line, long column, expr_t expr);
 expr_t expr_new_binary(expr_type_t type, long line, long column, expr_t left, expr_t right);
+expr_t expr_new_closure(long line, long column, closure_t closure);
 void expr_free(expr_t expr);
 
 #endif
