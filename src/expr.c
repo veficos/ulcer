@@ -30,12 +30,40 @@ const char* expr_type_string(expr_type_t expr_type)
         return "indentifier";
     case EXPR_TYPE_ASSIGN:
         return "=";
+    case EXPR_TYPE_ADD_ASSIGN:
+        return "+=";
+    case EXPR_TYPE_SUB_ASSIGN:
+        return "-=";
+    case EXPR_TYPE_MUL_ASSIGN:
+        return "*=";
+    case EXPR_TYPE_DIV_ASSIGN:
+        return "/=";
+    case EXPR_TYPE_MOD_ASSIGN:
+        return "%=";
     case EXPR_TYPE_CALL:
         return "function call";
     case EXPR_TYPE_PLUS:
         return "+";
     case EXPR_TYPE_MINUS:
         return "-";
+    case EXPR_TYPE_NOT:
+        return "!";
+    case EXPR_TYPE_INC:
+        return "++";
+    case EXPR_TYPE_DEC:
+        return "--";
+    case EXPR_TYPE_BITAND:
+        return "&";
+    case EXPR_TYPE_BITOR:
+        return "|";
+    case EXPR_TYPE_XOR:
+        return "^";
+    case EXPR_TYPE_LEFT_SHIFT:
+        return "<<";
+    case EXPR_TYPE_RIGHT_SHIFT:
+        return ">>";
+    case EXPR_TYPE_LOGIC_RIGHT_SHIFT:
+        return ">>>";
     case EXPR_TYPE_MUL:
         return "*";
     case EXPR_TYPE_DIV:
@@ -130,7 +158,7 @@ expr_t expr_new_identifier(long line, long column, cstring_t identifier)
     return expr;
 }
 
-expr_t expr_new_assign(long line, long column, cstring_t lvalue, expr_t rvalue)
+expr_t expr_new_assign(long line, long column, expr_t lvalue, expr_t rvalue)
 {
     expr_t expr = mem_alloc(sizeof(struct expr_s));
     if (!expr) {
@@ -138,6 +166,86 @@ expr_t expr_new_assign(long line, long column, cstring_t lvalue, expr_t rvalue)
     }
 
     expr->type   = EXPR_TYPE_ASSIGN;
+    expr->line   = line;
+    expr->column = column;
+    expr->u.assign.lvalue = lvalue;
+    expr->u.assign.rvalue = rvalue;
+
+    return expr;
+}
+
+expr_t expr_new_add_assign(long line, long column, expr_t lvalue, expr_t rvalue)
+{
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
+    if (!expr) {
+        return NULL;
+    }
+
+    expr->type   = EXPR_TYPE_ADD_ASSIGN;
+    expr->line   = line;
+    expr->column = column;
+    expr->u.assign.lvalue = lvalue;
+    expr->u.assign.rvalue = rvalue;
+
+    return expr;
+}
+
+expr_t expr_new_sub_assign(long line, long column, expr_t lvalue, expr_t rvalue)
+{
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
+    if (!expr) {
+        return NULL;
+    }
+
+    expr->type   = EXPR_TYPE_SUB_ASSIGN;
+    expr->line   = line;
+    expr->column = column;
+    expr->u.assign.lvalue = lvalue;
+    expr->u.assign.rvalue = rvalue;
+
+    return expr;
+}
+
+expr_t expr_new_mul_assign(long line, long column, expr_t lvalue, expr_t rvalue)
+{
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
+    if (!expr) {
+        return NULL;
+    }
+
+    expr->type   = EXPR_TYPE_MUL_ASSIGN;
+    expr->line   = line;
+    expr->column = column;
+    expr->u.assign.lvalue = lvalue;
+    expr->u.assign.rvalue = rvalue;
+
+    return expr;
+}
+
+expr_t expr_new_div_assign(long line, long column, expr_t lvalue, expr_t rvalue)
+{
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
+    if (!expr) {
+        return NULL;
+    }
+
+    expr->type   = EXPR_TYPE_DIV_ASSIGN;
+    expr->line   = line;
+    expr->column = column;
+    expr->u.assign.lvalue = lvalue;
+    expr->u.assign.rvalue = rvalue;
+
+    return expr;
+}
+
+expr_t expr_new_mod_assign(long line, long column, expr_t lvalue, expr_t rvalue)
+{
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
+    if (!expr) {
+        return NULL;
+    }
+
+    expr->type   = EXPR_TYPE_MOD_ASSIGN;
     expr->line   = line;
     expr->column = column;
     expr->u.assign.lvalue = lvalue;
@@ -156,7 +264,7 @@ expr_t expr_new_call(long line, long column, cstring_t identifier)
     expr->type   = EXPR_TYPE_CALL;
     expr->line   = line;
     expr->column = column;
-    expr->u.call.function_name = identifier;
+    expr->u.call.name = identifier;
     list_init(expr->u.call.args);
 
     return expr;
@@ -184,10 +292,70 @@ expr_t expr_new_minus(long line, long column, expr_t exp)
         return NULL;
     }
 
-    expr->type = EXPR_TYPE_MINUS;
-    expr->line = line;
-    expr->column = column;
+    expr->type    = EXPR_TYPE_MINUS;
+    expr->line    = line;
+    expr->column  = column;
     expr->u.unary = exp;
+
+    return expr;
+}
+
+expr_t expr_new_flip(long line, long column, expr_t exp)
+{
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
+    if (!expr) {
+        return NULL;
+    }
+
+    expr->type      = EXPR_TYPE_FLIP;
+    expr->line      = line;
+    expr->column    = column;
+    expr->u.unary   = exp;
+
+    return expr;
+}
+
+expr_t expr_new_not(long line, long column, expr_t exp)
+{
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
+    if (!expr) {
+        return NULL;
+    }
+
+    expr->type      = EXPR_TYPE_NOT;
+    expr->line      = line;
+    expr->column    = column;
+    expr->u.unary   = exp;
+
+    return expr;
+}
+
+expr_t expr_new_inc(long line, long column, expr_t exp)
+{
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
+    if (!expr) {
+        return NULL;
+    }
+
+    expr->type      = EXPR_TYPE_INC;
+    expr->line      = line;
+    expr->column    = column;
+    expr->u.unary   = exp;
+
+    return expr;
+}
+
+expr_t expr_new_dec(long line, long column, expr_t exp)
+{
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
+    if (!expr) {
+        return NULL;
+    }
+
+    expr->type      = EXPR_TYPE_DEC;
+    expr->line      = line;
+    expr->column    = column;
+    expr->u.unary   = exp;
 
     return expr;
 }
@@ -207,6 +375,38 @@ expr_t expr_new_binary(expr_type_t type, long line, long column, expr_t left, ex
     expr->column        = column;
     expr->u.binary.left = left;
     expr->u.binary.right = right;
+
+    return expr;
+}
+
+expr_t expr_new_array_index(long line, long column, expr_t array, expr_t index)
+{
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
+    if (!expr) {
+        return NULL;
+    }
+
+    expr->type      = EXPR_TYPE_ARRAY_INDEX;
+    expr->line      = line;
+    expr->column    = column;
+    expr->u.array_index.array = array;
+    expr->u.array_index.index = index;
+
+    return expr;
+}
+
+expr_t expr_new_array_generate(long line, long column)
+{
+    expr_t expr = mem_alloc(sizeof(struct expr_s));
+    if (!expr) {
+        return NULL;
+    }
+
+    expr->type      = EXPR_TYPE_ARRAY_GENERATE;
+    expr->line      = line;
+    expr->column    = column;
+
+    list_init(expr->u.array_generate.exprs);
 
     return expr;
 }
@@ -250,8 +450,13 @@ void expr_free(expr_t expr)
         cstring_free(expr->u.identifier);
         break;
 
+    case EXPR_TYPE_ADD_ASSIGN:
+    case EXPR_TYPE_SUB_ASSIGN:
+    case EXPR_TYPE_MUL_ASSIGN:
+    case EXPR_TYPE_DIV_ASSIGN:
+    case EXPR_TYPE_MOD_ASSIGN:
     case EXPR_TYPE_ASSIGN:
-        cstring_free(expr->u.assign.lvalue);
+        expr_free(expr->u.assign.lvalue);
         expr_free(expr->u.assign.rvalue);
         break;
 
@@ -260,7 +465,7 @@ void expr_free(expr_t expr)
         break;
 
     case EXPR_TYPE_CALL:
-        cstring_free(expr->u.assign.lvalue);
+        cstring_free(expr->u.call.name);
         list_safe_for_each(expr->u.call.args, iter, next_iter) {
             list_erase(*iter);
             expr_free(list_element(iter, expr_t, link));
@@ -269,9 +474,18 @@ void expr_free(expr_t expr)
 
     case EXPR_TYPE_PLUS:
     case EXPR_TYPE_MINUS:
+    case EXPR_TYPE_INC:
+    case EXPR_TYPE_DEC:
+    case EXPR_TYPE_NOT:
         expr_free(expr->u.unary);
         break;
 
+    case EXPR_TYPE_BITAND:
+    case EXPR_TYPE_BITOR:
+    case EXPR_TYPE_XOR:
+    case EXPR_TYPE_LEFT_SHIFT:
+    case EXPR_TYPE_RIGHT_SHIFT:
+    case EXPR_TYPE_LOGIC_RIGHT_SHIFT:
     case EXPR_TYPE_MUL:
     case EXPR_TYPE_DIV:
     case EXPR_TYPE_MOD:

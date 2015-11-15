@@ -20,8 +20,6 @@ static function_t __parser_function_definition__(parser_t parse);
 static void __parser_parameter_list__(parser_t parse, list_t parameters);
 static stmt_t __parser_block__(parser_t parse);
 static stmt_t __parser_statement__(parser_t parse);
-static stmt_t __parser_global_statement__(parser_t parse);
-static void __parser_identifier_list__(parser_t parse, list_t vars);
 static stmt_t __parser_if_statement__(parser_t parse);
 static void __parser_elif_statement__(parser_t parse, stmt_if_t* if_stmt);
 static stmt_t __parser_else_statement__(parser_t parse);
@@ -31,14 +29,19 @@ static stmt_t __parser_return_statement__(parser_t parse);
 static stmt_t __parser_break_statement__(parser_t parse);
 static stmt_t __parser_continue_statement__(parser_t parse);
 static expr_t __parser_expression__(parser_t parse);
+static expr_t __parser_assignment_expression__(parser_t parse);
 static expr_t __parser_logical_or_expression__(parser_t parse);
 static expr_t __parser_logical_and_expression__(parser_t parse);
 static expr_t __parser_equality_expression__(parser_t parse);
 static expr_t __parser_relational_expression__(parser_t parse);
 static expr_t __parser_additive_expression__(parser_t parse);
 static expr_t __parser_multiplicative_expression__(parser_t parse);
+static expr_t __parser_bit_operator_expression__(parser_t parse);
 static expr_t __parser_unary_expression__(parser_t parse);
+static expr_t __parser_postfix_expression__(parser_t parse);
+static expr_t __parser_array_index_expression__(parser_t parse, expr_t array_expr);
 static expr_t __parser_primary_expression__(parser_t parse);
+static expr_t __parser_array_generate_expression__(parser_t parse);
 static void __parser_argument_list__(parser_t parse, list_t args);
 static closure_t __parser_closure_definition__(parser_t parse);
 
@@ -197,10 +200,6 @@ static stmt_t __parser_statement__(parser_t parse)
     column  = tok->column;
 
     switch (tok->value) {
-    case TOKEN_VALUE_GLOBAL:
-        stmt = __parser_global_statement__(parse);
-        break;
-
     case TOKEN_VALUE_IF:
         stmt = __parser_if_statement__(parse);
         break;
@@ -227,56 +226,14 @@ static stmt_t __parser_statement__(parser_t parse)
 
     default:
         stmt = stmt_new_expr(line, column, __parser_expression__(parse));
-        __parser_expect__(parse, TOKEN_VALUE_SEMICOLON,
-            "expected ';' at end of expression");
+        if (lexer_peek(parse->lex)->value == TOKEN_VALUE_SEMICOLON) {
+            lexer_next(parse->lex);
+        }
         break;
     }
 
     assert(stmt != NULL);
     return stmt;
-}
-
-static stmt_t __parser_global_statement__(parser_t parse)
-{
-    stmt_t stmt = NULL;
-    long line, column;
-    token_t tok;
-
-    tok     = lexer_peek(parse->lex);
-    line    = tok->line;
-    column  = tok->column;
-
-    __parser_expect_next__(parse, TOKEN_VALUE_IDENTIFIER, 
-        "expected identifier after global");
-
-    stmt = stmt_new_global(line, column);
-
-    __parser_identifier_list__(parse, stmt->u.stmt_global);
-
-    __parser_expect__(parse, TOKEN_VALUE_SEMICOLON, 
-        "expected ';' at end of global statement");
-
-    assert(stmt != NULL);
-    return stmt;
-}
-
-static void __parser_identifier_list__(parser_t parse, list_t vars)
-{
-    token_t tok = lexer_peek(parse->lex);
-    while (tok->type != TOKEN_TYPE_END && tok->value == TOKEN_VALUE_IDENTIFIER) {
-        stmt_global_t *global = mem_alloc(sizeof(stmt_global_t));
-
-        global->name = cstring_dup(tok->token);
-        list_push_back(vars, global->link);
-
-        tok = lexer_next(parse->lex);
-
-        if (tok->value != TOKEN_VALUE_COMMA) {
-            break;
-        }
-
-        tok = lexer_next(parse->lex);
-    }
 }
 
 static stmt_t __parser_if_statement__(parser_t parse)
@@ -436,8 +393,9 @@ static stmt_t __parser_return_statement__(parser_t parse)
 
     expr = __parser_expression__(parse);
 
-    __parser_expect__(parse, TOKEN_VALUE_SEMICOLON, 
-        "expected ';' at end of return statement");
+    if (lexer_peek(parse->lex)->value == TOKEN_VALUE_SEMICOLON) {
+        lexer_next(parse->lex);
+    }
 
     return stmt_new_return(line, column, expr);
 }
@@ -452,8 +410,9 @@ static stmt_t __parser_break_statement__(parser_t parse)
 
     lexer_next(parse->lex);
 
-    __parser_expect__(parse, TOKEN_VALUE_SEMICOLON, 
-        "expected ';' at end of break statement");
+    if (lexer_peek(parse->lex)->value == TOKEN_VALUE_SEMICOLON) {
+        lexer_next(parse->lex);
+    }
 
     return stmt_new_break(line, column);
 }
@@ -468,8 +427,9 @@ static stmt_t __parser_continue_statement__(parser_t parse)
 
     lexer_next(parse->lex);
 
-    __parser_expect__(parse, TOKEN_VALUE_SEMICOLON, 
-        "expected ';' at end of continue statement");
+    if (lexer_peek(parse->lex)->value == TOKEN_VALUE_SEMICOLON) {
+        lexer_next(parse->lex);
+    }
 
     return stmt_new_continue(line, column);
 }
@@ -477,6 +437,66 @@ static stmt_t __parser_continue_statement__(parser_t parse)
 static expr_t __parser_expression__(parser_t parse)
 {
     expr_t expr = __parser_logical_or_expression__(parse);
+    assert(expr != NULL);
+    return expr;
+}
+
+static expr_t __parser_assignment_expression__(parser_t parse)
+{
+    token_t tok;
+    long line, column;
+    expr_t expr = NULL;
+
+    expr    = __parser_postfix_expression__(parse);
+    tok     = lexer_peek(parse->lex);
+    line    = tok->line;
+    column  = tok->column;
+    while (tok->value == TOKEN_VALUE_ASSIGN ||
+           tok->value == TOKEN_VALUE_ADD_ASSIGN ||
+           tok->value == TOKEN_VALUE_SUB_ASSIGN ||
+           tok->value == TOKEN_VALUE_MUL_ASSIGN ||
+           tok->value == TOKEN_VALUE_DIV_ASSIGN ||
+           tok->value == TOKEN_VALUE_MOD_ASSIGN) {
+        /*
+        switch (tok->value)
+        {
+        case TOKEN_VALUE_ASSIGN:
+            lexer_next(parse->lex);
+            expr = expr_new_assign(line, column, identifier, __parser_assignment_expression__(parse));
+            break;
+
+        case TOKEN_VALUE_ADD_ASSIGN:
+            lexer_next(parse->lex);
+            expr = expr_new_add_assign(line, column, identifier, __parser_assignment_expression__(parse));
+            break;
+
+        case TOKEN_VALUE_SUB_ASSIGN:
+            lexer_next(parse->lex);
+            expr = expr_new_sub_assign(line, column, identifier, __parser_assignment_expression__(parse));
+            break;
+
+        case TOKEN_VALUE_MUL_ASSIGN:
+            lexer_next(parse->lex);
+            expr = expr_new_mul_assign(line, column, identifier, __parser_assignment_expression__(parse));
+            break;
+
+        case TOKEN_VALUE_DIV_ASSIGN:
+            lexer_next(parse->lex);
+            expr = expr_new_div_assign(line, column, identifier, __parser_assignment_expression__(parse));
+            break;
+
+        case TOKEN_VALUE_MOD_ASSIGN:
+            lexer_next(parse->lex);
+            expr = expr_new_mod_assign(line, column, identifier, __parser_assignment_expression__(parse));
+            break;
+        }
+        */
+
+        tok     = lexer_peek(parse->lex);
+        line    = tok->line;
+        column  = tok->column;
+    }
+
     assert(expr != NULL);
     return expr;
 }
@@ -491,7 +511,7 @@ static expr_t __parser_logical_or_expression__(parser_t parse)
     tok     = lexer_peek(parse->lex);
     line    = tok->line;
     column  = tok->column;
-    while (lexer_peek(parse->lex)->value == TOKEN_VALUE_OR) {
+    while (tok->value == TOKEN_VALUE_OR) {
         lexer_next(parse->lex);
         expr    = expr_new_binary(EXPR_TYPE_OR, line, column, expr, __parser_logical_and_expression__(parse));
         tok     = lexer_peek(parse->lex);
@@ -647,7 +667,7 @@ static expr_t __parser_multiplicative_expression__(parser_t parse)
     long line, column;
     expr_t expr = NULL;
 
-    expr    = __parser_unary_expression__(parse);
+    expr    = __parser_bit_operator_expression__(parse);
     tok     = lexer_peek(parse->lex);
     line    = tok->line;
     column  = tok->column;
@@ -659,15 +679,70 @@ static expr_t __parser_multiplicative_expression__(parser_t parse)
         lexer_next(parse->lex);
         switch (tv) {
         case TOKEN_VALUE_MUL:
-            expr = expr_new_binary(EXPR_TYPE_MUL, line, column, expr, __parser_unary_expression__(parse));
+            expr = expr_new_binary(EXPR_TYPE_MUL, line, column, expr, __parser_bit_operator_expression__(parse));
             break;
 
         case TOKEN_VALUE_DIV:
-            expr = expr_new_binary(EXPR_TYPE_DIV, line, column, expr, __parser_unary_expression__(parse));
+            expr = expr_new_binary(EXPR_TYPE_DIV, line, column, expr, __parser_bit_operator_expression__(parse));
             break;
 
         case TOKEN_VALUE_MOD:
-            expr = expr_new_binary(EXPR_TYPE_MOD, line, column, expr, __parser_unary_expression__(parse));
+            expr = expr_new_binary(EXPR_TYPE_MOD, line, column, expr, __parser_bit_operator_expression__(parse));
+            break;
+        }
+
+        tok    = lexer_peek(parse->lex);
+        line   = tok->line;
+        column = tok->column;
+    }
+
+    assert(expr != NULL);
+    return expr;
+}
+
+static expr_t __parser_bit_operator_expression__(parser_t parse)
+{
+    token_t tok;
+    token_value_t tv;
+    long line, column;
+    expr_t expr = NULL;
+
+    expr    = __parser_unary_expression__(parse);
+    tok     = lexer_peek(parse->lex);
+    line    = tok->line;
+    column  = tok->column;
+    while (tok->value == TOKEN_VALUE_BITAND ||
+           tok->value == TOKEN_VALUE_BITOR || 
+           tok->value == TOKEN_VALUE_XOR || 
+           tok->value == TOKEN_VALUE_LEFT_SHIFT ||
+           tok->value == TOKEN_VALUE_RIGHT_SHIFT ||
+           tok->value == TOKEN_VALUE_LOGIC_RIGHT_SHIFT) {
+        tv      = tok->value;
+
+        lexer_next(parse->lex);
+        switch (tv) {
+        case TOKEN_VALUE_BITAND:
+            expr = expr_new_binary(EXPR_TYPE_BITAND, line, column, expr, __parser_unary_expression__(parse));
+            break;
+
+        case TOKEN_VALUE_BITOR:
+            expr = expr_new_binary(EXPR_TYPE_BITOR, line, column, expr, __parser_unary_expression__(parse));
+            break;
+
+        case TOKEN_VALUE_XOR:
+            expr = expr_new_binary(EXPR_TYPE_XOR, line, column, expr, __parser_unary_expression__(parse));
+            break;
+
+        case TOKEN_VALUE_LEFT_SHIFT:
+            expr = expr_new_binary(EXPR_TYPE_LEFT_SHIFT, line, column, expr, __parser_unary_expression__(parse));
+            break;
+
+        case TOKEN_VALUE_RIGHT_SHIFT:
+            expr = expr_new_binary(EXPR_TYPE_RIGHT_SHIFT, line, column, expr, __parser_unary_expression__(parse));
+            break;
+
+        case TOKEN_VALUE_LOGIC_RIGHT_SHIFT:
+            expr = expr_new_binary(EXPR_TYPE_LOGIC_RIGHT_SHIFT, line, column, expr, __parser_unary_expression__(parse));
             break;
         }
 
@@ -688,18 +763,86 @@ static expr_t __parser_unary_expression__(parser_t parse)
     switch (tok->value) {
     case TOKEN_VALUE_ADD:
         lexer_next(parse->lex);
-        expr = expr_new_plus(tok->line, tok->column, __parser_primary_expression__(parse));
+        expr = expr_new_plus(tok->line, tok->column, __parser_postfix_expression__(parse));
         break;
 
     case TOKEN_VALUE_SUB:
         lexer_next(parse->lex);
-        expr = expr_new_minus(tok->line, tok->column, __parser_primary_expression__(parse));
+        expr = expr_new_minus(tok->line, tok->column, __parser_postfix_expression__(parse));
+        break;
+
+    case TOKEN_VALUE_NOT:
+        lexer_next(parse->lex);
+        expr = expr_new_not(tok->line, tok->column, __parser_postfix_expression__(parse));
+        break;
+
+    case TOKEN_VALUE_FLIP:
+        lexer_next(parse->lex);
+        expr = expr_new_flip(tok->line, tok->column, __parser_postfix_expression__(parse));
         break;
 
     default:
-        expr = __parser_primary_expression__(parse);
+        expr = __parser_postfix_expression__(parse);
         break;
     }
+
+    assert(expr != NULL);
+    return expr;
+}
+
+static expr_t __parser_postfix_expression__(parser_t parse)
+{
+    token_t tok;
+    token_value_t tv;
+    long line, column;
+    expr_t expr = NULL;
+
+    expr   = __parser_primary_expression__(parse);
+    tok    = lexer_peek(parse->lex);
+    line   = tok->line;
+    column = tok->column;
+    while (tok->value == TOKEN_VALUE_INC ||
+           tok->value == TOKEN_VALUE_DEC || 
+           tok->value == TOKEN_VALUE_LB) {
+        tv = tok->value;
+
+        lexer_next(parse->lex);
+        switch (tv) {
+        case TOKEN_VALUE_INC:
+            expr = expr_new_inc(line, column, expr);
+            break;
+
+        case TOKEN_VALUE_DEC:
+            expr = expr_new_dec(line, column, expr);
+            break;
+
+        case TOKEN_VALUE_LB:
+            expr = __parser_array_index_expression__(parse, expr);
+            break;
+        }
+
+        tok    = lexer_peek(parse->lex);
+        line   = tok->line;
+        column = tok->column;
+    }
+
+    assert(expr != NULL);
+    return expr;
+}
+
+static expr_t __parser_array_index_expression__(parser_t parse, expr_t array_expr)
+{
+    token_t tok;
+    expr_t expr = NULL;
+    long line, column;
+
+    tok    = lexer_peek(parse->lex);
+    line   = tok->line;
+    column = tok->column;
+
+    expr = expr_new_array_index(line, column, array_expr, __parser_expression__(parse));;
+
+    __parser_expect__(parse, TOKEN_VALUE_RB, "expected ']'");
 
     assert(expr != NULL);
     return expr;
@@ -714,9 +857,19 @@ static expr_t __parser_primary_expression__(parser_t parse)
 
     tok = lexer_peek(parse->lex);
     switch (tok->value) {
+    case TOKEN_VALUE_INC:
+        lexer_next(parse->lex);
+        expr = expr_new_inc(tok->line, tok->column, __parser_expression__(parse));
+        break;
+
+    case TOKEN_VALUE_DEC:
+        lexer_next(parse->lex);
+        expr = expr_new_dec(tok->line, tok->column, __parser_expression__(parse));
+        break;
+        
     case TOKEN_VALUE_IDENTIFIER:
         identifier = cstring_dup(tok->token);
-        line = tok->line;
+        line   = tok->line;
         column = tok->column;
 
         switch (lexer_next(parse->lex)->value) {
@@ -724,11 +877,6 @@ static expr_t __parser_primary_expression__(parser_t parse)
             expr = expr_new_call(line, column, identifier);
             __parser_argument_list__(parse, expr->u.call.args);
             __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
-            break;
-
-        case TOKEN_VALUE_ASSIGN:
-            lexer_next(parse->lex);
-            expr = expr_new_assign(line, column, identifier, __parser_expression__(parse));
             break;
 
         default:
@@ -742,6 +890,11 @@ static expr_t __parser_primary_expression__(parser_t parse)
         lexer_next(parse->lex);
         expr = __parser_expression__(parse);
         __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
+        break;
+
+    case TOKEN_VALUE_LB:
+        expr = __parser_array_generate_expression__(parse);
+        __parser_expect__(parse, TOKEN_VALUE_RB, "expected ']'");
         break;
 
     case TOKEN_VALUE_LITERAL_CHAR:
@@ -803,6 +956,29 @@ static expr_t __parser_primary_expression__(parser_t parse)
     return expr;
 }
 
+static expr_t __parser_array_generate_expression__(parser_t parse)
+{
+    token_t tok     = lexer_next(parse->lex);
+    expr_t  expr    = expr_new_array_generate(tok->line, tok->column);
+    expr_t  element = NULL;
+
+    while (tok->type != TOKEN_TYPE_END && tok->value != TOKEN_VALUE_RB) {
+        element = __parser_expression__(parse);
+        assert(expr != NULL);
+
+        list_push_back(expr->u.array_generate.exprs, element->link);
+
+        if (lexer_peek(parse->lex)->value != TOKEN_VALUE_COMMA) {
+            break;
+        }
+
+        tok = lexer_next(parse->lex);
+    }
+
+    assert(expr != NULL);
+    return expr;
+}
+
 static void __parser_argument_list__(parser_t parse, list_t args)
 {
     token_t tok = lexer_next(parse->lex);
@@ -818,7 +994,7 @@ static void __parser_argument_list__(parser_t parse, list_t args)
             break;
         }
 
-        lexer_next(parse->lex);
+        tok = lexer_next(parse->lex);
     }
 }
 
@@ -834,14 +1010,13 @@ static closure_t __parser_closure_definition__(parser_t parse)
 
     if (tok->value == TOKEN_VALUE_IDENTIFIER) {
         closure = closure_new(line, column, cstring_dup(tok->token));
+        lexer_next(parse->lex);
     } else {
         closure = closure_new(line, column, cstring_new(""));
     }
 
-    __parser_expect_next__(parse, TOKEN_VALUE_LP, 
+    __parser_expect__(parse, TOKEN_VALUE_LP, 
         "expected '(' after 'closure'");
-
-    lexer_next(parse->lex);
 
     __parser_parameter_list__(parse, closure->parameters);
 
@@ -849,6 +1024,16 @@ static closure_t __parser_closure_definition__(parser_t parse)
         "expected ')'");
 
     closure->block = __parser_block__(parse);
+
+    if (lexer_peek(parse->lex)->value == TOKEN_VALUE_LP) {
+        
+        __parser_argument_list__(parse, closure->init_args);
+
+        __parser_expect__(parse, TOKEN_VALUE_RP,
+            "expected ')'");
+
+        closure->init_call = true;
+    }
 
     return closure;
 }

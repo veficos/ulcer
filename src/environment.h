@@ -5,6 +5,7 @@
 
 #include "config.h"
 #include "list.h"
+#include "stmt.h"
 #include "hlist.h"
 #include "array.h"
 #include "module.h"
@@ -43,6 +44,7 @@ enum value_type_e {
     VALUE_TYPE_FLOAT,
     VALUE_TYPE_DOUBLE,
     VALUE_TYPE_STRING,
+    VALUE_TYPE_CLOSURE,
     VALUE_TYPE_POINTER,
     VALUE_TYPE_REFERENCE,
     VALUE_TYPE_NULL,
@@ -59,6 +61,7 @@ struct value_s {
         double    double_value;
         object_t  object_value;
         void*     pointer_value;
+        closure_t closure_value;
     }u;
 };
 
@@ -72,7 +75,6 @@ struct variable_s {
 
 struct local_context_s {
     hash_table_t variables;
-    hash_table_t references;
     list_node_t  link;
 };
 
@@ -92,11 +94,12 @@ function_t environment_search_function(environment_t env, cstring_t function_nam
 
 void environment_push_local_context(environment_t env);
 void environment_pop_local_context(environment_t env);
-void environment_new_local_variable(environment_t env, cstring_t name, value_t value);
-void environment_new_local_reference(environment_t env, cstring_t name);
-value_t environment_search_local_variable(environment_t env, cstring_t name);
+void environment_new_local_variable_by_lvalue_expr(environment_t env, expr_t lvalue_expr, value_t rvalue);
+void environment_new_local_variable_by_identifier(environment_t env, cstring_t varname, value_t rvalue);
+value_t environment_search_local_lvalue_variable_by_lvalue_expr(environment_t env, expr_t lvalue_expr);
+value_t environment_search_local_lvalue_variable_by_identifier(environment_t env, cstring_t varname);
 
-void environment_new_global_variable(environment_t env, cstring_t name, value_t value);
-value_t environment_search_global_variable(environment_t env, cstring_t name);
+void environment_new_global_lvalue_variable_by_value_expr(environment_t env, expr_t lvalue_expr, value_t rvalue);
+value_t environment_search_global_lvalue_variable(environment_t env, expr_t lvalue_expr);
 
 #endif

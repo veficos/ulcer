@@ -12,7 +12,6 @@ static int __environment_variable_compare__(const hlist_node_t *lhs, const hlist
 static unsigned long __environment_variable_hashfn__(const hlist_node_t *hnode);
 static void __environment_free_global_variable__(environment_t env);
 static void __environment_free_local_variables__(hash_table_t htable);
-static void __environment_free_local_references__(hash_table_t htable);
 
 static hlist_node_ops_t variable_hash_operators = {
     NULL,
@@ -92,8 +91,7 @@ void environment_push_local_context(environment_t env)
         mem_alloc(sizeof(struct local_context_s));
 
     lctx->variables  = hash_table_new(&variable_hash_operators);
-    lctx->references = hash_table_new(&variable_hash_operators);
-
+  
     list_push_back(env->local_context_stack, lctx->link);
 }
 
@@ -108,12 +106,11 @@ void environment_pop_local_context(environment_t env)
     list_pop_back(env->local_context_stack);
 
     __environment_free_local_variables__(lctx->variables);
-    __environment_free_local_references__(lctx->references);
-
+ 
     mem_free(lctx);
 }
 
-void environment_new_local_variable(environment_t env, cstring_t name, value_t value)
+void environment_new_local_variable_by_lvalue_expr(environment_t env, expr_t lvalue_expr, value_t rvalue)
 {
     local_context_t lctx;
     variable_t variable;
@@ -125,46 +122,53 @@ void environment_new_local_variable(environment_t env, cstring_t name, value_t v
 
     variable = (variable_t) mem_alloc(sizeof(struct variable_s));
     v = (value_t) mem_alloc(sizeof(struct value_s));
+    *v = *rvalue;
 
-    *v = *value;
-
-    variable->name  = cstring_dup(name);
-    variable->value = v;
+    if (lvalue_expr->type == EXPR_TYPE_IDENTIFIER) {
+        variable->name  = cstring_dup(lvalue_expr->u.identifier);
+        variable->value = v;
+    }
 
     hash_table_insert(lctx->variables, &variable->link);
 }
 
-void environment_new_local_reference(environment_t env, cstring_t name)
+void environment_new_local_variable_by_identifier(environment_t env, cstring_t varname, value_t rvalue)
 {
     local_context_t lctx;
     variable_t variable;
+    value_t v;
 
     assert(!list_is_empty(env->local_context_stack));
 
     lctx = list_element(list_rbegin(env->local_context_stack), local_context_t, link);
 
-    variable = (variable_t) mem_alloc(sizeof(struct variable_s));
-   
-    variable->name  = cstring_dup(name);
-    variable->value = environment_search_global_variable(env, name);
+    variable = (variable_t)mem_alloc(sizeof(struct variable_s));
+    v = (value_t)mem_alloc(sizeof(struct value_s));
+    *v = *rvalue;
+  
+    variable->name = cstring_dup(varname);
+    variable->value = v;
 
-    hash_table_insert(lctx->references, &variable->link);
+    hash_table_insert(lctx->variables, &variable->link);
 }
 
-value_t environment_search_local_variable(environment_t env, cstring_t name)
+value_t environment_search_local_lvalue_variable_by_lvalue_expr(environment_t env, expr_t lvalue_expr)
 {
     local_context_t lctx;
-    hlist_node_t *node;
     list_iter_t iter;
+    struct variable_s variable;
+    hlist_node_t *node = NULL;
     value_t result = NULL;
     bool is_reference = false;
-    struct variable_s variable;
     
     if (list_is_empty(env->local_context_stack)) {
         return result;
     }
 
-    variable.name = name;
+    if (lvalue_expr->type == EXPR_TYPE_IDENTIFIER) {
+        variable.name = lvalue_expr->u.identifier;
+    }
+
     list_reverse_for_each(env->local_context_stack, iter) {
         lctx = list_element(iter, local_context_t, link);
 
@@ -172,32 +176,47 @@ value_t environment_search_local_variable(environment_t env, cstring_t name)
         if (node) {
             break;
         }
-
-        node = hash_table_search(lctx->references, &variable.link);
-        if (node) {
-            is_reference = true;
-            break;
-        }
     }
 
-    if (is_reference) {        
-        result = environment_search_global_variable(env, name);
-        if (!result) {
-            struct value_s v;
-            v.type = VALUE_TYPE_REFERENCE;
-
-            environment_new_global_variable(env, name, &v);
-            result = environment_search_global_variable(env, name);
-        }
-
-    } else if (node) {
+    if (node) {
         result = hlist_element(node, variable_t, link)->value;
     }
 
     return result;
 }
 
-void environment_new_global_variable(environment_t env, cstring_t name, value_t value)
+value_t environment_search_local_lvalue_variable_by_identifier(environment_t env, cstring_t varname)
+{
+    local_context_t lctx;
+    list_iter_t iter;
+    struct variable_s variable;
+    hlist_node_t *node = NULL;
+    value_t result = NULL;
+    bool is_reference = false;
+
+    if (list_is_empty(env->local_context_stack)) {
+        return result;
+    }
+   
+    variable.name = varname;
+
+    list_reverse_for_each(env->local_context_stack, iter) {
+        lctx = list_element(iter, local_context_t, link);
+
+        node = hash_table_search(lctx->variables, &variable.link);
+        if (node) {
+            break;
+        }
+    }
+
+    if (node) {
+        result = hlist_element(node, variable_t, link)->value;
+    }
+
+    return result;
+}
+
+void environment_new_global_lvalue_variable_by_value_expr(environment_t env, expr_t lvalue_expr, value_t rvalue)
 {
     variable_t variable;
     value_t v;
@@ -205,20 +224,24 @@ void environment_new_global_variable(environment_t env, cstring_t name, value_t 
     variable = (variable_t) mem_alloc(sizeof(struct variable_s));
     v = (value_t) mem_alloc(sizeof(struct value_s));
 
-    *v = *value;
+    *v = *rvalue;
 
-    variable->name  = cstring_dup(name);
-    variable->value = v;
+    if (lvalue_expr->type == EXPR_TYPE_IDENTIFIER) {
+        variable->name  = cstring_dup(lvalue_expr->u.identifier);
+        variable->value = v;
+    }
 
     hash_table_insert(env->global_context, &variable->link);
 }
 
-value_t environment_search_global_variable(environment_t env, cstring_t name)
+value_t environment_search_global_lvalue_variable(environment_t env, expr_t lvalue_expr)
 {
     struct variable_s variable;
     hlist_node_t *node;
 
-    variable.name = name;
+    if (lvalue_expr->type == EXPR_TYPE_IDENTIFIER) {
+        variable.name = lvalue_expr->u.identifier;
+    }
 
     node = hash_table_search(env->global_context, &variable.link);
     if (!node) {
@@ -274,25 +297,6 @@ static void __environment_free_local_variables__(hash_table_t htable)
 
         cstring_free(variable->name);
         mem_free(variable->value);
-        mem_free(variable);
-    }
-
-    hash_table_iter_free(iter);
-
-    hash_table_free(htable);
-}
-
-static void __environment_free_local_references__(hash_table_t htable)
-{
-    hash_table_iter_t iter;
-    variable_t variable;
-
-    iter = hash_table_iter_new(htable);
-    hash_table_for_each(htable, iter) {
-        hlist_remove(iter.hn);
-        variable = hash_table_iter_element(iter, variable_t, link);
-
-        cstring_free(variable->name);
         mem_free(variable);
     }
 

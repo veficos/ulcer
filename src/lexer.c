@@ -39,12 +39,6 @@ struct keyword_s keywords[] = {
     { "true",           TOKEN_VALUE_TRUE },
     { "false",          TOKEN_VALUE_FALSE },
     { "closure",        TOKEN_VALUE_CLOSURE },
-    { "global",         TOKEN_VALUE_GLOBAL },
-    { "try",            TOKEN_VALUE_TRY },
-    { "catch",          TOKEN_VALUE_CATCH },
-    { "finally",        TOKEN_VALUE_FINALLY },
-    { "throw",          TOKEN_VALUE_THROW },
-    { "final",          TOKEN_VALUE_FINAL },
 };
 
 static token_t __lexer_next__(lexer_t lex);
@@ -146,6 +140,10 @@ reparse:
         if (__lexer_peek_char__(lex) == '=') {
             lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
             lex->tok->value = TOKEN_VALUE_ADD_ASSIGN;
+
+        } else if (__lexer_peek_char__(lex) == '+') {
+            lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
+            lex->tok->value = TOKEN_VALUE_INC;
         }
 
     } else if (ch == '-') {
@@ -153,6 +151,10 @@ reparse:
         if (__lexer_peek_char__(lex) == '=') {
             lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
             lex->tok->value = TOKEN_VALUE_SUB_ASSIGN;
+
+        } else if (__lexer_peek_char__(lex) == '-') {
+            lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
+            lex->tok->value = TOKEN_VALUE_DEC;
         }
 
     } else if (ch == '*') {
@@ -199,6 +201,10 @@ reparse:
         if (__lexer_peek_char__(lex) == '=') {
             lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
             lex->tok->value = TOKEN_VALUE_LEQ;
+
+        } else if (__lexer_peek_char__(lex) == '<') {
+            lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
+            lex->tok->value = TOKEN_VALUE_LEFT_SHIFT;
         }
 
     } else if (ch == '>') {
@@ -206,31 +212,36 @@ reparse:
         if (__lexer_peek_char__(lex) == '=') {
             lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
             lex->tok->value = TOKEN_VALUE_GEQ;
+
+        } else if (__lexer_peek_char__(lex) == '>') {
+            lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
+            lex->tok->value = TOKEN_VALUE_RIGHT_SHIFT;
+
+            if (__lexer_peek_char__(lex) == '>') {
+                lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
+                lex->tok->value = TOKEN_VALUE_LOGIC_RIGHT_SHIFT;
+            }
         }
 
     } else if (ch == '&') {
-        __lexer_parse_operator__(lex, TOKEN_VALUE_NIL);
-        if ((__lexer_peek_char__(lex) != '&')) {
-            error(source_code_file_name(lex->sc),
-                  lex->current_line,
-                  lex->current_column,
-                  "undeclared identifier '%s'", lex->tok->token);
+        __lexer_parse_operator__(lex, TOKEN_VALUE_BITAND);
+        if ((__lexer_peek_char__(lex) == '&')) {
+            lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
+            lex->tok->value = TOKEN_VALUE_AND;
         }
-
-        lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
-        lex->tok->value = TOKEN_VALUE_AND;
 
     } else if (ch == '|') {
-        __lexer_parse_operator__(lex, TOKEN_VALUE_NIL);
-        if (!(__lexer_peek_char__(lex) != '|')) {
-            error(source_code_file_name(lex->sc),
-                  lex->current_line,
-                  lex->current_column,
-                  "undeclared identifier '%s'", lex->tok->token);
+        __lexer_parse_operator__(lex, TOKEN_VALUE_BITOR);
+        if (!(__lexer_peek_char__(lex) == '|')) {
+            lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
+            lex->tok->value = TOKEN_VALUE_OR;
         }
 
-        lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
-        lex->tok->value = TOKEN_VALUE_OR;
+    } else if (ch == '^') {
+        __lexer_parse_operator__(lex, TOKEN_VALUE_XOR);
+
+    } else if (ch == '~') {
+        __lexer_parse_operator__(lex, TOKEN_VALUE_FLIP);
 
     } else if (ch == '(') {
         __lexer_parse_operator__(lex, TOKEN_VALUE_LP);

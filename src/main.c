@@ -17,6 +17,64 @@
 #include <time.h>
 #include <stdlib.h>
 
+
+array_t type_native_function(array_t arg_stack)
+{
+    value_t base;
+    int index;
+
+    array_for_each(arg_stack, base, index) {
+        switch (base[index].type) {
+        case VALUE_TYPE_CHAR:
+            printf("char");
+            break;
+
+        case VALUE_TYPE_BOOL:
+            printf("bool");
+            break;
+
+        case VALUE_TYPE_INT:
+            printf("int");
+            break;
+
+        case VALUE_TYPE_LONG:
+            printf("long");
+            break;
+
+        case VALUE_TYPE_FLOAT:
+            printf("float");
+            break;
+
+        case VALUE_TYPE_DOUBLE:
+            printf("double");
+            break;
+
+        case VALUE_TYPE_STRING:
+            printf("string");
+            break;
+
+        case VALUE_TYPE_CLOSURE:
+            printf("closure");
+            break;
+
+        case VALUE_TYPE_POINTER:
+            printf("pointer");
+            break;
+
+        case VALUE_TYPE_REFERENCE:
+            printf("null");
+            break;
+
+        case VALUE_TYPE_NULL:
+            printf("null");
+            break;
+        }
+    }
+
+    return NULL;
+}
+
+
 array_t print_native_function(array_t arg_stack)
 {
     value_t base;
@@ -50,6 +108,10 @@ array_t print_native_function(array_t arg_stack)
 
         case VALUE_TYPE_STRING:
             printf("%s", base[index].u.object_value->u.string);
+            break;
+
+        case VALUE_TYPE_CLOSURE:
+            printf("closure");
             break;
 
         case VALUE_TYPE_POINTER:
@@ -90,7 +152,8 @@ int main(int argc, char **argv)
     executor_t exec;
     
     module_add_function(module, function_new_native(cstring_new("print"), &print_native_function));
-   
+    module_add_function(module, function_new_native(cstring_new("type"), &type_native_function));
+    
     environment_add_module(env, module);
 
     exec = executor_new(env);

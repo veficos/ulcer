@@ -37,7 +37,6 @@ typedef enum token_value_e {
     TOKEN_VALUE_COMMA,       /* , */
     TOKEN_VALUE_AND,         /* && */
     TOKEN_VALUE_OR,          /* || */
-    TOKEN_VALUE_ASSIGN,      /* = */
     TOKEN_VALUE_EQ,          /* == */
     TOKEN_VALUE_NEQ,         /* != */
     TOKEN_VALUE_LT,          /* < */
@@ -49,11 +48,20 @@ typedef enum token_value_e {
     TOKEN_VALUE_MUL,         /* * */
     TOKEN_VALUE_DIV,         /* / */
     TOKEN_VALUE_MOD,         /* % */
+    TOKEN_VALUE_ASSIGN,      /* = */
     TOKEN_VALUE_ADD_ASSIGN,  /* += */
     TOKEN_VALUE_SUB_ASSIGN,  /* -= */
     TOKEN_VALUE_MUL_ASSIGN,  /* *= */
     TOKEN_VALUE_DIV_ASSIGN,  /* /= */
     TOKEN_VALUE_MOD_ASSIGN,  /* %= */
+    TOKEN_VALUE_BITAND,      /* & */
+    TOKEN_VALUE_BITOR,       /* | */
+    TOKEN_VALUE_XOR,         /* ^ */
+    TOKEN_VALUE_LEFT_SHIFT,  /* << */
+    TOKEN_VALUE_RIGHT_SHIFT, /* >> */
+    TOKEN_VALUE_LOGIC_RIGHT_SHIFT, /* >>> */
+    TOKEN_VALUE_FLIP,        /* ~ */
+
     TOKEN_VALUE_INC,         /* ++ */
     TOKEN_VALUE_DEC,         /* -- */
     TOKEN_VALUE_NOT,         /* ! */
@@ -80,13 +88,7 @@ typedef enum token_value_e {
     TOKEN_VALUE_TRUE,
     TOKEN_VALUE_FALSE,
     TOKEN_VALUE_CLOSURE,
-    TOKEN_VALUE_GLOBAL,
-    TOKEN_VALUE_TRY,
-    TOKEN_VALUE_CATCH,
-    TOKEN_VALUE_FINALLY,
-    TOKEN_VALUE_THROW,
-    TOKEN_VALUE_FINAL,
-
+   
     TOKEN_VALUE_IDENTIFIER,
 }token_value_t;
 

@@ -157,15 +157,6 @@ static void __heap_mark_objects__(environment_t env)
                 }
             }
             hash_table_iter_free(hiter);
-
-            hiter = hash_table_iter_new(lctx->references);
-            hash_table_for_each(lctx->references, hiter) {
-                variable = hash_table_iter_element(hiter, variable_t, link);
-                if (variable->value && __heap_value_is_object__(*variable->value)) {
-                    __heap_mark_object__(variable->value->u.object_value);
-                }
-            }
-            hash_table_iter_free(hiter);
         }
     }
 

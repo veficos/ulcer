@@ -12,7 +12,6 @@ struct executor_s {
 };
 
 static void __executor_expr_statement__(environment_t env, stmt_t stmt);
-static void __executor_global_statement__(environment_t env, stmt_t stmt);
 static executor_result_t __executor_if_statement__(environment_t env, stmt_t stmt);
 static executor_result_t __executor_elif_statement__(environment_t env, stmt_t stmt);
 static executor_result_t __executor_for_statement__(environment_t env, stmt_t stmt);
@@ -93,10 +92,6 @@ executor_result_t executor_statement(environment_t env, stmt_t stmt)
     case STMT_TYPE_BLOCK:
         return __executor_block_statement__(env, stmt);
 
-    case STMT_TYPE_GLOBAL:
-        __executor_global_statement__(env, stmt);
-        return EXECUTOR_RESULT_NORMAL;
-
     case STMT_TYPE_IF:
         return __executor_if_statement__(env, stmt);
 
@@ -133,23 +128,6 @@ static executor_result_t __executor_block_statement__(environment_t env, stmt_t 
 static void __executor_expr_statement__(environment_t env, stmt_t stmt)
 {
     eval_expression(env, stmt->u.expr);
-}
-
-static void __executor_global_statement__(environment_t env, stmt_t stmt)
-{
-    list_iter_t iter;
-    stmt_global_t* global;
-
-    if (list_is_empty(env->local_context_stack)) {
-        runtime_error(stmt->line, 
-                      stmt->column,
-                      "global outside block");
-    }
-
-    list_for_each(stmt->u.stmt_global, iter) {
-        global = list_element(iter, stmt_global_t*, link);
-        environment_new_local_reference(env, global->name);
-    }
 }
 
 static executor_result_t __executor_if_statement__(environment_t env, stmt_t stmt)

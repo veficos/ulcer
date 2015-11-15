@@ -9,11 +9,17 @@
 #include "expr.h"
 
 #include <math.h>
+#include <assert.h>
 
 #define __is_math_operator__(oper)                                            \
     ((oper) == EXPR_TYPE_ADD || (oper) == EXPR_TYPE_SUB ||                    \
      (oper) == EXPR_TYPE_MUL || (oper) == EXPR_TYPE_DIV ||                    \
      (oper) == EXPR_TYPE_MOD)
+
+#define __is_bit_operator__(oper)                                             \
+    ((oper) == EXPR_TYPE_BITAND || (oper) == EXPR_TYPE_BITOR ||               \
+    (oper) == EXPR_TYPE_XOR || (oper) == EXPR_TYPE_LEFT_SHIFT ||              \
+    (oper) == EXPR_TYPE_RIGHT_SHIFT || (oper) == EXPR_TYPE_LOGIC_RIGHT_SHIFT) 
 
 #define __is_compare_operator__(oper)                                         \
     ((oper) == EXPR_TYPE_GT || (oper) == EXPR_TYPE_GEQ ||                     \
@@ -27,10 +33,12 @@ static void __eval_long_expr__(environment_t env, long long_value);
 static void __eval_float_expr__(environment_t env, float float_value);
 static void __eval_double_expr__(environment_t env, double double_value);
 static void __eval_string_expr__(environment_t env, cstring_t string_value);
+static void __eval_closure_expr__(environment_t env, closure_t closure);
 static void __eval_null_expr__(environment_t env);
 static void __eval_call_expr__(environment_t env, expr_t call_expr);
+static void __eval_closure_call_expr__(environment_t env, closure_t closure);
 static void __eval_identifier_expr__(environment_t env, cstring_t identifier);
-static void __eval_assign_expr__(environment_t env, cstring_t varname, expr_t rvalue_expr);
+static void __eval_assign_expr__(environment_t env, expr_type_t type, expr_t lvalue_expr, expr_t rvalue_expr);
 static void __eval_native_function_call_expr__(environment_t env, expr_call_t call, native_function_pt function);
 static void __eval_function_call_expr__(environment_t env, expr_t call_expr, function_t func);
 static void __eval_binary_expr__(environment_t env, expr_type_t type, expr_t left, expr_t right);
@@ -84,19 +92,38 @@ void eval_expression(environment_t env, expr_t expr)
         __eval_identifier_expr__(env, expr->u.identifier);
         break;
 
+    //case EXPR_TYPE_CLOSURE:
+      //  __eval_closure_expr__(env, expr->u.closure);
+        //break;
+
+    case EXPR_TYPE_ADD_ASSIGN:
+    case EXPR_TYPE_SUB_ASSIGN:
+    case EXPR_TYPE_MUL_ASSIGN:
+    case EXPR_TYPE_DIV_ASSIGN:
+    case EXPR_TYPE_MOD_ASSIGN:
     case EXPR_TYPE_ASSIGN:
-        __eval_assign_expr__(env, expr->u.assign.lvalue, expr->u.assign.rvalue);
+        __eval_assign_expr__(env, expr->type, expr->u.assign.lvalue, expr->u.assign.rvalue);
         break;
 
     case EXPR_TYPE_CALL:
         __eval_call_expr__(env, expr);
         break;
 
+    case EXPR_TYPE_FLIP:
+    case EXPR_TYPE_INC:
+    case EXPR_TYPE_DEC:
+    case EXPR_TYPE_NOT:
     case EXPR_TYPE_PLUS:
     case EXPR_TYPE_MINUS:
         __eval_unary_expr__(env, expr->type, expr);
         break;
 
+    case EXPR_TYPE_BITAND:
+    case EXPR_TYPE_BITOR:
+    case EXPR_TYPE_XOR:
+    case EXPR_TYPE_LEFT_SHIFT:
+    case EXPR_TYPE_RIGHT_SHIFT:
+    case EXPR_TYPE_LOGIC_RIGHT_SHIFT:
     case EXPR_TYPE_MUL:
     case EXPR_TYPE_DIV:
     case EXPR_TYPE_MOD:
@@ -173,6 +200,43 @@ static void __eval_string_expr__(environment_t env, cstring_t string_value)
     value->u.object_value = heap_alloc_string(env, string_value);
     value->type           = VALUE_TYPE_STRING;
 }
+/*
+static void __eval_closure_expr__(environment_t env, closure_t closure)
+{
+    struct value_s temp;
+    value_t lvalue = NULL;
+    value_t value  = NULL; 
+
+    if (closure->init_call) {
+        __eval_closure_call_expr__(env, closure);
+       
+        value                  = &temp;
+        value->type            = VALUE_TYPE_CLOSURE;
+        value->u.closure_value = closure;
+    } else {
+        value                  = array_push(env->stack);
+        value->type            = VALUE_TYPE_CLOSURE;
+        value->u.closure_value = closure;
+    }
+
+    if (!cstring_is_empty(closure->name) && !list_is_empty(env->local_context_stack)) {
+        lvalue = environment_search_local_lvalue_variable(env, closure->name);
+        if (lvalue == NULL) {
+            environment_new_local_lvalue_variable(env, closure->name, value);
+        } else {
+            *lvalue = *value;
+        }
+
+    } else {
+        lvalue = environment_search_global_lvalue_variable(env, closure->name);
+        if (lvalue == NULL) {
+            environment_new_global_lvalue_variable(env, closure->name, value);
+        } else {
+            *lvalue = *value;
+        }
+    }
+}
+*/
 
 static void __eval_null_expr__(environment_t env)
 {
@@ -185,12 +249,12 @@ static void __eval_call_expr__(environment_t env, expr_t call_expr)
 {
     function_t function;
     
-    function = environment_search_function(env, call_expr->u.call.function_name);
+    function = environment_search_function(env, call_expr->u.call.name);
     if (!function) {
         runtime_error(call_expr->line,
                       call_expr->column,
                       "undefined function to '%s'",
-                      call_expr->u.call.function_name);
+                      call_expr->u.call.name);
     }
 
     switch (function->type) {
@@ -200,6 +264,60 @@ static void __eval_call_expr__(environment_t env, expr_t call_expr)
     case FUNCTION_TYPE_USER:
         __eval_function_call_expr__(env, call_expr, function);
         break;
+    }
+}
+
+static void __eval_closure_call_expr__(environment_t env, closure_t closure)
+{
+    list_iter_t iter;
+    list_iter_t parameter;
+    cstring_t arg_name;
+    value_t arg_value;
+    unsigned long argc = 0;
+    unsigned long index = 0;
+
+    list_for_each(closure->init_args, iter) {
+        eval_expression(env, list_element(iter, expr_t, link));
+        argc++;
+    }
+
+    environment_push_local_context(env);
+    parameter = list_begin(closure->parameters);
+
+    for (; index < argc; index++) {
+        if (list_end(closure->parameters) == parameter) {
+            continue;
+        }
+
+        arg_name = list_element(parameter, parameter_t, link)->name;
+        arg_value = (value_t) array_index(env->stack, index);
+        environment_new_local_variable_by_identifier(env, arg_name, arg_value);
+
+        parameter = list_next(parameter);
+    }
+
+    array_pop_n(env->stack, argc);
+
+    switch (executor_statement(env, closure->block)) {
+    case EXECUTOR_RESULT_BREAK:
+        runtime_error(closure->line,
+                      closure->column,
+                      "break outside loop");
+        break;
+    case EXECUTOR_RESULT_CONTINUE:
+        runtime_error(closure->line,
+                      closure->column,
+                      "continue outside loop");
+        break;
+    default:
+        break;
+    }
+
+    environment_pop_local_context(env);
+
+    if (array_is_empty(env->stack)) {
+        value_t value = array_push(env->stack);
+        value->type   = VALUE_TYPE_NULL;
     }
 }
 
@@ -222,8 +340,8 @@ static void __eval_function_call_expr__(environment_t env, expr_t call_expr, fun
 {
     list_iter_t iter;
     list_iter_t parameter;
-    cstring_t parameter_name;
-    value_t parameter_value;
+    cstring_t arg_name;
+    value_t arg_value;
     unsigned long argc = 0;
     unsigned long index = 0;
   
@@ -240,9 +358,9 @@ static void __eval_function_call_expr__(environment_t env, expr_t call_expr, fun
             continue;
         }
 
-        parameter_name  = list_element(parameter, parameter_t, link)->name;
-        parameter_value = (value_t) array_index(env->stack, index);
-        environment_new_local_variable(env, parameter_name, parameter_value);
+        arg_name  = list_element(parameter, parameter_t, link)->name;
+        arg_value = (value_t) array_index(env->stack, index);
+        environment_new_local_variable_by_identifier(env, arg_name, arg_value);
 
         parameter = list_next(parameter);
     }
@@ -265,6 +383,11 @@ static void __eval_function_call_expr__(environment_t env, expr_t call_expr, fun
     }
 
     environment_pop_local_context(env);
+
+    if (array_is_empty(env->stack)) {
+        value_t value = array_push(env->stack);
+        value->type = VALUE_TYPE_NULL;
+    }
 }
 
 static void __eval_identifier_expr__(environment_t env, cstring_t identifier)
@@ -272,7 +395,7 @@ static void __eval_identifier_expr__(environment_t env, cstring_t identifier)
     value_t value;
     
     if (!list_is_empty(env->local_context_stack)) {
-        value = environment_search_local_variable(env, identifier);
+        value = environment_search_local_lvalue_variable_by_lvalue_expr(env, identifier);
         if (value) {
             *(value_t) array_push(env->stack) = *value;
         } else {
@@ -281,7 +404,7 @@ static void __eval_identifier_expr__(environment_t env, cstring_t identifier)
         }
 
     } else {
-        value = environment_search_global_variable(env, identifier);
+        value = environment_search_global_lvalue_variable(env, identifier);
         if (value) {
             *(value_t) array_push(env->stack) = *value;
         } else {
@@ -291,8 +414,9 @@ static void __eval_identifier_expr__(environment_t env, cstring_t identifier)
     }
 }
 
-static void __eval_assign_expr__(environment_t env, cstring_t varname, expr_t rvalue_expr)
+static void __eval_assign_expr__(environment_t env, expr_type_t type, expr_t lvalue_expr, expr_t rvalue_expr)
 {
+    struct value_s result;
     value_t lvalue;
     value_t expr_value;
 
@@ -300,21 +424,134 @@ static void __eval_assign_expr__(environment_t env, cstring_t varname, expr_t rv
 
     expr_value = (value_t) array_index(env->stack, array_length(env->stack) - 1);
     if (!list_is_empty(env->local_context_stack)) {
-        lvalue = environment_search_local_variable(env, varname);
+        lvalue = environment_search_local_lvalue_variable_by_lvalue_expr(env, lvalue_expr);
         if (lvalue == NULL) {
-            environment_new_local_variable(env, varname, expr_value);
-        } else {
-            *lvalue = *expr_value;
-        }
+            environment_new_local_variable_by_lvalue_expr(env, lvalue_expr, expr_value);
+            if (expr_value->type == VALUE_TYPE_STRING && (type != EXPR_TYPE_ADD_ASSIGN && type != EXPR_TYPE_ASSIGN)) {
+                runtime_error(rvalue_expr->line,
+                              rvalue_expr->column,
+                              "unsupported operand for : type(null) %s type(%s)",
+                              expr_type_string(type),
+                              value_type_string(expr_value));
+            }
+            return;
+        } 
 
     } else {
-        lvalue = environment_search_global_variable(env, varname);
+        lvalue = environment_search_global_lvalue_variable(env, lvalue_expr);
         if (lvalue == NULL) {
-            environment_new_global_variable(env, varname, expr_value);
-        } else {
-            *lvalue = *expr_value;
-        }
+            environment_new_global_lvalue_variable_by_value_expr(env, lvalue_expr, expr_value);
+            if (expr_value->type == VALUE_TYPE_STRING && (type != EXPR_TYPE_ADD_ASSIGN && type != EXPR_TYPE_ASSIGN)) {
+                runtime_error(rvalue_expr->line,
+                              rvalue_expr->column,
+                              "unsupported operand for : type(null) %s type(%s)",
+                              expr_type_string(type),
+                              value_type_string(expr_value));
+            }
+            return;
+        } 
     }
+
+    switch (type) {
+    case EXPR_TYPE_ADD_ASSIGN:
+        type = EXPR_TYPE_ADD;
+        break;
+
+    case EXPR_TYPE_SUB_ASSIGN:
+        type = EXPR_TYPE_SUB;
+        break;
+
+    case EXPR_TYPE_MUL_ASSIGN:
+        type = EXPR_TYPE_MUL;
+        break;
+
+    case EXPR_TYPE_DIV_ASSIGN:
+        type = EXPR_TYPE_DIV;
+        break;
+
+    case EXPR_TYPE_MOD_ASSIGN:
+        type = EXPR_TYPE_MOD;
+        break;
+
+    default:
+        *lvalue = *expr_value;
+        return;
+    }
+
+    if (lvalue->type == VALUE_TYPE_CHAR && expr_value->type == VALUE_TYPE_CHAR ||
+        lvalue->type == VALUE_TYPE_INT && expr_value->type == VALUE_TYPE_CHAR ||
+        lvalue->type == VALUE_TYPE_CHAR && expr_value->type == VALUE_TYPE_INT ||
+        lvalue->type == VALUE_TYPE_LONG && expr_value->type == VALUE_TYPE_CHAR ||
+        lvalue->type == VALUE_TYPE_CHAR && expr_value->type == VALUE_TYPE_LONG) {
+        __eval_char_binary_expr__(env, rvalue_expr->line, rvalue_expr->column, type, lvalue, expr_value, &result);
+
+    }else if (lvalue->type == VALUE_TYPE_INT && expr_value->type == VALUE_TYPE_INT) {
+        __eval_int_binary_expr__(env, rvalue_expr->line, rvalue_expr->column, type, lvalue, expr_value, &result);
+
+    } else if (lvalue->type == VALUE_TYPE_FLOAT && expr_value->type == VALUE_TYPE_INT) {
+        expr_value->u.float_value = (float)expr_value->u.int_value;
+        __eval_float_binary_expr__(env, rvalue_expr->line, rvalue_expr->column, type, lvalue, expr_value, &result);
+
+    } else if (lvalue->type == VALUE_TYPE_INT && expr_value->type == VALUE_TYPE_FLOAT) {
+        lvalue->u.float_value = (float)lvalue->u.int_value;
+        __eval_float_binary_expr__(env, rvalue_expr->line, rvalue_expr->column, type, lvalue, expr_value, &result);
+
+    } else if (lvalue->type == VALUE_TYPE_DOUBLE && expr_value->type == VALUE_TYPE_INT) {
+        rvalue_expr->u.double_value = (double)rvalue_expr->u.int_value;
+        __eval_double_binary_expr__(env, rvalue_expr->line, rvalue_expr->column, type, lvalue, expr_value, &result);
+
+    } else if (lvalue->type == VALUE_TYPE_INT && expr_value->type == VALUE_TYPE_DOUBLE) {
+        lvalue->u.double_value = (double)lvalue->u.int_value;
+        __eval_double_binary_expr__(env, rvalue_expr->line, rvalue_expr->column, type, lvalue, expr_value, &result);
+
+    } else if (lvalue->type == VALUE_TYPE_LONG && expr_value->type == VALUE_TYPE_LONG) {
+        __eval_long_binary_expr__(env, rvalue_expr->line, rvalue_expr->column, type, lvalue, expr_value, &result);
+
+    } else if (lvalue->type == VALUE_TYPE_FLOAT && expr_value->type == VALUE_TYPE_LONG) {
+        rvalue_expr->u.float_value = (float)rvalue_expr->u.long_value;
+        __eval_float_binary_expr__(env, rvalue_expr->line, rvalue_expr->column, type, lvalue, expr_value, &result);
+
+    } else if (lvalue->type == VALUE_TYPE_LONG && expr_value->type == VALUE_TYPE_FLOAT) {
+        lvalue->u.float_value = (float)lvalue->u.long_value;
+        __eval_float_binary_expr__(env, rvalue_expr->line, rvalue_expr->column, type, lvalue, expr_value, &result);
+
+    } else if (lvalue->type == VALUE_TYPE_DOUBLE && expr_value->type == VALUE_TYPE_LONG) {
+        rvalue_expr->u.double_value = (double)rvalue_expr->u.long_value;
+        __eval_double_binary_expr__(env, rvalue_expr->line, rvalue_expr->column, type, lvalue, expr_value, &result);
+
+    } else if (lvalue->type == VALUE_TYPE_LONG && expr_value->type == VALUE_TYPE_DOUBLE) {
+            lvalue->u.double_value = (double)lvalue->u.long_value;
+        __eval_double_binary_expr__(env, rvalue_expr->line, rvalue_expr->column, type, lvalue, expr_value, &result);
+
+    } else if (lvalue->type == VALUE_TYPE_FLOAT && expr_value->type == VALUE_TYPE_FLOAT) {
+        __eval_float_binary_expr__(env, rvalue_expr->line, rvalue_expr->column, type, lvalue, expr_value, &result);
+
+    } else if (lvalue->type == VALUE_TYPE_DOUBLE && expr_value->type == VALUE_TYPE_FLOAT) {
+        rvalue_expr->u.double_value = (double)rvalue_expr->u.float_value;
+        __eval_double_binary_expr__(env, rvalue_expr->line, rvalue_expr->column, type, lvalue, expr_value, &result);
+
+    } else if (lvalue->type == VALUE_TYPE_FLOAT && expr_value->type == VALUE_TYPE_DOUBLE) {
+            lvalue->u.double_value = (double)lvalue->u.float_value;
+        __eval_double_binary_expr__(env, rvalue_expr->line, rvalue_expr->column, type, lvalue, expr_value, &result);
+
+    } else if (lvalue->type == VALUE_TYPE_DOUBLE && expr_value->type == VALUE_TYPE_DOUBLE) {
+        __eval_double_binary_expr__(env, rvalue_expr->line, rvalue_expr->column, type, lvalue, expr_value, &result);
+
+    } else if (lvalue->type == VALUE_TYPE_STRING && expr_value->type == VALUE_TYPE_STRING) {
+        __eval_string_binary_expr__(env, rvalue_expr->line, rvalue_expr->column, type, lvalue, expr_value, &result);
+
+    } else {
+        runtime_error(rvalue_expr->line,
+                      rvalue_expr->column,
+                      "unsupported operand for : type(%s) %s type(%s)",
+                      value_type_string(lvalue),
+                      expr_type_string(type),
+                      value_type_string(expr_value));
+    }
+
+    *lvalue = result;
+    *(value_t)array_index(env->stack, array_length(env->stack) - 1) = *lvalue;
+    heap_takeover_value(env, lvalue);
 }
 
 static void __eval_binary_expr__(environment_t env, expr_type_t type, expr_t left, expr_t right)
@@ -424,6 +661,9 @@ static void __eval_char_binary_expr__(environment_t env, long line, long column,
     if (__is_math_operator__(type)) {
         result->type = VALUE_TYPE_CHAR;
 
+    } else if (__is_bit_operator__(type)) {
+        result->type = VALUE_TYPE_CHAR;
+
     } else if (__is_compare_operator__(type)) {
         result->type = VALUE_TYPE_BOOL;
 
@@ -437,6 +677,30 @@ static void __eval_char_binary_expr__(environment_t env, long line, long column,
     }
 
     switch (type) {
+    case EXPR_TYPE_BITAND:
+        result->u.char_value = left->u.char_value & right->u.char_value;
+        break;
+
+    case EXPR_TYPE_BITOR:
+        result->u.char_value = left->u.char_value | right->u.char_value;
+        break;
+
+    case EXPR_TYPE_XOR:
+        result->u.char_value = left->u.char_value ^ right->u.char_value;
+        break;
+
+    case EXPR_TYPE_LEFT_SHIFT:
+        result->u.char_value = left->u.char_value << right->u.char_value;
+        break;
+
+    case EXPR_TYPE_RIGHT_SHIFT:
+        result->u.char_value = left->u.char_value >> right->u.char_value;
+        break;
+
+    case EXPR_TYPE_LOGIC_RIGHT_SHIFT:
+        result->u.char_value = (char)((unsigned char) left->u.char_value >> (unsigned char) right->u.char_value);
+        break;
+
     case EXPR_TYPE_ADD:
         result->u.char_value = left->u.char_value + right->u.char_value;
         break;
@@ -447,9 +711,15 @@ static void __eval_char_binary_expr__(environment_t env, long line, long column,
         result->u.char_value = left->u.char_value * right->u.char_value;
         break;
     case EXPR_TYPE_DIV:
+        if (right->u.char_value == 0) {
+            runtime_error(line, column, "div by zero");
+        }
         result->u.char_value = left->u.char_value / right->u.char_value;
         break;
     case EXPR_TYPE_MOD:
+        if (right->u.char_value == 0) {
+            runtime_error(line, column, "div by zero");
+        }
         result->u.char_value = left->u.char_value % right->u.char_value;
         break;
     case EXPR_TYPE_GT:
@@ -496,6 +766,9 @@ static void __eval_int_binary_expr__(environment_t env, long line, long column, 
     if (__is_math_operator__(type)) {
         result->type = VALUE_TYPE_INT;
 
+    } else if (__is_bit_operator__(type)) {
+        result->type = VALUE_TYPE_INT;
+
     } else if (__is_compare_operator__(type)) {
         result->type = VALUE_TYPE_BOOL;
 
@@ -509,6 +782,30 @@ static void __eval_int_binary_expr__(environment_t env, long line, long column, 
     }
     
     switch (type) {
+    case EXPR_TYPE_BITAND:
+        result->u.int_value = left->u.int_value & right->u.int_value;
+        break;
+
+    case EXPR_TYPE_BITOR:
+        result->u.int_value = left->u.int_value | right->u.int_value;
+        break;
+
+    case EXPR_TYPE_XOR:
+        result->u.int_value = left->u.int_value ^ right->u.int_value;
+        break;
+
+    case EXPR_TYPE_LEFT_SHIFT:
+        result->u.int_value = left->u.int_value << right->u.int_value;
+        break;
+
+    case EXPR_TYPE_RIGHT_SHIFT:
+        result->u.int_value = left->u.int_value >> right->u.int_value;
+        break;
+
+    case EXPR_TYPE_LOGIC_RIGHT_SHIFT:
+        result->u.int_value = (int)((unsigned int)left->u.int_value >> (unsigned int)right->u.int_value);
+        break;
+
     case EXPR_TYPE_ADD:
         result->u.int_value = left->u.int_value + right->u.int_value;
         break;
@@ -519,9 +816,15 @@ static void __eval_int_binary_expr__(environment_t env, long line, long column, 
         result->u.int_value = left->u.int_value * right->u.int_value;
         break;
     case EXPR_TYPE_DIV:
+        if (right->u.char_value == 0) {
+            runtime_error(line, column, "div by zero");
+        }
         result->u.int_value = left->u.int_value / right->u.int_value;
         break;
     case EXPR_TYPE_MOD:
+        if (right->u.char_value == 0) {
+            runtime_error(line, column, "div by zero");
+        }
         result->u.int_value = left->u.int_value % right->u.int_value;
         break;
     case EXPR_TYPE_GT:
@@ -550,6 +853,9 @@ static void __eval_long_binary_expr__(environment_t env, long line, long column,
     if (__is_math_operator__(type)) {
         result->type = VALUE_TYPE_LONG;
 
+    } else if (__is_bit_operator__(type)) {
+        result->type = VALUE_TYPE_LONG;
+
     } else if (__is_compare_operator__(type)) {
         result->type = VALUE_TYPE_BOOL;
 
@@ -563,6 +869,30 @@ static void __eval_long_binary_expr__(environment_t env, long line, long column,
     }
 
     switch (type) {
+    case EXPR_TYPE_BITAND:
+        result->u.long_value = left->u.long_value & right->u.long_value;
+        break;
+
+    case EXPR_TYPE_BITOR:
+        result->u.long_value = left->u.long_value | right->u.long_value;
+        break;
+
+    case EXPR_TYPE_XOR:
+        result->u.long_value = left->u.long_value ^ right->u.long_value;
+        break;
+
+    case EXPR_TYPE_LEFT_SHIFT:
+        result->u.long_value = left->u.long_value << right->u.long_value;
+        break;
+
+    case EXPR_TYPE_RIGHT_SHIFT:
+        result->u.long_value = left->u.long_value >> right->u.long_value;
+        break;
+
+    case EXPR_TYPE_LOGIC_RIGHT_SHIFT:
+        result->u.long_value = (long)((unsigned long)left->u.long_value >> (unsigned long)right->u.long_value);
+        break;
+
     case EXPR_TYPE_ADD:
         result->u.long_value = left->u.long_value + right->u.long_value;
         break;
@@ -573,9 +903,15 @@ static void __eval_long_binary_expr__(environment_t env, long line, long column,
         result->u.long_value = left->u.long_value * right->u.long_value;
         break;
     case EXPR_TYPE_DIV:
+        if (right->u.char_value == 0) {
+            runtime_error(line, column, "div by zero");
+        }
         result->u.long_value = left->u.long_value / right->u.long_value;
         break;
     case EXPR_TYPE_MOD:
+        if (right->u.char_value == 0) {
+            runtime_error(line, column, "div by zero");
+        }
         result->u.long_value = left->u.long_value % right->u.long_value;
         break;
     case EXPR_TYPE_GT:
@@ -842,16 +1178,35 @@ static void __eval_unary_expr__(environment_t env, expr_type_t type, expr_t unar
     case VALUE_TYPE_CHAR:
         if (type == EXPR_TYPE_MINUS) {
             value->u.char_value = -value->u.char_value;
+        } else if (type == EXPR_TYPE_FLIP) {
+            value->u.char_value = ~value->u.char_value;
+        }
+        break;
+    case VALUE_TYPE_BOOL:
+        if (type == EXPR_TYPE_NOT) {
+            value->u.bool_value = !value->u.bool_value;
         }
         break;
     case VALUE_TYPE_INT:
         if (type == EXPR_TYPE_MINUS) {
             value->u.int_value = -value->u.int_value;
+        } else if (type == EXPR_TYPE_INC) {
+            value->u.int_value = ++value->u.int_value;
+        } else if (type == EXPR_TYPE_DEC) {
+            value->u.int_value = --value->u.int_value;
+        } else if (type == EXPR_TYPE_FLIP) {
+            value->u.int_value = ~value->u.int_value;
         }
         break;
     case VALUE_TYPE_LONG:
         if (type == EXPR_TYPE_MINUS) {
             value->u.long_value = -value->u.long_value;
+        } else if (type == EXPR_TYPE_INC) {
+            value->u.long_value = ++value->u.long_value;
+        } else if (type == EXPR_TYPE_DEC) {
+            value->u.long_value = --value->u.long_value;
+        } else if (type == EXPR_TYPE_FLIP) {
+            value->u.long_value = ~value->u.long_value;
         }
         break;
     case VALUE_TYPE_FLOAT:
@@ -873,3 +1228,4 @@ static void __eval_unary_expr__(environment_t env, expr_type_t type, expr_t unar
         break;
     }
 }
+

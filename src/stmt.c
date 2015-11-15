@@ -61,18 +61,6 @@ stmt_t stmt_new_return(long line, long column, expr_t return_value)
     return stmt;
 }
 
-stmt_t stmt_new_global(long line, long column)
-{
-    stmt_t stmt = __stmt_new__(STMT_TYPE_GLOBAL, line, column);
-    if (!stmt) {
-        return NULL;
-    }
-
-    list_init(stmt->u.stmt_global);
-
-    return stmt;
-}
-
 stmt_t stmt_new_if(long line, long column, expr_t condition, stmt_t if_block)
 {
     stmt_t stmt = __stmt_new__(STMT_TYPE_IF, line, column);
@@ -163,20 +151,6 @@ void stmt_free(stmt_t stmt)
         list_safe_for_each(stmt->u.block, iter, next_iter) {
             list_erase(*iter);
             stmt_free(list_element(iter, stmt_t, link));
-        }
-        break;
-
-    case STMT_TYPE_GLOBAL:
-        list_safe_for_each(stmt->u.stmt_global, iter, next_iter) {
-            stmt_global_t* global;
-
-            list_erase(*iter);
-
-            global = list_element(iter, stmt_global_t*, link);
-
-            cstring_free(global->name);
-
-            mem_free(global);
         }
         break;
 
@@ -309,8 +283,10 @@ closure_t closure_new(long line, long column, cstring_t name)
     closure->name   = name;
     closure->line   = line;
     closure->column = column;
+    closure->init_call = false;
     
     list_init(closure->parameters);
+    list_init(closure->init_args);
     
     return closure;
 }
@@ -319,6 +295,7 @@ void closure_free(closure_t closure)
 {
     list_iter_t iter, next_iter;
     parameter_t parameter;
+    expr_t arg;
 
     cstring_free(closure->name);
 
@@ -326,6 +303,12 @@ void closure_free(closure_t closure)
         list_erase(*iter);
         parameter = list_element(iter, parameter_t, link);
         parameter_free(parameter);
+    }
+
+    list_safe_for_each(closure->init_args, iter, next_iter) {
+        list_erase(*iter);
+        arg = list_element(iter, expr_t, link);
+        expr_free(arg);
     }
 
     stmt_free(closure->block);
