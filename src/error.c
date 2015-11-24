@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
-void runtime_error(long line, long column, const char *fmt, ...)
+void runtime_errnu(long line, long column, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -15,11 +15,22 @@ void runtime_error(long line, long column, const char *fmt, ...)
     exit(-1);
 }
 
+void runtime_error(const char* fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    fprintf(stderr, "ulcer: runtime error: ");
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    va_end(ap);
+    exit(-1);
+}
+
 void error(const char *filename, long line, long column, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    filename ? fprintf(stderr, "%s:%ld:%ld: error: ", filename, line, column) : fprintf(stderr, "nc: error: ");
+    filename ? fprintf(stderr, "%s:%ld:%ld: error: ", filename, line, column) : fprintf(stderr, "ulcer: error: ");
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
     va_end(ap);
@@ -30,7 +41,7 @@ void warning(const char *filename, long line, long column, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    filename ? fprintf(stderr, "%s:%ld:%ld: warring: ", filename, line, column) : fprintf(stderr, "nc: warring: ");
+    filename ? fprintf(stderr, "%s:%ld:%ld: warring: ", filename, line, column) : fprintf(stderr, "ulcer: warring: ");
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
     va_end(ap);

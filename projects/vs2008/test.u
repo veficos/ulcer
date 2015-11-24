@@ -1,19 +1,15 @@
 
 
 
-ddd = 1024;
-
-
-function abc() {
-    print("helloworld\n");
+function shit(a,b,c) {
 }
 
-closure shit() {
-    print("yes\n");
-};
+b = [ 
+    123, 
+    function(a,b,c){},
+    123,
+]
 
-abc();
+{a:123, b:3545}
 
-for (ddd = 0; ddd < 100; ddd = ddd+1) {
-   
-}
+b = function(a,b,c){}

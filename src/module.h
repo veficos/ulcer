@@ -5,19 +5,18 @@
 
 #include "config.h"
 #include "list.h"
-#include "stmt.h"
+#include "statement.h"
 
 typedef struct module_s* module_t;
 
 struct module_s {
     list_t statements;
-    hash_table_t functions;
+    list_t functions;
 };
 
 module_t module_new(void);
 void module_free(module_t module);
-bool module_add_function(module_t module, function_t func);
-function_t module_search_function(module_t module, cstring_t func_name);
-void module_add_statment(module_t module, stmt_t stmt);
+void module_add_function(module_t module, statement_t function_stmt);
+void module_add_statment(module_t module, statement_t stmt);
 
 #endif

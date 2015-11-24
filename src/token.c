@@ -5,14 +5,14 @@
 
 #include <stdlib.h>
 
-token_t token_new(const char *filename)
+token_t token_new(const char *fn)
 {
     token_t token = (token_t)mem_alloc(sizeof(struct token_s));
     if (!token) {
         return NULL;
     }
  
-    token->filename = cstring_new(filename);
+    token->filename = cstring_new(fn);
     token->token    = cstring_newempty(8);
 
     token->type     = TOKEN_TYPE_NIL;
@@ -45,7 +45,7 @@ void token_reset(token_t token, long line, long column, token_type_t type, token
 
 token_t token_dup(token_t from)
 {
-    token_t to = (token_t)mem_alloc(sizeof(struct token_s));
+    token_t to = (token_t) mem_alloc(sizeof(struct token_s));
     if (!to) {
         return NULL;
     }

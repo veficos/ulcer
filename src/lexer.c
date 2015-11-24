@@ -25,20 +25,21 @@ struct keyword_s {
 };
 
 struct keyword_s keywords[] = {
+    { "require",        TOKEN_VALUE_REQUIRE },
     { "function",       TOKEN_VALUE_FUNCTION } ,
     { "if",             TOKEN_VALUE_IF },
     { "else",           TOKEN_VALUE_ELSE },
     { "elif",           TOKEN_VALUE_ELIF },
     { "while",          TOKEN_VALUE_WHILE },
     { "for",            TOKEN_VALUE_FOR },
-    { "foreach",        TOKEN_VALUE_FOREACH },
+    { "switch",         TOKEN_VALUE_SWITCH },
+    { "case",           TOKEN_VALUE_CASE },
     { "return",         TOKEN_VALUE_RETURN },
     { "break",          TOKEN_VALUE_BREAK },
     { "continue",       TOKEN_VALUE_CONTINUE },
     { "null",           TOKEN_VALUE_NULL },
     { "true",           TOKEN_VALUE_TRUE },
     { "false",          TOKEN_VALUE_FALSE },
-    { "closure",        TOKEN_VALUE_CLOSURE },
 };
 
 static token_t __lexer_next__(lexer_t lex);
@@ -47,7 +48,6 @@ static char __lexer_next_char__(lexer_t lex);
 static char __lexer_peek_char__(lexer_t lex);
 static bool __lexer_iseof__(lexer_t lex);
 static void __lexer_recover_char__(lexer_t lex, char ch);
-
 static void __lexer_parse_space__(lexer_t lex);
 static void __lexer_parse_identifier__(lexer_t lex);
 static void __lexer_parse_keyword__(lexer_t lex);
@@ -76,8 +76,8 @@ lexer_t lexer_new(source_code_t source_code)
     lex->sc             = source_code;
     lex->current_line   = 1;
     lex->current_column = 1;
-
     lex->last           = NULL;
+
     list_init(lex->backups);
 
     lexer_next(lex);
@@ -86,29 +86,41 @@ lexer_t lexer_new(source_code_t source_code)
 
 void lexer_free(lexer_t lex)
 {
-    list_iter_t iter, next_iter;
-    token_free(lex->tok);
-    list_safe_for_each(lex->backups, iter, next_iter) {
-        list_erase(*iter);
-        token_free(list_element(iter, token_t, link));
+    {
+        list_iter_t iter, next_iter;
+        list_safe_for_each(lex->backups, iter, next_iter) {
+            list_erase(lex->backups, *iter);
+            token_free(list_element(iter, token_t, link));
+        }
     }
+    
     if (lex->last) {
         token_free(lex->last);
     }
+
+    token_free(lex->tok);
+
     mem_free(lex);
 }
 
 token_t lexer_next(lexer_t lex)
 {
+    token_t current;
+
     if (!list_is_empty(lex->backups)) {
-        token_t current = list_element(list_begin(lex->backups), token_t, link);
+        current = list_element(list_begin(lex->backups), token_t, link);
+
         list_pop_front(lex->backups);
+        
         if (lex->last) {
             token_free(lex->last);
         }
+
         lex->last = current;
+
         return current;
     }
+
     return __lexer_next__(lex);
 }
 
@@ -125,6 +137,7 @@ void lexer_unget(lexer_t lex, token_t tok)
 token_t __lexer_next__(lexer_t lex)
 {
     char ch;
+
 reparse:
     __lexer_parse_space__(lex);
 
@@ -205,6 +218,15 @@ reparse:
         } else if (__lexer_peek_char__(lex) == '<') {
             lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
             lex->tok->value = TOKEN_VALUE_LEFT_SHIFT;
+
+            if (__lexer_peek_char__(lex) == '=') {
+                lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
+                lex->tok->value = TOKEN_VALUE_LEFI_SHIFT_ASSIGN;
+            }
+
+        } else if (__lexer_peek_char__(lex) == '-') {
+            lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
+            lex->tok->value = TOKEN_VALUE_APPEND;
         }
 
     } else if (ch == '>') {
@@ -220,14 +242,27 @@ reparse:
             if (__lexer_peek_char__(lex) == '>') {
                 lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
                 lex->tok->value = TOKEN_VALUE_LOGIC_RIGHT_SHIFT;
+
+                if (__lexer_peek_char__(lex) == '=') {
+                    lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
+                    lex->tok->value = TOKEN_VALUE_LOGIC_RIGHT_SHIFT_ASSIGN;
+                }
+
+            } else if (__lexer_peek_char__(lex) == '=') {
+                lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
+                lex->tok->value = TOKEN_VALUE_RIGHT_SHIFT_ASSIGN;
             }
         }
 
     } else if (ch == '&') {
         __lexer_parse_operator__(lex, TOKEN_VALUE_BITAND);
-        if ((__lexer_peek_char__(lex) == '&')) {
+        if (__lexer_peek_char__(lex) == '&') {
             lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
             lex->tok->value = TOKEN_VALUE_AND;
+
+        } else if (__lexer_peek_char__(lex) == '=') {
+            lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
+            lex->tok->value = TOKEN_VALUE_BITAND_ASSIGN;
         }
 
     } else if (ch == '|') {
@@ -235,13 +270,24 @@ reparse:
         if (!(__lexer_peek_char__(lex) == '|')) {
             lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
             lex->tok->value = TOKEN_VALUE_OR;
+
+        } else if (__lexer_peek_char__(lex) == '=') {
+            lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
+            lex->tok->value = TOKEN_VALUE_BITOR_ASSIGN;
         }
 
     } else if (ch == '^') {
         __lexer_parse_operator__(lex, TOKEN_VALUE_XOR);
+        if (__lexer_peek_char__(lex) == '=') {
+            lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
+            lex->tok->value = TOKEN_VALUE_XOR_ASSIGN;
+        }
 
     } else if (ch == '~') {
-        __lexer_parse_operator__(lex, TOKEN_VALUE_FLIP);
+        __lexer_parse_operator__(lex, TOKEN_VALUE_CPL);
+
+    } else if (ch == '_') {
+        __lexer_parse_operator__(lex, TOKEN_VALUE_IGNORE);
 
     } else if (ch == '(') {
         __lexer_parse_operator__(lex, TOKEN_VALUE_LP);
@@ -309,9 +355,11 @@ static char __lexer_next_char__(lexer_t lex)
     if (ch == '\n') {
         lex->current_line++;
         lex->current_column = 1;
+
     } else {
         lex->current_column++;
     }
+
     return ch;
 }
 

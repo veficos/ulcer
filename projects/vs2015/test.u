@@ -1,16 +1,40 @@
 
+require "os"
 
-a = [1,2,3,4,5]
+const a, b, c = 1, 2, 3
 
-/*
-a = 'a'
-b = true
-c = 10
-d = 10l
-e = 1.2f
-f = 1.2
-g = "shit"
-//h = closure (a,b,c,d) { print(a,b,c,d) return a+b+c*d }(1,2,3,4)
+switch (a) {
+case 'a':
+    break;
+case 1:
+case 2l:
+case 1.0f:
+case 1.0:
+case "abc":
+case var:
+}
 
-//print(h, "\n")
-*/
+
+if (a == b) {
+} elif (a == c) {
+} else {
+}
+
+for (i = 0; i < 10; i++) {
+}
+
+while (i == 0) {
+}
+
+a =  [1,2,3,4] <- 5
+
+a = {ab: 1+2+3+4, asdf: [1,2,3,4], func: function() {...} }
+
+
+a += 1;
+b += 2;
+c += 3;
+
+function fuck() {
+    
+}
