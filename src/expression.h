@@ -16,9 +16,11 @@ typedef struct expression_call_s*               expression_call_t;
 typedef struct expression_assign_s*             expression_assign_t;
 typedef struct expression_component_assign_s*   expression_component_assign_t;
 typedef struct expression_binary_s*             expression_binary_t;
-typedef struct expression_index_s*              expression_index_t;
+
 typedef struct expression_table_pair_s*         expression_table_pair_t;
 typedef struct expression_table_dot_member_s*   expression_table_dot_member_t;
+typedef struct expression_array_append_s*       expression_array_append_t;
+typedef struct expression_index_s*              expression_index_t;
 
 enum expression_type_e {
 
@@ -88,11 +90,12 @@ enum expression_type_e {
     EXPRESSION_TYPE_OR,
     EXPRESSION_TYPE_NOT,
 
-    EXPRESSION_TYPE_ARRAY_INDEX,
     EXPRESSION_TYPE_ARRAY_GENERATE,
-
-    EXPRESSION_TYPE_TABLE_INDEX,
     EXPRESSION_TYPE_TABLE_GENERATE,
+    EXPRESSION_TYPE_ARRAY_APPEND,
+    EXPRESSION_TYPE_TABLE_DOT_MEMBER,
+
+    EXPRESSION_TYPE_INDEX,
 };
 
 struct expression_function_parameter_s {
@@ -128,9 +131,9 @@ struct expression_binary_s {
     expression_t right;
 };
 
-struct expression_index_s {
-    expression_t expr;
-    expression_t index;
+struct expression_array_append_s {
+    expression_t array;
+    expression_t element;
 };
 
 struct expression_table_pair_s {
@@ -142,6 +145,11 @@ struct expression_table_pair_s {
 struct expression_table_dot_member_s {
     expression_t table;
     cstring_t    member_name;
+};
+
+struct expression_index_s {
+    expression_t dict;
+    expression_t index;
 };
 
 struct expression_s {
@@ -166,8 +174,10 @@ struct expression_s {
         expression_binary_t             binary;
         expression_index_t              index;
         list_t                          array_generate;
+        expression_array_append_t       array_append;
         list_t                          table_generate;
-
+        expression_table_dot_member_t   table_dot_member;
+        expression_t                    incdec;
         list_t                          expressions;
     }u;
 
@@ -183,15 +193,20 @@ expression_t expression_new_assign(long line, long column, list_t lvalue_exprs, 
 expression_t expression_new_component_assign(long line, long column, expression_type_t component_assign_type, expression_t lvalue_expr, expression_t rvalue_expr);
 expression_t expression_new_binary(long line, long column, expression_type_t binary_expr_type, expression_t left, expression_t right);
 expression_t expression_new_unary(long line, long column, expression_type_t unary_expr_type, expression_t expression);
+expression_t expression_new_incdec(long line, long column, expression_type_t type, expression_t lvalue_expr);
 expression_t expression_new_function(long line, long column, cstring_t name, list_t parameters, list_t block);
 expression_t expression_new_call(long line, long column, expression_t function_expr, list_t args);
 
 expression_t expression_new_list(long line, long column, list_t exprs);
 
-expression_t expression_new_array_generate(long line, long column, list_t elements);
+expression_t            expression_new_array_generate(long line, long column, list_t elements);
+expression_t            expression_new_array_append(long line, long column, expression_t array, expression_t element);
 expression_table_pair_t expression_new_table_pair(cstring_t name, expression_t expr);
-expression_t expression_new_table_generate(long line, long column, list_t members);
+void                    expression_free_table_pair(expression_table_pair_t pair);
+expression_t            expression_new_table_generate(long line, long column, list_t members);
+expression_t            expression_new_table_dot_member(long line, long column, expression_t table, cstring_t member_name);
+expression_t            expression_new_index(long line, long column, expression_t dict, expression_t index);
 
-void expression_free(expression_t expr);
+void                    expression_free(expression_t expr);
 
 #endif

@@ -25,45 +25,44 @@ struct keyword_s {
 };
 
 struct keyword_s keywords[] = {
-    { "require",        TOKEN_VALUE_REQUIRE },
-    { "function",       TOKEN_VALUE_FUNCTION } ,
-    { "if",             TOKEN_VALUE_IF },
-    { "else",           TOKEN_VALUE_ELSE },
-    { "elif",           TOKEN_VALUE_ELIF },
-    { "while",          TOKEN_VALUE_WHILE },
-    { "for",            TOKEN_VALUE_FOR },
-    { "switch",         TOKEN_VALUE_SWITCH },
-    { "case",           TOKEN_VALUE_CASE },
-    { "return",         TOKEN_VALUE_RETURN },
-    { "break",          TOKEN_VALUE_BREAK },
-    { "continue",       TOKEN_VALUE_CONTINUE },
-    { "null",           TOKEN_VALUE_NULL },
-    { "true",           TOKEN_VALUE_TRUE },
-    { "false",          TOKEN_VALUE_FALSE },
+    { "require",        TOKEN_VALUE_REQUIRE     },
+    { "function",       TOKEN_VALUE_FUNCTION    } ,
+    { "if",             TOKEN_VALUE_IF          },
+    { "else",           TOKEN_VALUE_ELSE        },
+    { "elif",           TOKEN_VALUE_ELIF        },
+    { "while",          TOKEN_VALUE_WHILE       },
+    { "for",            TOKEN_VALUE_FOR         },
+    { "switch",         TOKEN_VALUE_SWITCH      },
+    { "case",           TOKEN_VALUE_CASE        },
+    { "return",         TOKEN_VALUE_RETURN      },
+    { "break",          TOKEN_VALUE_BREAK       },
+    { "continue",       TOKEN_VALUE_CONTINUE    },
+    { "null",           TOKEN_VALUE_NULL        },
+    { "true",           TOKEN_VALUE_TRUE        },
+    { "false",          TOKEN_VALUE_FALSE       },
 };
 
-static token_t __lexer_next__(lexer_t lex);
-
-static char __lexer_next_char__(lexer_t lex);
-static char __lexer_peek_char__(lexer_t lex);
-static bool __lexer_iseof__(lexer_t lex);
-static void __lexer_recover_char__(lexer_t lex, char ch);
-static void __lexer_parse_space__(lexer_t lex);
-static void __lexer_parse_identifier__(lexer_t lex);
-static void __lexer_parse_keyword__(lexer_t lex);
-static void __lexer_parse_number__(lexer_t lex);
-static void __lexer_parse_octal__(lexer_t lex);
-static void __lexer_parse_hexadecimal__(lexer_t lex);
-static void __lexer_parse_float__(lexer_t lex);
-static void __lexer_parse_exponent__(lexer_t lex);
-static void __lexer_parse_fpostfix__(lexer_t lex);
-static void __lexer_parse_lpostfix__(lexer_t lex);
-static void __lexer_parse_operator__(lexer_t lex, token_value_t value);
-static bool __lexer_parse_div_operator__(lexer_t lex);
-static void __lexer_parse_delimiter__(lexer_t lex, token_value_t value);
-static void __lexer_parse_literal_char__(lexer_t lex);
-static void __lexer_parse_literal_string__(lexer_t lex);
-static void __lexer_parse_escape_char__(lexer_t lex);
+static token_t  __lexer_next__(lexer_t lex);
+static char     __lexer_next_char__(lexer_t lex);
+static char     __lexer_peek_char__(lexer_t lex);
+static bool     __lexer_iseof__(lexer_t lex);
+static void     __lexer_recover_char__(lexer_t lex, char ch);
+static void     __lexer_parse_space__(lexer_t lex);
+static void     __lexer_parse_identifier__(lexer_t lex);
+static void     __lexer_parse_keyword__(lexer_t lex);
+static void     __lexer_parse_number__(lexer_t lex);
+static void     __lexer_parse_octal__(lexer_t lex);
+static void     __lexer_parse_hexadecimal__(lexer_t lex);
+static void     __lexer_parse_float__(lexer_t lex);
+static void     __lexer_parse_exponent__(lexer_t lex);
+static void     __lexer_parse_fpostfix__(lexer_t lex);
+static void     __lexer_parse_lpostfix__(lexer_t lex);
+static void     __lexer_parse_operator__(lexer_t lex, token_value_t value);
+static bool     __lexer_parse_div_operator__(lexer_t lex);
+static void     __lexer_parse_delimiter__(lexer_t lex, token_value_t value);
+static void     __lexer_parse_literal_char__(lexer_t lex);
+static void     __lexer_parse_literal_string__(lexer_t lex);
+static void     __lexer_parse_escape_char__(lexer_t lex);
 
 lexer_t lexer_new(source_code_t source_code)
 {
@@ -267,7 +266,7 @@ reparse:
 
     } else if (ch == '|') {
         __lexer_parse_operator__(lex, TOKEN_VALUE_BITOR);
-        if (!(__lexer_peek_char__(lex) == '|')) {
+        if (__lexer_peek_char__(lex) == '|') {
             lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
             lex->tok->value = TOKEN_VALUE_OR;
 

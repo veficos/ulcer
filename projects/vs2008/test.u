@@ -1,15 +1,4 @@
 
 
 
-function shit(a,b,c) {
-}
-
-b = [ 
-    123, 
-    function(a,b,c){},
-    123,
-]
-
-{a:123, b:3545}
-
-b = function(a,b,c){}
+([1,2,3,4] <- 1)[1]()

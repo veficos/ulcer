@@ -8,11 +8,11 @@
 typedef struct hlist_node_s {
     struct hlist_node_s *next;
     struct hlist_node_s **pprev;
-}hlist_node_t;
+} hlist_node_t;
 
 typedef struct hlist_s {
     struct hlist_node_s *first;
-}hlist_t;
+} hlist_t;
 
 static bool __hlist_is_empty__(hlist_t *hlist)
 {

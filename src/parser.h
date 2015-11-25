@@ -11,7 +11,7 @@
 typedef struct parser_s* parser_t;
 
 parser_t parser_new(lexer_t lex);
-void parser_free(parser_t parse);
+void     parser_free(parser_t parse);
 module_t parser_generate_module(parser_t parse);
 
 #endif

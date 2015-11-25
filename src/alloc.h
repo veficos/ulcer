@@ -5,7 +5,7 @@
 
 #include "config.h"
 
-#if (defined(_WIN32) || defined(WIN32)) && defined(DEBUG)
+#if defined(DEBUG)
 #include <malloc.h>
 #   define mem_calloc(n)   calloc(n, sizeof(char))
 #   define mem_alloc       malloc
