@@ -132,34 +132,34 @@ expression_t expression_new_literal(expression_type_t type, token_t tok)
     switch (type) {
     case EXPRESSION_TYPE_BOOL:
         if (tok->value == TOKEN_VALUE_TRUE) {
-            expr->u.bool_value = true;
+            expr->u.bool_expr = true;
         } else if (tok->value == TOKEN_VALUE_FALSE) {
-            expr->u.bool_value = false;
+            expr->u.bool_expr = false;
         }
         break;
 
     case EXPRESSION_TYPE_CHAR:
-        sscanf(tok->token, "%c", &expr->u.char_value);
+        sscanf(tok->token, "%c", &expr->u.char_expr);
         break;
 
     case EXPRESSION_TYPE_INT:
-        sscanf(tok->token, "%d", &expr->u.int_value);
+        sscanf(tok->token, "%d", &expr->u.int_expr);
         break;
 
     case EXPRESSION_TYPE_LONG:
-        sscanf(tok->token, "%ld", &expr->u.long_value);
+        sscanf(tok->token, "%ld", &expr->u.long_expr);
         break;
 
     case EXPRESSION_TYPE_FLOAT:
-        sscanf(tok->token, "%f", &expr->u.float_value);
+        sscanf(tok->token, "%f", &expr->u.float_expr);
         break;
 
     case EXPRESSION_TYPE_DOUBLE:
-        sscanf(tok->token, "%lf", &expr->u.double_value);
+        sscanf(tok->token, "%lf", &expr->u.double_expr);
         break;
 
     case EXPRESSION_TYPE_STRING:
-        expr->u.string_value = cstring_dup(tok->token);
+        expr->u.string_expr = cstring_dup(tok->token);
         break;
 
     default:
@@ -176,7 +176,7 @@ expression_t expression_new_identifier(long line, long column, cstring_t identif
 
     assert(!cstring_is_empty(identifier));
 
-    expr->u.identifier = identifier;
+    expr->u.identifier_expr = identifier;
 
     return expr;
 }
@@ -198,11 +198,11 @@ expression_t expression_new_assign(long line, long column, list_t lvalue_exprs, 
         return NULL;
     }
 
-    expr->u.assign               = assign_expr;
-    expr->u.assign->lvalue_exprs = lvalue_exprs;
-    expr->u.assign->rvalue_exprs = rvalue_exprs;
-    expr->u.assign->lvalue_exprs_total = lvalue_exprs_total;
-    expr->u.assign->rvalue_exprs_total = rvalue_exprs_total;
+    expr->u.assign_expr               = assign_expr;
+    expr->u.assign_expr->lvalue_exprs = lvalue_exprs;
+    expr->u.assign_expr->rvalue_exprs = rvalue_exprs;
+    expr->u.assign_expr->lvalue_exprs_total = lvalue_exprs_total;
+    expr->u.assign_expr->rvalue_exprs_total = rvalue_exprs_total;
 
     return expr;
 }
@@ -231,9 +231,9 @@ expression_t expression_new_component_assign(long line, long column, expression_
         return NULL;
     }
 
-    expr->u.component_assign              = assign_expr;
-    expr->u.component_assign->lvalue_expr = lvalue_expr;
-    expr->u.component_assign->rvalue_expr = rvalue_expr;
+    expr->u.component_assign_expr              = assign_expr;
+    expr->u.component_assign_expr->lvalue_expr = lvalue_expr;
+    expr->u.component_assign_expr->rvalue_expr = rvalue_expr;
 
     return expr;
 }
@@ -273,9 +273,9 @@ expression_t expression_new_binary(long line, long column, expression_type_t bin
         return NULL;
     }
 
-    expr->u.binary        = binary_expr;
-    expr->u.binary->left  = left;
-    expr->u.binary->right = right;
+    expr->u.binary_expr        = binary_expr;
+    expr->u.binary_expr->left  = left;
+    expr->u.binary_expr->right = right;
 
     return expr;
 }
@@ -293,7 +293,7 @@ expression_t expression_new_unary(long line, long column, expression_type_t unar
 
     expr = __expression_new__(unary_expr_type, line, column);
 
-    expr->u.unary = expression;
+    expr->u.unary_expr = expression;
 
     return expr;
 }
@@ -309,7 +309,7 @@ expression_t expression_new_incdec(long line, long column, expression_type_t typ
 
     expr = __expression_new__(type, line, column);
 
-    expr->u.incdec = lvalue_expr;
+    expr->u.incdec_expr = lvalue_expr;
 
     return expr;
 }
@@ -326,10 +326,10 @@ expression_t expression_new_function(long line, long column, cstring_t name, lis
         return NULL;
     }
 
-    expr->u.function             = function_expr;
-    expr->u.function->name       = name;
-    expr->u.function->parameters = parameters;
-    expr->u.function->block      = block;
+    expr->u.function_expr             = function_expr;
+    expr->u.function_expr->name       = name;
+    expr->u.function_expr->parameters = parameters;
+    expr->u.function_expr->block      = block;
 
     return expr;
 }
@@ -348,9 +348,9 @@ expression_t expression_new_call(long line, long column, expression_t function_e
         return NULL;
     }
 
-    expr->u.call                = call_expr;
-    expr->u.call->function_expr = function_expr;
-    expr->u.call->args          = args;
+    expr->u.call_expr                = call_expr;
+    expr->u.call_expr->function_expr = function_expr;
+    expr->u.call_expr->args          = args;
 
     return expr;
 }
@@ -361,7 +361,7 @@ expression_t expression_new_list(long line, long column, list_t exprs)
     
     expr = __expression_new__(EXPRESSION_TYPE_LIST, line, column);
 
-    expr->u.expressions = exprs;
+    expr->u.expressions_expr = exprs;
 
     return expr;
 }
@@ -372,26 +372,45 @@ expression_t expression_new_array_generate(long line, long column, list_t elemen
 
     expr = __expression_new__(EXPRESSION_TYPE_ARRAY_GENERATE, line, column);
 
-    expr->u.array_generate = elements;
+    expr->u.array_generate_expr = elements;
 
     return expr;
 }
 
-expression_t expression_new_array_append(long line, long column, expression_t array, expression_t element)
+expression_t expression_new_array_push(long line, long column, expression_t array_expr, expression_t elem_expr)
 {
     expression_t expr;
-    expression_array_append_t array_append;
+    expression_array_push_t array_append;
 
-    expr = __expression_new__(EXPRESSION_TYPE_ARRAY_APPEND, line, column);
+    expr = __expression_new__(EXPRESSION_TYPE_ARRAY_PUSH, line, column);
 
-    array_append = (expression_array_append_t) mem_alloc(sizeof(struct expression_array_append_s));
+    array_append = (expression_array_push_t) mem_alloc(sizeof(struct expression_array_push_s));
     if (!array_append) {
         return NULL;
     }
 
-    expr->u.array_append            = array_append;
-    expr->u.array_append->array     = array;
-    expr->u.array_append->element   = element;
+    expr->u.array_push_expr             = array_append;
+    expr->u.array_push_expr->array_expr = array_expr;
+    expr->u.array_push_expr->elem_expr  = elem_expr;
+
+    return expr;
+}
+
+expression_t expression_new_array_pop(long line, long column, expression_t array_expr, expression_t lvalue_expr)
+{
+    expression_t expr;
+    expression_array_pop_t array_pop;
+
+    expr = __expression_new__(EXPRESSION_TYPE_ARRAY_POP, line, column);
+
+    array_pop = (expression_array_pop_t) mem_alloc(sizeof(struct expression_array_pop_s));
+    if (!array_pop) {
+        return NULL;
+    }
+
+    expr->u.array_pop_expr              = array_pop;
+    expr->u.array_pop_expr->array_expr  = array_expr;
+    expr->u.array_pop_expr->lvalue_expr = lvalue_expr;
 
     return expr;
 }
@@ -422,7 +441,7 @@ expression_t expression_new_table_generate(long line, long column, list_t member
 
     expr = __expression_new__(EXPRESSION_TYPE_TABLE_GENERATE, line, column);
 
-    expr->u.table_generate = members;
+    expr->u.table_generate_expr = members;
 
     return expr;
 }
@@ -439,9 +458,9 @@ expression_t expression_new_table_dot_member(long line, long column, expression_
         return NULL;
     }
 
-    expr->u.table_dot_member              = dot_member;
-    expr->u.table_dot_member->table       = table;
-    expr->u.table_dot_member->member_name = member_name;
+    expr->u.table_dot_member_expr              = dot_member;
+    expr->u.table_dot_member_expr->table       = table;
+    expr->u.table_dot_member_expr->member_name = member_name;
 
     return expr;
 }
@@ -458,9 +477,9 @@ expression_t expression_new_index(long line, long column, expression_t dict, exp
         return NULL;
     }
 
-    expr->u.index        = index_expr;
-    expr->u.index->dict  = dict;
-    expr->u.index->index = index;
+    expr->u.index_expr        = index_expr;
+    expr->u.index_expr->dict  = dict;
+    expr->u.index_expr->index = index;
 
     return expr;
 }
@@ -471,22 +490,20 @@ void expression_free(expression_t expr)
 
     switch (expr->type) {
     case EXPRESSION_TYPE_STRING:
-        cstring_free(expr->u.string_value);
+        cstring_free(expr->u.string_expr);
         break;
 
     case EXPRESSION_TYPE_IDENTIFIER:
-        cstring_free(expr->u.identifier);
+        cstring_free(expr->u.identifier_expr);
         break;
 
     case EXPRESSION_TYPE_FUNCTION:
-        if (expr->u.function->name) {
-            cstring_free(expr->u.function->name);
-        }
+        cstring_free(expr->u.function_expr->name);
 
-        list_safe_for_each(expr->u.function->parameters, iter, next_iter) {
+        list_safe_for_each(expr->u.function_expr->parameters, iter, next_iter) {
             expression_function_parameter_t parameter;
 
-            list_erase(expr->u.function->parameters, *iter);
+            list_erase(expr->u.function_expr->parameters, *iter);
 
             parameter = list_element(iter, expression_function_parameter_t, link);
 
@@ -495,26 +512,26 @@ void expression_free(expression_t expr)
             mem_free(parameter);
         }
 
-        list_safe_for_each(expr->u.function->block, iter, next_iter) {
-            list_erase(expr->u.function->block, *iter);
+        list_safe_for_each(expr->u.function_expr->block, iter, next_iter) {
+            list_erase(expr->u.function_expr->block, *iter);
             statement_free(list_element(iter, statement_t, link));
         }
 
-        mem_free(expr->u.function);
+        mem_free(expr->u.function_expr);
         break;
 
     case EXPRESSION_TYPE_ASSIGN:
-        list_safe_for_each(expr->u.assign->lvalue_exprs, iter, next_iter) {
-            list_erase(expr->u.assign->lvalue_exprs, *iter);
+        list_safe_for_each(expr->u.assign_expr->lvalue_exprs, iter, next_iter) {
+            list_erase(expr->u.assign_expr->lvalue_exprs, *iter);
             expression_free(list_element(iter, expression_t, link));
         }
         
-        list_safe_for_each(expr->u.assign->rvalue_exprs, iter, next_iter) {
-            list_erase(expr->u.assign->rvalue_exprs, *iter);
+        list_safe_for_each(expr->u.assign_expr->rvalue_exprs, iter, next_iter) {
+            list_erase(expr->u.assign_expr->rvalue_exprs, *iter);
             expression_free(list_element(iter, expression_t, link));
         }
         
-        mem_free(expr->u.assign);
+        mem_free(expr->u.assign_expr);
         break;
 
     case EXPRESSION_TYPE_ADD_ASSIGN:
@@ -522,30 +539,30 @@ void expression_free(expression_t expr)
     case EXPRESSION_TYPE_MUL_ASSIGN:
     case EXPRESSION_TYPE_DIV_ASSIGN:
     case EXPRESSION_TYPE_MOD_ASSIGN:
-        expression_free(expr->u.component_assign->lvalue_expr);
-        expression_free(expr->u.component_assign->rvalue_expr);
-        mem_free(expr->u.component_assign);
+        expression_free(expr->u.component_assign_expr->lvalue_expr);
+        expression_free(expr->u.component_assign_expr->rvalue_expr);
+        mem_free(expr->u.component_assign_expr);
         break;
 
     case EXPRESSION_TYPE_CALL:
-        expression_free(expr->u.call->function_expr);
-        list_safe_for_each(expr->u.call->args, iter, next_iter) {
-            list_erase(expr->u.call->args, *iter);
+        expression_free(expr->u.call_expr->function_expr);
+        list_safe_for_each(expr->u.call_expr->args, iter, next_iter) {
+            list_erase(expr->u.call_expr->args, *iter);
             expression_free(list_element(iter, expression_t, link));
         }
-        mem_free(expr->u.call);
+        mem_free(expr->u.call_expr);
         break;
 
     case EXPRESSION_TYPE_PLUS:
     case EXPRESSION_TYPE_MINUS:
     case EXPRESSION_TYPE_NOT:
     case EXPRESSION_TYPE_CPL:
-        expression_free(expr->u.unary);
+        expression_free(expr->u.unary_expr);
         break;
 
     case EXPRESSION_TYPE_INC:
     case EXPRESSION_TYPE_DEC:
-        expression_free(expr->u.incdec);
+        expression_free(expr->u.incdec_expr);
         break;
 
     case EXPRESSION_TYPE_BITAND:
@@ -567,48 +584,48 @@ void expression_free(expression_t expr)
     case EXPRESSION_TYPE_NEQ:
     case EXPRESSION_TYPE_AND:
     case EXPRESSION_TYPE_OR:
-        expression_free(expr->u.binary->left);
-        expression_free(expr->u.binary->right);
-        mem_free(expr->u.binary);
+        expression_free(expr->u.binary_expr->left);
+        expression_free(expr->u.binary_expr->right);
+        mem_free(expr->u.binary_expr);
         break;
 
     case EXPRESSION_TYPE_LIST:
-        list_safe_for_each(expr->u.expressions, iter, next_iter) {
-            list_erase(expr->u.expressions, *iter);
+        list_safe_for_each(expr->u.expressions_expr, iter, next_iter) {
+            list_erase(expr->u.expressions_expr, *iter);
             expression_free(list_element(iter, expression_t, link));
         }
         break;
 
     case EXPRESSION_TYPE_ARRAY_GENERATE:
-        list_safe_for_each(expr->u.expressions, iter, next_iter) {
-            list_erase(expr->u.expressions, *iter);
+        list_safe_for_each(expr->u.expressions_expr, iter, next_iter) {
+            list_erase(expr->u.expressions_expr, *iter);
             expression_free(list_element(iter, expression_t, link));
         }
         break;
 
     case EXPRESSION_TYPE_TABLE_GENERATE:
-        list_safe_for_each(expr->u.expressions, iter, next_iter) {
-            list_erase(expr->u.expressions, *iter);
+        list_safe_for_each(expr->u.expressions_expr, iter, next_iter) {
+            list_erase(expr->u.expressions_expr, *iter);
             expression_free_table_pair(list_element(iter, expression_table_pair_t, link));
         }
         break;
 
-    case EXPRESSION_TYPE_ARRAY_APPEND:
-        expression_free(expr->u.array_append->array);
-        expression_free(expr->u.array_append->element);
-        mem_free(expr->u.array_append);
+    case EXPRESSION_TYPE_ARRAY_PUSH:
+        expression_free(expr->u.array_push_expr->array_expr);
+        expression_free(expr->u.array_push_expr->elem_expr);
+        mem_free(expr->u.array_push_expr);
         break;
 
     case EXPRESSION_TYPE_TABLE_DOT_MEMBER:
-        expression_free(expr->u.table_dot_member->table);
-        cstring_free(expr->u.table_dot_member->member_name);
-        mem_free(expr->u.table_dot_member);
+        expression_free(expr->u.table_dot_member_expr->table);
+        cstring_free(expr->u.table_dot_member_expr->member_name);
+        mem_free(expr->u.table_dot_member_expr);
         break;
 
     case EXPRESSION_TYPE_INDEX:
-        expression_free(expr->u.index->dict);
-        expression_free(expr->u.index->index);
-        mem_free(expr->u.index);
+        expression_free(expr->u.index_expr->dict);
+        expression_free(expr->u.index_expr->index);
+        mem_free(expr->u.index_expr);
         break;
 
     default:

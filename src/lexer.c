@@ -138,6 +138,7 @@ token_t __lexer_next__(lexer_t lex)
     char ch;
 
 reparse:
+    
     __lexer_parse_space__(lex);
 
     ch = __lexer_peek_char__(lex);
@@ -167,6 +168,10 @@ reparse:
         } else if (__lexer_peek_char__(lex) == '-') {
             lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
             lex->tok->value = TOKEN_VALUE_DEC;
+
+        } else if (__lexer_peek_char__(lex) == '>') {
+            lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
+            lex->tok->value = TOKEN_VALUE_ARRAY_POP;
         }
 
     } else if (ch == '*') {
@@ -225,7 +230,7 @@ reparse:
 
         } else if (__lexer_peek_char__(lex) == '-') {
             lex->tok->token = cstring_catch(lex->tok->token, __lexer_next_char__(lex));
-            lex->tok->value = TOKEN_VALUE_APPEND;
+            lex->tok->value = TOKEN_VALUE_ARRAY_PUSH;
         }
 
     } else if (ch == '>') {

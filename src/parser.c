@@ -15,7 +15,6 @@ struct parser_s {
 static void         __parser_translation_unit__(parser_t parse);
 static void         __parser_toplevel_statement__(parser_t parse);
 static statement_t  __parser_require_statement__(parser_t parse);
-static expression_t __parser_function_definition__(parser_t parse);
 static statement_t  __parser_statement__(parser_t parse);
 static expression_t __parser_expression__(parser_t parse);
 static expression_t __parser_lvalue_expression__(parser_t parse);
@@ -31,9 +30,10 @@ static expression_t __parser_shift_bitop_expression__(parser_t parse);
 static expression_t __parser_unary_expression__(parser_t parse);
 static expression_t __parser_postfix_expression__(parser_t parse);
 static expression_t __parser_primary_expression__(parser_t parse);
+static expression_t __parser_generate_expression__(parser_t parse); 
 static expression_t __parser_array_generate_expression__(parser_t parse);
 static expression_t __parser_table_generate_expression__(parser_t parse);
-static expression_t __parser_closure_definition__(parser_t parse);
+static expression_t __parser_function_definition__(parser_t parse);
 static list_t       __parser_parameter_list__(parser_t parse);
 static list_t       __parser_argument_list__(parser_t parse);
 static list_t       __parser_block__(parser_t parse);
@@ -45,8 +45,8 @@ parser_t parser_new(lexer_t lex)
         return NULL;
     }
 
-    parse->module    = module_new();
-    parse->lex       = lex;
+    parse->lex    = lex;
+    parse->module = module_new();
 
     return parse;
 }
@@ -100,7 +100,6 @@ static void __parser_toplevel_statement__(parser_t parse)
     token_t tok;
     long line, column;
     statement_t stmt;
-    expression_t expr;
 
     tok     = lexer_peek(parse->lex);
     line    = tok->line;
@@ -108,21 +107,24 @@ static void __parser_toplevel_statement__(parser_t parse)
 
     switch (tok->value) {
     case TOKEN_VALUE_REQUIRE:
-        stmt = __parser_require_statement__(parse);
-        module_add_statment(parse->module, stmt);
+        module_add_statment(parse->module, __parser_require_statement__(parse));
         break;
 
     case TOKEN_VALUE_FUNCTION:
-        expr = __parser_function_definition__(parse);
+        assert((stmt = __parser_statement__(parse))->type == STATEMENT_TYPE_EXPRESSION);
+        if (stmt->u.expr->type == EXPRESSION_TYPE_FUNCTION) {
+            module_add_function(parse->module, stmt);
+        } else {
+            module_add_statment(parse->module, stmt);
+        }
+        break;
 
-        module_add_statment(parse->module, statement_new_expression(line, column, expr));
+    case TOKEN_VALUE_SEMICOLON:
+        lexer_next(parse->lex);
         break;
 
     default:
-        stmt = __parser_statement__(parse);
-        if (stmt) {
-            module_add_statment(parse->module, stmt);
-        }
+        module_add_statment(parse->module, __parser_statement__(parse));
         break;
     }
 }
@@ -147,44 +149,8 @@ static statement_t __parser_require_statement__(parser_t parse)
     return stmt;
 }
 
-static expression_t __parser_function_definition__(parser_t parse)
-{
-    expression_t expr;
-    long line, column;
-    cstring_t funcname;
-    list_t parameters;
-    list_t block;
-    token_t tok;
-
-    expr      = NULL;
-    tok       = lexer_next(parse->lex);
-    line      = tok->line;
-    column    = tok->column;
-
-    if (tok->value == TOKEN_VALUE_IDENTIFIER) {
-        funcname = cstring_dup(tok->token);
-        lexer_next(parse->lex);
-    } else {
-        funcname = NULL;
-    }
-
-    __parser_expect__(parse, TOKEN_VALUE_LP, "expected '(' after 'function'");
-
-    parameters = __parser_parameter_list__(parse);
-
-    __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
-
-    block = __parser_block__(parse);
-
-    expr = expression_new_function(line, column, funcname, parameters, block);
-
-    assert(expr != NULL);
-    return expr;
-}
-
 static statement_t __parser_statement__(parser_t parse)
 {
-    expression_t expr;
     statement_t stmt;
     long line, column;
     token_t tok;
@@ -201,6 +167,9 @@ static statement_t __parser_statement__(parser_t parse)
     case TOKEN_VALUE_WHILE:
         break;
 
+    case TOKEN_VALUE_SWITCH:
+        break;
+
     case TOKEN_VALUE_FOR:
         break;
 
@@ -213,16 +182,10 @@ static statement_t __parser_statement__(parser_t parse)
     case TOKEN_VALUE_CONTINUE:
         break;
 
-    case TOKEN_VALUE_SEMICOLON:
-        lexer_next(parse->lex);
-        break;
-
     default:
-        expr = __parser_expression__(parse);
-        stmt = statement_new_expression(line, column, expr);
-        assert(stmt != NULL);
-        if (lexer_peek(parse->lex)->value == TOKEN_VALUE_SEMICOLON) {
-            lexer_next(parse->lex);
+        stmt = statement_new_expression(line, column, __parser_expression__(parse));
+        if (stmt->u.expr->type != EXPRESSION_TYPE_FUNCTION) {
+            __parser_expect__(parse, TOKEN_VALUE_SEMICOLON, "expected ';'");
         }
         break;
     }
@@ -339,17 +302,19 @@ static expression_t __parser_expression__(parser_t parse)
         break;
 
     default:
-        if (lvalue_exprs_total == 1 && (expr = list_element(list_begin(lvalue_exprs), expression_t, link))->type == EXPRESSION_TYPE_CALL) {
+        if (lvalue_exprs_total == 1 && 
+            (expr = list_element(list_begin(lvalue_exprs), expression_t, link))->type == EXPRESSION_TYPE_CALL ||
+             expr->type == EXPRESSION_TYPE_FUNCTION) {
             goto done;
         }
         
-        error(tok->filename, line, column, "unexpected assign expression");
+        error(tok->filename, line, column, "expected assign expression");
         break;
     }
 
     /* component assign expression */
     if (lvalue_exprs_total > 1) {
-        error(tok->filename, line, column, "unexpected assign expression");
+        error(tok->filename, line, column, "expected assign expression");
     }
 
     lexer_next(parse->lex);
@@ -386,6 +351,11 @@ static expression_t __parser_lvalue_expression__(parser_t parse)
 
     default:
         lvalue_expr = __parser_postfix_expression__(parse);
+        if (lvalue_expr->type != EXPRESSION_TYPE_IDENTIFIER &&
+            lvalue_expr->type != EXPRESSION_TYPE_INDEX      && 
+            lvalue_expr->type != EXPRESSION_TYPE_TABLE_DOT_MEMBER) {
+            error(tok->filename, line, column, "expected lvalue expression");
+        }
         break;
     }
 
@@ -495,9 +465,9 @@ static expression_t __parser_relational_expression__(parser_t parse)
     line   = tok->line;
     column = tok->column;
 
-    while (tok->value == TOKEN_VALUE_GT || 
+    while (tok->value == TOKEN_VALUE_GT  || 
            tok->value == TOKEN_VALUE_GEQ || 
-           tok->value == TOKEN_VALUE_LT || 
+           tok->value == TOKEN_VALUE_LT  || 
            tok->value == TOKEN_VALUE_LEQ) {
         tv  = tok->value;
 
@@ -629,9 +599,9 @@ static expression_t __parser_bitop_expression__(parser_t parse)
     column  = tok->column;
 
     while (tok->value == TOKEN_VALUE_BITAND ||
-           tok->value == TOKEN_VALUE_BITOR || 
+           tok->value == TOKEN_VALUE_BITOR  || 
            tok->value == TOKEN_VALUE_XOR) {
-        tv      = tok->value;
+        tv = tok->value;
 
         lexer_next(parse->lex);
         switch (tv) {
@@ -676,7 +646,7 @@ static expression_t __parser_shift_bitop_expression__(parser_t parse)
     while (tok->value == TOKEN_VALUE_LEFT_SHIFT  ||
            tok->value == TOKEN_VALUE_RIGHT_SHIFT || 
            tok->value == TOKEN_VALUE_LOGIC_RIGHT_SHIFT_ASSIGN) {
-        tv      = tok->value;
+        tv = tok->value;
 
         lexer_next(parse->lex);
         switch (tv) {
@@ -766,9 +736,9 @@ static expression_t __parser_postfix_expression__(parser_t parse)
 
     tok  = lexer_peek(parse->lex);
     while (tok->value == TOKEN_VALUE_LB     ||
-           tok->value == TOKEN_VALUE_APPEND ||
+           tok->value == TOKEN_VALUE_ARRAY_PUSH ||
            tok->value == TOKEN_VALUE_DOT    ||
-           tok->value == TOKEN_VALUE_LP     || 
+           tok->value == TOKEN_VALUE_LP     ||
            tok->value == TOKEN_VALUE_INC    ||
            tok->value == TOKEN_VALUE_DEC) {
         switch (tok->value) {
@@ -780,10 +750,16 @@ static expression_t __parser_postfix_expression__(parser_t parse)
             __parser_expect__(parse, TOKEN_VALUE_RB, "expected ']'");
             break;
 
-        case TOKEN_VALUE_APPEND:
+        case TOKEN_VALUE_ARRAY_PUSH:
             lexer_next(parse->lex);
 
-            expr = expression_new_array_append(line, column, expr, __parser_rvalue_expression__(parse));
+            expr = expression_new_array_push(line, column, expr, __parser_rvalue_expression__(parse));
+            break;
+
+        case TOKEN_VALUE_ARRAY_POP:
+            lexer_next(parse->lex);
+
+            expr = expression_new_array_pop(line, column, expr, __parser_lvalue_expression__(parse));
             break;
 
         case TOKEN_VALUE_DOT:
@@ -823,7 +799,7 @@ static expression_t __parser_primary_expression__(parser_t parse)
     expression_t expr;
     long line, column;
     token_t tok;
-    
+
     expr      = NULL;
     tok       = lexer_peek(parse->lex);
     line      = tok->line;
@@ -881,7 +857,7 @@ static expression_t __parser_primary_expression__(parser_t parse)
         break;
 
     case TOKEN_VALUE_FUNCTION:
-        expr = __parser_closure_definition__(parse);
+        expr = __parser_function_definition__(parse);
         break;
 
     case TOKEN_VALUE_LP:
@@ -899,6 +875,7 @@ static expression_t __parser_primary_expression__(parser_t parse)
         break;
 
     default:
+        error(tok->filename, line, column, "expected expression");
         break;
     }
 
@@ -914,9 +891,9 @@ static expression_t __parser_array_generate_expression__(parser_t parse)
     token_t tok;
 
     expr      = NULL;
+    line      = lexer_peek(parse->lex)->line;
+    column    = lexer_peek(parse->lex)->column;
     tok       = lexer_next(parse->lex);
-    line      = tok->line;
-    column    = tok->column;
 
     list_init(elements);
 
@@ -950,16 +927,14 @@ static expression_t __parser_table_generate_expression__(parser_t parse)
     expression_table_pair_t pair;
 
     expr      = NULL;
+    line      = lexer_peek(parse->lex)->line;
+    column    = lexer_peek(parse->lex)->column;
     tok       = lexer_next(parse->lex);
-    line      = tok->line;
-    column    = tok->column;
 
     list_init(members);
 
     while (tok->type != TOKEN_TYPE_END && tok->value != TOKEN_VALUE_RC) {
-        if (tok->value != TOKEN_VALUE_IDENTIFIER) {
-            error(tok->filename, line, column, "expected identifier");
-        }
+        __parser_need__(parse, TOKEN_VALUE_IDENTIFIER, "expected identifier");
 
         elemname = cstring_dup(tok->token);
 
@@ -986,18 +961,26 @@ static expression_t __parser_table_generate_expression__(parser_t parse)
     return expr;
 }
 
-static expression_t __parser_closure_definition__(parser_t parse)
+static expression_t __parser_function_definition__(parser_t parse)
 {
     expression_t expr;
-    long line, column;
+    cstring_t funcname;
     list_t parameters;
     list_t block;
     token_t tok;
+    long line, column;
     
-    expr      = NULL;
-    tok       = lexer_next(parse->lex);
-    line      = tok->line;
-    column    = tok->column;
+    expr   = NULL;
+    line   = lexer_peek(parse->lex)->line;
+    column = lexer_peek(parse->lex)->column;
+    tok    = lexer_next(parse->lex);
+
+    if (tok->value == TOKEN_VALUE_IDENTIFIER) {
+        funcname = cstring_dup(tok->token);
+        lexer_next(parse->lex);
+    } else {
+        funcname = cstring_new("");
+    }
 
     __parser_expect__(parse, TOKEN_VALUE_LP, "expected '(' after 'function'");
 
@@ -1007,7 +990,7 @@ static expression_t __parser_closure_definition__(parser_t parse)
 
     block = __parser_block__(parse);
 
-    expr = expression_new_function(line, column, NULL, parameters, block);
+    expr = expression_new_function(line, column, funcname, parameters, block);
     
     assert(expr != NULL);
     return expr;
@@ -1057,8 +1040,10 @@ static list_t __parser_block__(parser_t parse)
 
 static list_t __parser_argument_list__(parser_t parse)
 {
-    token_t tok = lexer_next(parse->lex);
+    token_t tok;
     list_t args;
+
+    tok = lexer_next(parse->lex);
 
     list_init(args);
 

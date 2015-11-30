@@ -66,7 +66,8 @@ typedef enum token_value_e {
     TOKEN_VALUE_LEFT_SHIFT,         /* << */
     TOKEN_VALUE_RIGHT_SHIFT,        /* >> */
     TOKEN_VALUE_LOGIC_RIGHT_SHIFT,  /* >>> */
-    TOKEN_VALUE_APPEND,             /* <- */
+    TOKEN_VALUE_ARRAY_PUSH,         /* <- */
+    TOKEN_VALUE_ARRAY_POP,          /* -> */
     TOKEN_VALUE_CPL,                /* ~ */
     TOKEN_VALUE_INC,                /* ++ */
     TOKEN_VALUE_DEC,                /* -- */
