@@ -73,8 +73,7 @@ typedef enum token_value_e {
     TOKEN_VALUE_DEC,                /* -- */
     TOKEN_VALUE_NOT,                /* ! */
     TOKEN_VALUE_DOT,                /* . */
-    TOKEN_VALUE_IGNORE,             /* _ */
-
+   
     TOKEN_VALUE_LITERAL_CHAR,       /* such as 'a' */
     TOKEN_VALUE_LITERAL_INT,        /* such as 1 123 */
     TOKEN_VALUE_LITERAL_LONG,       /* such as 1l */

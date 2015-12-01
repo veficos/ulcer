@@ -16,9 +16,13 @@ static void         __parser_translation_unit__(parser_t parse);
 static void         __parser_toplevel_statement__(parser_t parse);
 static statement_t  __parser_require_statement__(parser_t parse);
 static statement_t  __parser_statement__(parser_t parse);
+static statement_t  __parser_if_statement__(parser_t parse);
+static list_t       __parser_elifs_statement__(parser_t parse);
+static list_t       __parser_else_statement__(parser_t parse);
+static statement_t  __parser_while_satement__(parser_t parse);
 static expression_t __parser_expression__(parser_t parse);
-static expression_t __parser_lvalue_expression__(parser_t parse);
-static expression_t __parser_rvalue_expression__(parser_t parse);
+static bool         __parser_check_lvalue_expression__(expression_t expr);
+static expression_t __parser_assign_expression__(parser_t parse);
 static expression_t __parser_logical_or_expression__(parser_t parse);
 static expression_t __parser_logical_and_expression__(parser_t parse);
 static expression_t __parser_equality_expression__(parser_t parse);
@@ -40,7 +44,7 @@ static list_t       __parser_block__(parser_t parse);
 
 parser_t parser_new(lexer_t lex)
 {
-    parser_t parse = (parser_t)mem_alloc(sizeof(struct parser_s));
+    parser_t parse = (parser_t) mem_alloc(sizeof(struct parser_s));
     if (!parse) {
         return NULL;
     }
@@ -109,22 +113,18 @@ static void __parser_toplevel_statement__(parser_t parse)
     case TOKEN_VALUE_REQUIRE:
         module_add_statment(parse->module, __parser_require_statement__(parse));
         break;
-
-    case TOKEN_VALUE_FUNCTION:
-        assert((stmt = __parser_statement__(parse))->type == STATEMENT_TYPE_EXPRESSION);
-        if (stmt->u.expr->type == EXPRESSION_TYPE_FUNCTION) {
-            module_add_function(parse->module, stmt);
-        } else {
-            module_add_statment(parse->module, stmt);
-        }
-        break;
-
+    
     case TOKEN_VALUE_SEMICOLON:
         lexer_next(parse->lex);
         break;
 
     default:
-        module_add_statment(parse->module, __parser_statement__(parse));
+        stmt = __parser_statement__(parse);
+        if (stmt->type == STATEMENT_TYPE_EXPRESSION && stmt->u.expr->type == EXPRESSION_TYPE_FUNCTION) {           
+            module_add_function(parse->module, stmt);
+        } else {
+            module_add_statment(parse->module, stmt);
+        }
         break;
     }
 }
@@ -162,9 +162,11 @@ static statement_t __parser_statement__(parser_t parse)
 
     switch (tok->value) {
     case TOKEN_VALUE_IF:
+        stmt = __parser_if_statement__(parse);
         break;
 
     case TOKEN_VALUE_WHILE:
+        stmt = __parser_while_satement__(parse);
         break;
 
     case TOKEN_VALUE_SWITCH:
@@ -193,178 +195,244 @@ static statement_t __parser_statement__(parser_t parse)
     return stmt;
 }
 
-static expression_t __parser_expression__(parser_t parse)
+static statement_t __parser_if_statement__(parser_t parse)
 {
-    expression_t expr;
-    expression_type_t expt_type;
-    list_t lvalue_exprs;
-    list_t rvalue_exprs;
+    statement_t if_stmt;
+    expression_t if_condition;
+    list_t if_block;
+    list_t elifs;
+    list_t else_block;
+
     long line, column;
     token_t tok;
-    int lvalue_exprs_total;
-    int rvalue_exprs_total;
 
-    expt_type = EXPRESSION_TYPE_ASSIGN;
+    if_stmt      = NULL;
+    if_condition = NULL;
+    
+    list_init(if_block);
+    list_init(elifs);
+    list_init(else_block);
 
+    tok     = lexer_peek(parse->lex);
+    line    = tok->line;
+    column  = tok->column;
+
+    lexer_next(parse->lex);
+
+    __parser_expect__(parse, TOKEN_VALUE_LP, "expected '(' after if");
+
+    if_condition = __parser_expression__(parse);
+
+    __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
+
+    if_block = __parser_block__(parse);
+
+    switch (lexer_peek(parse->lex)->value) {
+    case TOKEN_VALUE_ELIF:
+        elifs = __parser_elifs_statement__(parse);
+       
+    default:
+        if (lexer_peek(parse->lex)->value == TOKEN_VALUE_ELSE) {
+            else_block = __parser_else_statement__(parse);
+        }
+        break;
+    }
+
+    assert((if_stmt = statement_new_if(line, column, if_condition, if_block, elifs, else_block)) != NULL);
+    return if_stmt;
+}
+
+static list_t __parser_elifs_statement__(parser_t parse)
+{
+    list_t elifs;
+    token_t tok;
+    expression_t condition;
+    statement_elif_t elif_block;
+    
+    list_init(elifs);
+
+    tok = lexer_peek(parse->lex);
+    while (tok->type != TOKEN_TYPE_END && tok->value == TOKEN_VALUE_ELIF) {
+        tok = lexer_next(parse->lex);
+
+        __parser_expect__(parse, TOKEN_VALUE_LP, "expected '(' after elif");
+
+        condition = __parser_expression__(parse);
+
+        __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
+
+        elif_block = statement_new_elif(condition, __parser_block__(parse));
+
+        list_push_back(elifs, elif_block->link);
+    }
+
+    return elifs;
+}
+
+static list_t __parser_else_statement__(parser_t parse)
+{
+    lexer_next(parse->lex);
+    return __parser_block__(parse);
+}
+
+static statement_t __parser_while_satement__(parser_t parse)
+{
+    statement_t while_stmt;
+    expression_t condition;
+    list_t block;
+    token_t tok;
+    long column;
+    long line;
+    
+    while_stmt = NULL;
+    line       = lexer_peek(parse->lex)->line;
+    column     = lexer_peek(parse->lex)->column;
+    tok        = lexer_next(parse->lex);
+
+    __parser_expect__(parse, TOKEN_VALUE_LP, "expected '(' after while");
+
+    condition = __parser_expression__(parse);
+
+    __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
+
+    block = __parser_block__(parse);
+
+    assert((while_stmt = statement_new_while(line, column, condition, block)) != NULL);
+    return while_stmt;
+}
+
+static expression_t __parser_expression__(parser_t parse)
+{
+    return __parser_assign_expression__(parse);
+}
+
+static bool __parser_check_lvalue_expression__(expression_t expr)
+{
+    if (expr->type != EXPRESSION_TYPE_IDENTIFIER &&
+        expr->type != EXPRESSION_TYPE_INDEX      && 
+        expr->type != EXPRESSION_TYPE_TABLE_DOT_MEMBER) {
+        return false;
+    }
+
+    return true;
+}
+
+static expression_t __parser_assign_expression__(parser_t parse)
+{
+    expression_t expr;
+    long line, column;
+    token_t tok;
+
+    expr   = NULL;
     tok    = lexer_peek(parse->lex);
     line   = tok->line;
     column = tok->column;
 
-    list_init(lvalue_exprs);
-    list_init(rvalue_exprs);
+    expr = __parser_logical_or_expression__(parse);
 
-    /* left value expression list */
-    for (lvalue_exprs_total = 0; (expr = __parser_lvalue_expression__(parse)) != NULL; ) {
-        list_push_back(lvalue_exprs, expr->link);
-        
-        lvalue_exprs_total++;
-
-        if (lexer_peek(parse->lex)->value == TOKEN_VALUE_COMMA) {
-            lexer_next(parse->lex);
-        } else {
-            break;
-        }
-    }
-
-    tok = lexer_peek(parse->lex);
-    switch (tok->value) {
+    switch (lexer_peek(parse->lex)->value) {
     case TOKEN_VALUE_ASSIGN:
-        if (lvalue_exprs_total == 0) {
+        lexer_next(parse->lex);
+        if (!__parser_check_lvalue_expression__(expr))  {
             error(tok->filename, line, column, "expected lvalue expression");
         }
-
-        lexer_next(parse->lex);
-
-        /* right value expression list */
-        for (rvalue_exprs_total = 0; (expr = __parser_rvalue_expression__(parse)) != NULL ; ) {
-            list_push_back(rvalue_exprs, expr->link);
-            
-            rvalue_exprs_total++;
-
-            if (lexer_peek(parse->lex)->value == TOKEN_VALUE_COMMA) {
-                lexer_next(parse->lex);
-            } else {
-                break;
-            }
-        }
-
-        if (rvalue_exprs_total == 0) {
-            error(tok->filename, line, column, "expected rvalue expression");
-        }
-
-        expr = expression_new_assign(line, column, lvalue_exprs, lvalue_exprs_total, rvalue_exprs, rvalue_exprs_total);
-
-        goto done;
+        expr = expression_new_assign(line, column, EXPRESSION_TYPE_ASSIGN, expr, __parser_expression__(parse));
         break;
 
     case TOKEN_VALUE_ADD_ASSIGN:
-        expt_type = EXPRESSION_TYPE_ADD_ASSIGN;
+        lexer_next(parse->lex);
+        if (!__parser_check_lvalue_expression__(expr))  {
+            error(tok->filename, line, column, "expected lvalue expression");
+        }
+        expr = expression_new_assign(line, column, EXPRESSION_TYPE_ADD_ASSIGN, expr, __parser_expression__(parse));
         break;
 
     case TOKEN_VALUE_SUB_ASSIGN:
-        expt_type = EXPRESSION_TYPE_SUB_ASSIGN;
+        lexer_next(parse->lex);
+        if (!__parser_check_lvalue_expression__(expr))  {
+            error(tok->filename, line, column, "expected lvalue expression");
+        }
+        expr = expression_new_assign(line, column, EXPRESSION_TYPE_SUB_ASSIGN, expr, __parser_expression__(parse));
         break;
 
     case TOKEN_VALUE_MUL_ASSIGN:
-        expt_type = EXPRESSION_TYPE_MUL_ASSIGN;
+        lexer_next(parse->lex);
+        if (!__parser_check_lvalue_expression__(expr))  {
+            error(tok->filename, line, column, "expected lvalue expression");
+        }
+        expr = expression_new_assign(line, column, EXPRESSION_TYPE_MUL_ASSIGN, expr, __parser_expression__(parse));
         break;
 
     case TOKEN_VALUE_DIV_ASSIGN:
-        expt_type = EXPRESSION_TYPE_DIV_ASSIGN;
+        lexer_next(parse->lex);
+        if (!__parser_check_lvalue_expression__(expr))  {
+            error(tok->filename, line, column, "expected lvalue expression");
+        }
+        expr = expression_new_assign(line, column, EXPRESSION_TYPE_DIV_ASSIGN, expr, __parser_expression__(parse));
         break;
 
     case TOKEN_VALUE_MOD_ASSIGN:
-        expt_type = EXPRESSION_TYPE_MOD_ASSIGN;
+        lexer_next(parse->lex);
+        if (!__parser_check_lvalue_expression__(expr))  {
+            error(tok->filename, line, column, "expected lvalue expression");
+        }
+        expr = expression_new_assign(line, column, EXPRESSION_TYPE_MOD_ASSIGN, expr, __parser_expression__(parse));
         break;
 
     case TOKEN_VALUE_BITAND_ASSIGN:
-        expt_type = EXPRESSION_TYPE_BITAND_ASSIGN;
+        lexer_next(parse->lex);
+        if (!__parser_check_lvalue_expression__(expr))  {
+            error(tok->filename, line, column, "expected lvalue expression");
+        }
+        expr = expression_new_assign(line, column, EXPRESSION_TYPE_BITAND_ASSIGN, expr, __parser_expression__(parse));
         break;
 
     case TOKEN_VALUE_BITOR_ASSIGN:
-        expt_type = EXPRESSION_TYPE_BITOR_ASSIGN;
+        lexer_next(parse->lex);
+        if (!__parser_check_lvalue_expression__(expr))  {
+            error(tok->filename, line, column, "expected lvalue expression");
+        }
+        expr = expression_new_assign(line, column, EXPRESSION_TYPE_BITOR_ASSIGN, expr, __parser_expression__(parse));
         break;
 
     case TOKEN_VALUE_XOR_ASSIGN:
-        expt_type = EXPRESSION_TYPE_XOR_ASSIGN;
+        lexer_next(parse->lex);
+        if (!__parser_check_lvalue_expression__(expr))  {
+            error(tok->filename, line, column, "expected lvalue expression");
+        }
+        expr = expression_new_assign(line, column, EXPRESSION_TYPE_XOR_ASSIGN, expr, __parser_expression__(parse));
         break;
 
     case TOKEN_VALUE_LEFI_SHIFT_ASSIGN:
-        expt_type = EXPRESSION_TYPE_LEFI_SHIFT_ASSIGN;
+        lexer_next(parse->lex);
+        if (!__parser_check_lvalue_expression__(expr))  {
+            error(tok->filename, line, column, "expected lvalue expression");
+        }
+        expr = expression_new_assign(line, column, EXPRESSION_TYPE_LEFT_SHIFT_ASSIGN, expr, __parser_expression__(parse));
         break;
 
     case TOKEN_VALUE_RIGHT_SHIFT_ASSIGN:
-        expt_type = EXPRESSION_TYPE_RIGHT_SHIFT_ASSIGN;
+        lexer_next(parse->lex);
+        if (!__parser_check_lvalue_expression__(expr))  {
+            error(tok->filename, line, column, "expected lvalue expression");
+        }
+        expr = expression_new_assign(line, column, EXPRESSION_TYPE_RIGHT_SHIFT_ASSIGN, expr, __parser_expression__(parse));
         break;
 
     case TOKEN_VALUE_LOGIC_RIGHT_SHIFT_ASSIGN:
-        expt_type = EXPRESSION_TYPE_LOGIC_RIGHT_SHIFT_ASSIGN;
-        break;
-
-    default:
-        if (lvalue_exprs_total == 1 && 
-            (expr = list_element(list_begin(lvalue_exprs), expression_t, link))->type == EXPRESSION_TYPE_CALL ||
-             expr->type == EXPRESSION_TYPE_FUNCTION) {
-            goto done;
-        }
-        
-        error(tok->filename, line, column, "expected assign expression");
-        break;
-    }
-
-    /* component assign expression */
-    if (lvalue_exprs_total > 1) {
-        error(tok->filename, line, column, "expected assign expression");
-    }
-
-    lexer_next(parse->lex);
-
-    expr = __parser_rvalue_expression__(parse);
-    if (expr == NULL) {
-        error(tok->filename, line, column, "expected rvalue expression");
-    }
-
-    expr = expression_new_component_assign(line, column, expt_type, 
-        list_element(list_begin(lvalue_exprs), expression_t, link), expr);
-
-done:
-    assert (expr != NULL);
-    return expr;
-}
-
-static expression_t __parser_lvalue_expression__(parser_t parse)
-{
-    expression_t lvalue_expr;
-    long line, column;
-    token_t tok;
-    
-    lvalue_expr = NULL;
-    tok         = lexer_peek(parse->lex);
-    line        = tok->line;
-    column      = tok->column;
-
-    switch (tok->value) {
-    case TOKEN_VALUE_IGNORE:
-        lvalue_expr = expression_new_ignore(line, column);
         lexer_next(parse->lex);
-        break;
-
-    default:
-        lvalue_expr = __parser_postfix_expression__(parse);
-        if (lvalue_expr->type != EXPRESSION_TYPE_IDENTIFIER &&
-            lvalue_expr->type != EXPRESSION_TYPE_INDEX      && 
-            lvalue_expr->type != EXPRESSION_TYPE_TABLE_DOT_MEMBER) {
+        if (!__parser_check_lvalue_expression__(expr))  {
             error(tok->filename, line, column, "expected lvalue expression");
         }
+        expr = expression_new_assign(line, column, EXPRESSION_TYPE_LOGIC_RIGHT_SHIFT_ASSIGN, expr, __parser_expression__(parse));
+        break;
+
+    default:
         break;
     }
 
-    return lvalue_expr;
-}
-
-static expression_t __parser_rvalue_expression__(parser_t parse)
-{
-    return __parser_logical_or_expression__(parse);
+    assert(expr != NULL);
+    return expr;
 }
 
 static expression_t __parser_logical_or_expression__(parser_t parse)
@@ -735,17 +803,17 @@ static expression_t __parser_postfix_expression__(parser_t parse)
     expr = __parser_primary_expression__(parse);
 
     tok  = lexer_peek(parse->lex);
-    while (tok->value == TOKEN_VALUE_LB     ||
+    while (tok->value == TOKEN_VALUE_LB         ||
            tok->value == TOKEN_VALUE_ARRAY_PUSH ||
-           tok->value == TOKEN_VALUE_DOT    ||
-           tok->value == TOKEN_VALUE_LP     ||
-           tok->value == TOKEN_VALUE_INC    ||
+           tok->value == TOKEN_VALUE_DOT        ||
+           tok->value == TOKEN_VALUE_LP         ||
+           tok->value == TOKEN_VALUE_INC        ||
            tok->value == TOKEN_VALUE_DEC) {
         switch (tok->value) {
         case TOKEN_VALUE_LB:
             lexer_next(parse->lex);
 
-            expr = expression_new_index(line, column, expr, __parser_rvalue_expression__(parse));
+            expr = expression_new_index(line, column, expr, __parser_expression__(parse));
 
             __parser_expect__(parse, TOKEN_VALUE_RB, "expected ']'");
             break;
@@ -753,13 +821,13 @@ static expression_t __parser_postfix_expression__(parser_t parse)
         case TOKEN_VALUE_ARRAY_PUSH:
             lexer_next(parse->lex);
 
-            expr = expression_new_array_push(line, column, expr, __parser_rvalue_expression__(parse));
+            expr = expression_new_array_push(line, column, expr, __parser_expression__(parse));
             break;
 
         case TOKEN_VALUE_ARRAY_POP:
             lexer_next(parse->lex);
 
-            expr = expression_new_array_pop(line, column, expr, __parser_lvalue_expression__(parse));
+            expr = expression_new_array_pop(line, column, expr, __parser_expression__(parse));
             break;
 
         case TOKEN_VALUE_DOT:
@@ -862,7 +930,7 @@ static expression_t __parser_primary_expression__(parser_t parse)
 
     case TOKEN_VALUE_LP:
         lexer_next(parse->lex);
-        expr = __parser_rvalue_expression__(parse);
+        expr = __parser_expression__(parse);
         __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
         break;
 
@@ -898,7 +966,7 @@ static expression_t __parser_array_generate_expression__(parser_t parse)
     list_init(elements);
 
     while (tok->type != TOKEN_TYPE_END && tok->value != TOKEN_VALUE_RB) {
-        assert((elem = __parser_rvalue_expression__(parse)) != NULL);
+        elem = __parser_expression__(parse);
 
         list_push_back(elements, elem->link);
 
@@ -942,7 +1010,7 @@ static expression_t __parser_table_generate_expression__(parser_t parse)
         
         lexer_next(parse->lex);
 
-        pair = expression_new_table_pair(elemname, __parser_rvalue_expression__(parse));
+        pair = expression_new_table_pair(elemname, __parser_expression__(parse));
 
         list_push_back(members, pair->link);
 
@@ -1025,19 +1093,6 @@ static list_t __parser_parameter_list__(parser_t parse)
     return parameters;
 }
 
-static list_t __parser_block__(parser_t parse)
-{
-    list_t block;
-
-    list_init(block);
-
-    __parser_expect__(parse, TOKEN_VALUE_LC, "expected '{'");
-
-    __parser_expect__(parse, TOKEN_VALUE_RC, "expected '}'");
-
-    return block;
-}
-
 static list_t __parser_argument_list__(parser_t parse)
 {
     token_t tok;
@@ -1048,7 +1103,7 @@ static list_t __parser_argument_list__(parser_t parse)
     list_init(args);
 
     while (tok->type != TOKEN_TYPE_END && tok->value != TOKEN_VALUE_RP) {
-        list_push_back(args, __parser_rvalue_expression__(parse)->link);
+        list_push_back(args, __parser_expression__(parse)->link);
 
         if (lexer_peek(parse->lex)->value != TOKEN_VALUE_COMMA) {
             break;
@@ -1060,4 +1115,27 @@ static list_t __parser_argument_list__(parser_t parse)
     __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
 
     return args;
+}
+
+static list_t __parser_block__(parser_t parse)
+{
+    list_t block;
+    token_t tok;
+
+    list_init(block);
+
+    __parser_expect__(parse, TOKEN_VALUE_LC, "expected '{'");
+
+    tok = lexer_peek(parse->lex);
+    while (tok->type != TOKEN_TYPE_END && tok->value != TOKEN_VALUE_RC) {
+        if (tok->value == TOKEN_VALUE_SEMICOLON) {
+            tok = lexer_next(parse->lex);
+        } else {
+            list_push_back(block, __parser_statement__(parse)->link);
+        }
+    }
+
+    __parser_expect__(parse, TOKEN_VALUE_RC, "expected '}'");
+
+    return block;
 }

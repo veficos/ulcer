@@ -14,7 +14,6 @@ typedef struct expression_function_parameter_s* expression_function_parameter_t;
 typedef struct expression_function_s*           expression_function_t;
 typedef struct expression_call_s*               expression_call_t;
 typedef struct expression_assign_s*             expression_assign_t;
-typedef struct expression_component_assign_s*   expression_component_assign_t;
 typedef struct expression_binary_s*             expression_binary_t;
 
 typedef struct expression_table_pair_s*         expression_table_pair_t;
@@ -37,7 +36,6 @@ enum expression_type_e {
     EXPRESSION_TYPE_FUNCTION,
 
     EXPRESSION_TYPE_IDENTIFIER,
-    EXPRESSION_TYPE_IGNORE,
 
     EXPRESSION_TYPE_LIST,
 
@@ -51,7 +49,7 @@ enum expression_type_e {
     EXPRESSION_TYPE_BITAND_ASSIGN,
     EXPRESSION_TYPE_BITOR_ASSIGN,
     EXPRESSION_TYPE_XOR_ASSIGN,
-    EXPRESSION_TYPE_LEFI_SHIFT_ASSIGN,
+    EXPRESSION_TYPE_LEFT_SHIFT_ASSIGN,
     EXPRESSION_TYPE_RIGHT_SHIFT_ASSIGN,
     EXPRESSION_TYPE_LOGIC_RIGHT_SHIFT_ASSIGN,
 
@@ -117,13 +115,6 @@ struct expression_call_s {
 };
 
 struct expression_assign_s {
-    list_t lvalue_exprs;
-    list_t rvalue_exprs;
-    int    lvalue_exprs_total;
-    int    rvalue_exprs_total;
-};
-
-struct expression_component_assign_s {
     expression_t lvalue_expr;
     expression_t rvalue_expr;
 };
@@ -184,7 +175,6 @@ struct expression_s {
         expression_t                    unary_expr;
         expression_call_t               call_expr;
         expression_assign_t             assign_expr;
-        expression_component_assign_t   component_assign_expr;
         expression_t                    incdec_expr;
         list_t                          expressions_expr;
     }u;
@@ -195,9 +185,7 @@ struct expression_s {
 const char*             expression_type_string(expression_type_t expr_type);
 expression_t            expression_new_literal(expression_type_t type, token_t tok);
 expression_t            expression_new_identifier(long line, long column, cstring_t identifier);
-expression_t            expression_new_ignore(long line, long column);
-expression_t            expression_new_assign(long line, long column, list_t lvalue_exprs, int lvalue_exprs_total,  list_t rvalue_exprs, int rvalue_exprs_total);
-expression_t            expression_new_component_assign(long line, long column, expression_type_t component_assign_type, expression_t lvalue_expr, expression_t rvalue_expr);
+expression_t            expression_new_assign(long line, long column, expression_type_t assign_type, expression_t lvalue_expr, expression_t rvalue_expr);
 expression_t            expression_new_binary(long line, long column, expression_type_t binary_expr_type, expression_t left, expression_t right);
 expression_t            expression_new_unary(long line, long column, expression_type_t unary_expr_type, expression_t expression);
 expression_t            expression_new_incdec(long line, long column, expression_type_t type, expression_t lvalue_expr);

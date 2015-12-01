@@ -181,59 +181,34 @@ expression_t expression_new_identifier(long line, long column, cstring_t identif
     return expr;
 }
 
-expression_t expression_new_ignore(long line, long column)
-{
-    return __expression_new__(EXPRESSION_TYPE_IGNORE, line, column);
-}
-
-expression_t expression_new_assign(long line, long column, list_t lvalue_exprs, int lvalue_exprs_total,  list_t rvalue_exprs, int rvalue_exprs_total)
+expression_t expression_new_assign(long line, long column, expression_type_t assign_type, expression_t lvalue_expr, expression_t rvalue_expr)
 {
     expression_t expr;
     expression_assign_t assign_expr;
 
-    expr = __expression_new__(EXPRESSION_TYPE_ASSIGN, line, column);
+    assert(assign_type == EXPRESSION_TYPE_ASSIGN            ||
+           assign_type == EXPRESSION_TYPE_ADD_ASSIGN        ||
+           assign_type == EXPRESSION_TYPE_SUB_ASSIGN        ||
+           assign_type == EXPRESSION_TYPE_MUL_ASSIGN        ||
+           assign_type == EXPRESSION_TYPE_DIV_ASSIGN        ||
+           assign_type == EXPRESSION_TYPE_MOD_ASSIGN        ||
+           assign_type == EXPRESSION_TYPE_BITAND_ASSIGN     ||
+           assign_type == EXPRESSION_TYPE_BITOR_ASSIGN      ||
+           assign_type == EXPRESSION_TYPE_XOR_ASSIGN        ||
+           assign_type == EXPRESSION_TYPE_LEFT_SHIFT_ASSIGN ||
+           assign_type == EXPRESSION_TYPE_RIGHT_SHIFT_ASSIGN||
+           assign_type == EXPRESSION_TYPE_LOGIC_RIGHT_SHIFT_ASSIGN);
+
+    expr = __expression_new__(assign_type, line, column);
 
     assign_expr = (expression_assign_t) mem_alloc(sizeof(struct expression_assign_s));
     if (!assign_expr) {
         return NULL;
     }
 
-    expr->u.assign_expr               = assign_expr;
-    expr->u.assign_expr->lvalue_exprs = lvalue_exprs;
-    expr->u.assign_expr->rvalue_exprs = rvalue_exprs;
-    expr->u.assign_expr->lvalue_exprs_total = lvalue_exprs_total;
-    expr->u.assign_expr->rvalue_exprs_total = rvalue_exprs_total;
-
-    return expr;
-}
-
-expression_t expression_new_component_assign(long line, long column, expression_type_t component_assign_type, expression_t lvalue_expr, expression_t rvalue_expr)
-{
-    expression_t expr;
-    expression_component_assign_t assign_expr;
-
-    assert(component_assign_type == EXPRESSION_TYPE_ADD_ASSIGN ||
-           component_assign_type == EXPRESSION_TYPE_SUB_ASSIGN ||
-           component_assign_type == EXPRESSION_TYPE_MUL_ASSIGN ||
-           component_assign_type == EXPRESSION_TYPE_DIV_ASSIGN ||
-           component_assign_type == EXPRESSION_TYPE_MOD_ASSIGN ||
-           component_assign_type == EXPRESSION_TYPE_BITAND_ASSIGN ||
-           component_assign_type == EXPRESSION_TYPE_BITOR_ASSIGN ||
-           component_assign_type == EXPRESSION_TYPE_XOR_ASSIGN ||
-           component_assign_type == EXPRESSION_TYPE_LEFI_SHIFT_ASSIGN ||
-           component_assign_type == EXPRESSION_TYPE_RIGHT_SHIFT_ASSIGN ||
-           component_assign_type == EXPRESSION_TYPE_LOGIC_RIGHT_SHIFT_ASSIGN);
-
-    expr = __expression_new__(component_assign_type, line, column);
-
-    assign_expr = (expression_component_assign_t) mem_alloc(sizeof(struct expression_component_assign_s));
-    if (!assign_expr) {
-        return NULL;
-    }
-
-    expr->u.component_assign_expr              = assign_expr;
-    expr->u.component_assign_expr->lvalue_expr = lvalue_expr;
-    expr->u.component_assign_expr->rvalue_expr = rvalue_expr;
+    expr->u.assign_expr              = assign_expr;
+    expr->u.assign_expr->lvalue_expr = lvalue_expr;
+    expr->u.assign_expr->rvalue_expr = rvalue_expr;
 
     return expr;
 }
@@ -521,27 +496,20 @@ void expression_free(expression_t expr)
         break;
 
     case EXPRESSION_TYPE_ASSIGN:
-        list_safe_for_each(expr->u.assign_expr->lvalue_exprs, iter, next_iter) {
-            list_erase(expr->u.assign_expr->lvalue_exprs, *iter);
-            expression_free(list_element(iter, expression_t, link));
-        }
-        
-        list_safe_for_each(expr->u.assign_expr->rvalue_exprs, iter, next_iter) {
-            list_erase(expr->u.assign_expr->rvalue_exprs, *iter);
-            expression_free(list_element(iter, expression_t, link));
-        }
-        
-        mem_free(expr->u.assign_expr);
-        break;
-
     case EXPRESSION_TYPE_ADD_ASSIGN:
     case EXPRESSION_TYPE_SUB_ASSIGN:
     case EXPRESSION_TYPE_MUL_ASSIGN:
     case EXPRESSION_TYPE_DIV_ASSIGN:
     case EXPRESSION_TYPE_MOD_ASSIGN:
-        expression_free(expr->u.component_assign_expr->lvalue_expr);
-        expression_free(expr->u.component_assign_expr->rvalue_expr);
-        mem_free(expr->u.component_assign_expr);
+    case EXPRESSION_TYPE_BITAND_ASSIGN:
+    case EXPRESSION_TYPE_BITOR_ASSIGN:
+    case EXPRESSION_TYPE_XOR_ASSIGN:
+    case EXPRESSION_TYPE_LEFT_SHIFT_ASSIGN:
+    case EXPRESSION_TYPE_RIGHT_SHIFT_ASSIGN:
+    case EXPRESSION_TYPE_LOGIC_RIGHT_SHIFT_ASSIGN:
+        expression_free(expr->u.assign_expr->lvalue_expr);
+        expression_free(expr->u.assign_expr->rvalue_expr);
+        mem_free(expr->u.assign_expr);
         break;
 
     case EXPRESSION_TYPE_CALL:

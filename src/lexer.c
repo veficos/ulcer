@@ -290,9 +290,6 @@ reparse:
     } else if (ch == '~') {
         __lexer_parse_operator__(lex, TOKEN_VALUE_CPL);
 
-    } else if (ch == '_') {
-        __lexer_parse_operator__(lex, TOKEN_VALUE_IGNORE);
-
     } else if (ch == '(') {
         __lexer_parse_operator__(lex, TOKEN_VALUE_LP);
 
