@@ -34,6 +34,7 @@ struct keyword_s keywords[] = {
     { "for",            TOKEN_VALUE_FOR         },
     { "switch",         TOKEN_VALUE_SWITCH      },
     { "case",           TOKEN_VALUE_CASE        },
+    { "default",        TOKEN_VALUE_DEFAULT     },
     { "return",         TOKEN_VALUE_RETURN      },
     { "break",          TOKEN_VALUE_BREAK       },
     { "continue",       TOKEN_VALUE_CONTINUE    },

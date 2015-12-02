@@ -19,7 +19,9 @@ static statement_t  __parser_statement__(parser_t parse);
 static statement_t  __parser_if_statement__(parser_t parse);
 static list_t       __parser_elifs_statement__(parser_t parse);
 static list_t       __parser_else_statement__(parser_t parse);
-static statement_t  __parser_while_satement__(parser_t parse);
+static statement_t  __parser_switch_statement__(parser_t parse);
+static statement_t  __parser_while_statement__(parser_t parse);
+static statement_t  __parser_for_statement__(parser_t parse);
 static expression_t __parser_expression__(parser_t parse);
 static bool         __parser_check_lvalue_expression__(expression_t expr);
 static expression_t __parser_assign_expression__(parser_t parse);
@@ -166,22 +168,33 @@ static statement_t __parser_statement__(parser_t parse)
         break;
 
     case TOKEN_VALUE_WHILE:
-        stmt = __parser_while_satement__(parse);
+        stmt = __parser_while_statement__(parse);
         break;
 
     case TOKEN_VALUE_SWITCH:
+        stmt = __parser_switch_statement__(parse);
         break;
 
     case TOKEN_VALUE_FOR:
+        stmt = __parser_for_statement__(parse);
         break;
 
     case TOKEN_VALUE_RETURN:
+        if (lexer_next(parse->lex)->value != TOKEN_VALUE_SEMICOLON) {
+            stmt = statement_new_return(line, column, __parser_expression__(parse));
+        } else {
+            stmt = statement_new_return(line, column, NULL);
+        }
         break;
 
     case TOKEN_VALUE_BREAK:
+        lexer_next(parse->lex);
+        stmt = statement_new_break(line, column);
         break;
 
     case TOKEN_VALUE_CONTINUE:
+        lexer_next(parse->lex);
+        stmt = statement_new_continue(line, column);
         break;
 
     default:
@@ -275,7 +288,65 @@ static list_t __parser_else_statement__(parser_t parse)
     return __parser_block__(parse);
 }
 
-static statement_t __parser_while_satement__(parser_t parse)
+static statement_t __parser_switch_statement__(parser_t parse)
+{
+    statement_t switch_stmt;
+    expression_t switch_expr;
+    expression_t case_expr;
+    list_t case_block;
+    list_t cases;
+    list_t default_block;
+    long line, column;
+    token_t tok;
+
+    list_init(cases);
+    list_init(default_block);
+
+    switch_stmt = NULL;
+    tok         = lexer_peek(parse->lex);
+    line        = tok->line;
+    column      = tok->column;
+
+    lexer_next(parse->lex);
+
+    __parser_expect__(parse, TOKEN_VALUE_LP, "expected '(' after switch");
+
+    switch_expr = __parser_expression__(parse);
+
+    __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
+
+    __parser_expect__(parse, TOKEN_VALUE_LC, "expected '{'");
+
+    tok = lexer_peek(parse->lex);
+    while (tok->type != TOKEN_TYPE_END && tok->value != TOKEN_VALUE_RC) {
+        if (tok->value != TOKEN_VALUE_CASE && tok->value != TOKEN_VALUE_DEFAULT) {
+            error(tok->filename, tok->line, tok->column, "expected 'case expr:' or 'default:'");
+        }
+
+        if (tok->value == TOKEN_VALUE_CASE) {
+            lexer_next(parse->lex);
+
+            case_expr = __parser_expression__(parse);
+
+            __parser_expect__(parse, TOKEN_VALUE_COLON, "expected ':'");
+
+            case_block = __parser_block__(parse);
+
+            list_push_back(cases, statement_new_switch_case(case_expr, case_block)->link);
+        } else {
+            lexer_next(parse->lex);
+            __parser_expect__(parse, TOKEN_VALUE_COLON, "expected ':'");
+            default_block = __parser_block__(parse);
+        }
+    }
+
+    __parser_expect__(parse, TOKEN_VALUE_RC, "expected '}'");
+
+    assert((switch_stmt = statement_new_switch(line, column, switch_expr, cases, default_block)) != NULL);
+    return switch_stmt;
+}
+
+static statement_t __parser_while_statement__(parser_t parse)
 {
     statement_t while_stmt;
     expression_t condition;
@@ -299,6 +370,53 @@ static statement_t __parser_while_satement__(parser_t parse)
 
     assert((while_stmt = statement_new_while(line, column, condition, block)) != NULL);
     return while_stmt;
+}
+
+static statement_t __parser_for_statement__(parser_t parse)
+{
+    expression_t init;
+    expression_t condition;
+    expression_t post;
+    list_t block;
+    statement_t for_stmt;
+    token_t tok;
+    long column;
+    long line;
+
+    for_stmt   = NULL;
+    init       = NULL;
+    condition  = NULL;
+    post       = NULL;
+    line       = lexer_peek(parse->lex)->line;
+    column     = lexer_peek(parse->lex)->column;
+    tok        = lexer_next(parse->lex);
+   
+    list_init(block);
+
+    __parser_expect__(parse, TOKEN_VALUE_LP, "expected '(' at for");
+
+    if (lexer_peek(parse->lex)->value != TOKEN_VALUE_SEMICOLON) {
+        init = __parser_expression__(parse);
+    }
+
+    __parser_expect__(parse, TOKEN_VALUE_SEMICOLON, "expected ';'");
+
+    if (lexer_peek(parse->lex)->value != TOKEN_VALUE_SEMICOLON) {
+        condition = __parser_expression__(parse);
+    }
+
+    __parser_expect__(parse, TOKEN_VALUE_SEMICOLON, "expected ';'");
+
+    if (lexer_peek(parse->lex)->value != TOKEN_VALUE_RP) {
+        post = __parser_expression__(parse);
+    }
+
+    __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
+
+    block = __parser_block__(parse);
+
+    assert((for_stmt = statement_new_for(line, column, init, condition, post, block)) != NULL);
+    return for_stmt;
 }
 
 static expression_t __parser_expression__(parser_t parse)
@@ -844,11 +962,17 @@ static expression_t __parser_postfix_expression__(parser_t parse)
 
         case TOKEN_VALUE_INC:
             lexer_next(parse->lex);
+            if (!__parser_check_lvalue_expression__(expr)) {
+                error(tok->filename, line, column, "expected lvalue expression");
+            }
             expr = expression_new_incdec(line, column, EXPRESSION_TYPE_INC, expr);
             break;
 
         case TOKEN_VALUE_DEC:
             lexer_next(parse->lex);
+            if (!__parser_check_lvalue_expression__(expr)) {
+                error(tok->filename, line, column, "expected lvalue expression");
+            }
             expr = expression_new_incdec(line, column, EXPRESSION_TYPE_DEC, expr);
             break;
 

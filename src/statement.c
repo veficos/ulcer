@@ -27,6 +27,30 @@ void statement_free_elif(statement_elif_t elif)
     mem_free(elif);
 }
 
+statement_switch_case_t statement_new_switch_case(expression_t case_expr, list_t block)
+{
+    statement_switch_case_t switch_case = (statement_switch_case_t) mem_alloc(sizeof(struct statement_switch_case_s));
+
+    switch_case->case_expr = case_expr;
+    switch_case->block     = block;
+
+    return switch_case;
+}
+
+void statement_free_switch_case(statement_switch_case_t switch_case)
+{
+    list_iter_t iter, next_iter;
+
+    expression_free(switch_case->case_expr);
+
+    list_safe_for_each(switch_case->block, iter, next_iter) {
+        list_erase(switch_case->block, *iter);
+        statement_free(list_element(iter, statement_t, link));
+    }
+
+    mem_free(switch_case);
+}
+
 statement_t __statement_new__(statement_type_t type, long line, long column)
 {
     statement_t stmt = (statement_t) mem_alloc(sizeof(struct statement_s));
@@ -80,6 +104,26 @@ statement_t statement_new_if(long line, long column, expression_t condition, lis
     return stmt;
 }
 
+statement_t statement_new_switch(long line, long column, expression_t switch_expr, list_t cases, list_t default_block)
+{
+    statement_t stmt;
+    statement_switch_t switch_stmt;
+
+    stmt = __statement_new__(STATEMENT_TYPE_SWITCH, line, column);
+
+    switch_stmt = (statement_switch_t) mem_alloc(sizeof(struct statement_switch_s));
+    if (!switch_stmt) {
+        return NULL;
+    }
+
+    stmt->u.switch_stmt                = switch_stmt;
+    stmt->u.switch_stmt->expr          = switch_expr;
+    stmt->u.switch_stmt->cases         = cases;
+    stmt->u.switch_stmt->default_block = default_block;
+
+    return stmt;
+}
+
 statement_t statement_new_while(long line, long column, expression_t condition, list_t block)
 {
     statement_t stmt;
@@ -95,6 +139,56 @@ statement_t statement_new_while(long line, long column, expression_t condition, 
     stmt->u.while_stmt            = while_stmt;
     stmt->u.while_stmt->condition = condition;
     stmt->u.while_stmt->block     = block;
+
+    return stmt;
+}
+
+statement_t statement_new_for(long line, long column, expression_t init, expression_t condition, expression_t post, list_t block)
+{
+    statement_t stmt;
+    statement_for_t for_stmt;
+
+    stmt = __statement_new__(STATEMENT_TYPE_FOR, line, column);
+
+    for_stmt = (statement_for_t) mem_alloc(sizeof(struct statement_for_s));
+    if (!for_stmt) {
+        return NULL;
+    }
+
+    stmt->u.for_stmt            = for_stmt;
+    stmt->u.for_stmt->init      = init;
+    stmt->u.for_stmt->condition = condition;
+    stmt->u.for_stmt->post      = post;
+    stmt->u.for_stmt->block     = block;
+
+    return stmt;
+}
+
+statement_t statement_new_continue(long line, long column)
+{
+    statement_t stmt;
+
+    stmt = __statement_new__(STATEMENT_TYPE_CONTINUE, line, column);
+
+    return stmt;
+}
+
+statement_t statement_new_break(long line, long column)
+{
+    statement_t stmt;
+
+    stmt = __statement_new__(STATEMENT_TYPE_BREAK, line, column);
+
+    return stmt;
+}
+
+statement_t statement_new_return(long line, long column, expression_t return_expr)
+{
+    statement_t stmt;
+
+    stmt = __statement_new__(STATEMENT_TYPE_RETURN, line, column);
+
+    stmt->u.return_expr = return_expr;
 
     return stmt;
 }
@@ -132,6 +226,22 @@ void statement_free(statement_t stmt)
         mem_free(stmt->u.if_stmt);
         break;
 
+    case STATEMENT_TYPE_SWITCH:
+        expression_free(stmt->u.switch_stmt->expr);
+
+        list_safe_for_each(stmt->u.switch_stmt->cases, iter, next_iter) {
+            list_erase(stmt->u.switch_stmt->cases, *iter);
+            statement_free_switch_case(list_element(iter, statement_switch_case_t, link));
+        }
+
+        list_safe_for_each(stmt->u.switch_stmt->default_block, iter, next_iter) {
+            list_erase(stmt->u.switch_stmt->default_block, *iter);
+            statement_free(list_element(iter, statement_t, link));
+        }
+
+        mem_free(stmt->u.switch_stmt);
+        break;
+
     case STATEMENT_TYPE_WHILE:
         expression_free(stmt->u.while_stmt->condition);
         list_safe_for_each(stmt->u.while_stmt->block, iter, next_iter) {
@@ -139,6 +249,37 @@ void statement_free(statement_t stmt)
             statement_free(list_element(iter, statement_t, link));
         }
         mem_free(stmt->u.while_stmt);
+        break;
+
+    case STATEMENT_TYPE_FOR:
+        if (stmt->u.for_stmt->init) {
+            expression_free(stmt->u.for_stmt->init);
+        }
+
+        if (stmt->u.for_stmt->condition) {
+            expression_free(stmt->u.for_stmt->condition);
+        }
+        
+        if (stmt->u.for_stmt->post) {
+            expression_free(stmt->u.for_stmt->post);
+        }
+
+        list_safe_for_each(stmt->u.for_stmt->block, iter, next_iter) {
+            list_erase(stmt->u.for_stmt->block, *iter);
+            statement_free(list_element(iter, statement_t, link));
+        }
+
+        mem_free(stmt->u.for_stmt);
+        break;
+
+    case STATEMENT_TYPE_CONTINUE:
+    case STATEMENT_TYPE_BREAK:
+        break;
+
+    case STATEMENT_TYPE_RETURN:
+        if (stmt->u.return_expr) {
+            expression_free(stmt->u.return_expr);
+        }
         break;
 
     default:
