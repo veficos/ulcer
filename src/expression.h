@@ -23,7 +23,6 @@ typedef struct expression_array_pop_s*          expression_array_pop_t;
 typedef struct expression_index_s*              expression_index_t;
 
 enum expression_type_e {
-
     /* value expression */
     EXPRESSION_TYPE_CHAR,
     EXPRESSION_TYPE_BOOL,
@@ -34,10 +33,7 @@ enum expression_type_e {
     EXPRESSION_TYPE_STRING,
     EXPRESSION_TYPE_NULL,
     EXPRESSION_TYPE_FUNCTION,
-
     EXPRESSION_TYPE_IDENTIFIER,
-
-    EXPRESSION_TYPE_LIST,
 
     /* assign expression */
     EXPRESSION_TYPE_ASSIGN,
@@ -72,11 +68,11 @@ enum expression_type_e {
     EXPRESSION_TYPE_LOGIC_RIGHT_SHIFT,
 
     /* math expression */
+    EXPRESSION_TYPE_ADD,
+    EXPRESSION_TYPE_SUB,
     EXPRESSION_TYPE_MUL,
     EXPRESSION_TYPE_DIV,
     EXPRESSION_TYPE_MOD,
-    EXPRESSION_TYPE_ADD,
-    EXPRESSION_TYPE_SUB,
     
     /* logic expression */
     EXPRESSION_TYPE_GT,
@@ -166,9 +162,9 @@ struct expression_s {
         expression_function_t           function_expr;
         list_t                          array_generate_expr;
         list_t                          table_generate_expr;
-        expression_index_t              index_expr;
         expression_array_push_t         array_push_expr;
         expression_array_pop_t          array_pop_expr;
+        expression_index_t              index_expr;
         expression_table_dot_member_t   table_dot_member_expr;
         cstring_t                       identifier_expr;
         expression_binary_t             binary_expr;
@@ -191,7 +187,6 @@ expression_t            expression_new_unary(long line, long column, expression_
 expression_t            expression_new_incdec(long line, long column, expression_type_t type, expression_t lvalue_expr);
 expression_t            expression_new_function(long line, long column, cstring_t name, list_t parameters, list_t block);
 expression_t            expression_new_call(long line, long column, expression_t function_expr, list_t args);
-expression_t            expression_new_list(long line, long column, list_t exprs);
 expression_t            expression_new_array_generate(long line, long column, list_t elements);
 expression_t            expression_new_array_push(long line, long column, expression_t array_expr, expression_t elem_expr);
 expression_t            expression_new_array_pop(long line, long column, expression_t array_expr, expression_t lvalue_expr);

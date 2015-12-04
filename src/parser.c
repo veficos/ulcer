@@ -53,7 +53,6 @@ parser_t parser_new(lexer_t lex)
 
     parse->lex    = lex;
     parse->module = module_new();
-
     return parse;
 }
 
@@ -103,15 +102,9 @@ static void __parser_translation_unit__(parser_t parse)
 
 static void __parser_toplevel_statement__(parser_t parse)
 {
-    token_t tok;
-    long line, column;
     statement_t stmt;
 
-    tok     = lexer_peek(parse->lex);
-    line    = tok->line;
-    column  = tok->column;
-
-    switch (tok->value) {
+    switch (lexer_peek(parse->lex)->value) {
     case TOKEN_VALUE_REQUIRE:
         module_add_statment(parse->module, __parser_require_statement__(parse));
         break;
@@ -122,7 +115,8 @@ static void __parser_toplevel_statement__(parser_t parse)
 
     default:
         stmt = __parser_statement__(parse);
-        if (stmt->type == STATEMENT_TYPE_EXPRESSION && stmt->u.expr->type == EXPRESSION_TYPE_FUNCTION) {           
+        if (stmt->type == STATEMENT_TYPE_EXPRESSION && 
+            stmt->u.expr->type == EXPRESSION_TYPE_FUNCTION) {           
             module_add_function(parse->module, stmt);
         } else {
             module_add_statment(parse->module, stmt);
@@ -133,10 +127,12 @@ static void __parser_toplevel_statement__(parser_t parse)
 
 static statement_t __parser_require_statement__(parser_t parse)
 {
-    statement_t stmt = NULL;
-    token_t tok  = NULL;
-    long line, column;
+    long        line;
+    long        column;
+    token_t     tok;
+    statement_t stmt;
 
+    stmt   = NULL;
     tok    = lexer_peek(parse->lex);
     line   = tok->line;
     column = tok->column;
@@ -153,9 +149,10 @@ static statement_t __parser_require_statement__(parser_t parse)
 
 static statement_t __parser_statement__(parser_t parse)
 {
+    long        line; 
+    long        column;
+    token_t     tok;
     statement_t stmt;
-    long line, column;
-    token_t tok;
 
     stmt    = NULL;
     tok     = lexer_peek(parse->lex);
@@ -210,14 +207,14 @@ static statement_t __parser_statement__(parser_t parse)
 
 static statement_t __parser_if_statement__(parser_t parse)
 {
-    statement_t if_stmt;
+    long         line;
+    long         column;
+    token_t      tok;
+    statement_t  if_stmt;
     expression_t if_condition;
-    list_t if_block;
-    list_t elifs;
-    list_t else_block;
-
-    long line, column;
-    token_t tok;
+    list_t       if_block;
+    list_t       elifs;
+    list_t       else_block;
 
     if_stmt      = NULL;
     if_condition = NULL;
@@ -257,9 +254,9 @@ static statement_t __parser_if_statement__(parser_t parse)
 
 static list_t __parser_elifs_statement__(parser_t parse)
 {
-    list_t elifs;
-    token_t tok;
-    expression_t condition;
+    token_t          tok;
+    list_t           elifs;
+    expression_t     condition;
     statement_elif_t elif_block;
     
     list_init(elifs);
@@ -290,19 +287,22 @@ static list_t __parser_else_statement__(parser_t parse)
 
 static statement_t __parser_switch_statement__(parser_t parse)
 {
-    statement_t switch_stmt;
+    long         line;
+    long         column;
+    token_t      tok;
+    statement_t  switch_stmt;
     expression_t switch_expr;
     expression_t case_expr;
-    list_t case_block;
-    list_t cases;
-    list_t default_block;
-    long line, column;
-    token_t tok;
+    list_t       case_block;
+    list_t       cases;
+    list_t       default_block;
+    bool         has_default;
 
     list_init(cases);
     list_init(default_block);
 
     switch_stmt = NULL;
+    has_default = false;
     tok         = lexer_peek(parse->lex);
     line        = tok->line;
     column      = tok->column;
@@ -333,10 +333,18 @@ static statement_t __parser_switch_statement__(parser_t parse)
             case_block = __parser_block__(parse);
 
             list_push_back(cases, statement_new_switch_case(case_expr, case_block)->link);
-        } else {
+
+        } else if (!has_default) {
             lexer_next(parse->lex);
+            
             __parser_expect__(parse, TOKEN_VALUE_COLON, "expected ':'");
+            
             default_block = __parser_block__(parse);
+            
+            has_default = true;
+
+        } else {
+            error(tok->filename, tok->line, tok->column, "multiple default labels in one switch");
         }
     }
 
@@ -348,17 +356,19 @@ static statement_t __parser_switch_statement__(parser_t parse)
 
 static statement_t __parser_while_statement__(parser_t parse)
 {
-    statement_t while_stmt;
+    long         line;
+    long         column;
+    token_t      tok;
+    statement_t  while_stmt;
     expression_t condition;
-    list_t block;
-    token_t tok;
-    long column;
-    long line;
+    list_t       block;
     
     while_stmt = NULL;
-    line       = lexer_peek(parse->lex)->line;
-    column     = lexer_peek(parse->lex)->column;
-    tok        = lexer_next(parse->lex);
+    tok        = lexer_peek(parse->lex);
+    line       = tok->line;
+    column     = tok->column;
+    
+    lexer_next(parse->lex);
 
     __parser_expect__(parse, TOKEN_VALUE_LP, "expected '(' after while");
 
@@ -374,25 +384,27 @@ static statement_t __parser_while_statement__(parser_t parse)
 
 static statement_t __parser_for_statement__(parser_t parse)
 {
+    long         line;
+    long         column;
+    token_t      tok;
+    statement_t  for_stmt;
     expression_t init;
     expression_t condition;
     expression_t post;
-    list_t block;
-    statement_t for_stmt;
-    token_t tok;
-    long column;
-    long line;
+    list_t       block;
 
     for_stmt   = NULL;
     init       = NULL;
     condition  = NULL;
     post       = NULL;
-    line       = lexer_peek(parse->lex)->line;
-    column     = lexer_peek(parse->lex)->column;
-    tok        = lexer_next(parse->lex);
-   
+    tok        = lexer_peek(parse->lex);
+    line       = tok->line;
+    column     = tok->column;
+
     list_init(block);
 
+    lexer_next(parse->lex);
+   
     __parser_expect__(parse, TOKEN_VALUE_LP, "expected '(' at for");
 
     if (lexer_peek(parse->lex)->value != TOKEN_VALUE_SEMICOLON) {
@@ -437,9 +449,10 @@ static bool __parser_check_lvalue_expression__(expression_t expr)
 
 static expression_t __parser_assign_expression__(parser_t parse)
 {
+    long         line;
+    long         column;
+    token_t      tok;
     expression_t expr;
-    long line, column;
-    token_t tok;
 
     expr   = NULL;
     tok    = lexer_peek(parse->lex);
@@ -555,9 +568,10 @@ static expression_t __parser_assign_expression__(parser_t parse)
 
 static expression_t __parser_logical_or_expression__(parser_t parse)
 {
-    token_t tok;
-    long line, column;
-    expression_t expr = NULL;
+    long         line;
+    long         column;
+    token_t      tok;
+    expression_t expr;
 
     expr    = __parser_logical_and_expression__(parse);
     tok     = lexer_peek(parse->lex);
@@ -578,11 +592,13 @@ static expression_t __parser_logical_or_expression__(parser_t parse)
 
 static expression_t __parser_logical_and_expression__(parser_t parse)
 {
-    token_t tok;
-    long line, column;
-    expression_t expr = NULL;
+    long         line;
+    long         column;
+    token_t      tok;
+    expression_t expr;
 
     expr   = __parser_equality_expression__(parse);
+
     tok    = lexer_peek(parse->lex);
     line   = tok->line;
     column = tok->column;
@@ -601,12 +617,14 @@ static expression_t __parser_logical_and_expression__(parser_t parse)
 
 static expression_t __parser_equality_expression__(parser_t parse)
 {
-    token_t tok;
+    long          line;
+    long          column;
+    token_t       tok;
     token_value_t tv;
-    long line, column;
-    expression_t expr = NULL;
+    expression_t  expr;
 
     expr   = __parser_relational_expression__(parse);
+
     tok    = lexer_peek(parse->lex);
     line   = tok->line;
     column = tok->column;
@@ -641,12 +659,14 @@ static expression_t __parser_equality_expression__(parser_t parse)
 
 static expression_t __parser_relational_expression__(parser_t parse)
 {
-    token_t tok;
+    long          line;
+    long          column;
+    token_t       tok;
     token_value_t tv;
-    long line, column;
-    expression_t expr = NULL;
+    expression_t  expr;
 
     expr   = __parser_additive_expression__(parse);
+
     tok    = lexer_peek(parse->lex);
     line   = tok->line;
     column = tok->column;
@@ -655,7 +675,7 @@ static expression_t __parser_relational_expression__(parser_t parse)
            tok->value == TOKEN_VALUE_GEQ || 
            tok->value == TOKEN_VALUE_LT  || 
            tok->value == TOKEN_VALUE_LEQ) {
-        tv  = tok->value;
+        tv = tok->value;
 
         lexer_next(parse->lex);
         switch (tv) {
@@ -691,15 +711,18 @@ static expression_t __parser_relational_expression__(parser_t parse)
 
 static expression_t __parser_additive_expression__(parser_t parse)
 {
-    token_t tok;
+    long          line;
+    long          column;
+    token_t       tok;
     token_value_t tv;
-    long line, column;
-    expression_t expr = NULL;
+    expression_t  expr;
 
     expr    = __parser_multiplicative_expression__(parse);
+
     tok     = lexer_peek(parse->lex);
     line    = tok->line;
     column  = tok->column;
+
     while (tok->value == TOKEN_VALUE_ADD || 
            tok->value == TOKEN_VALUE_SUB) {
         tv = tok->value;
@@ -730,19 +753,22 @@ static expression_t __parser_additive_expression__(parser_t parse)
 
 static expression_t __parser_multiplicative_expression__(parser_t parse)
 {
-    token_t tok;
+    long          line;
+    long          column;
+    token_t       tok;
     token_value_t tv;
-    long line, column;
-    expression_t expr = NULL;
+    expression_t  expr;
 
     expr    = __parser_bitop_expression__(parse);
+
     tok     = lexer_peek(parse->lex);
     line    = tok->line;
     column  = tok->column;
+
     while (tok->value == TOKEN_VALUE_MUL ||
            tok->value == TOKEN_VALUE_DIV || 
            tok->value == TOKEN_VALUE_MOD) {
-        tv      = tok->value;
+        tv = tok->value;
 
         lexer_next(parse->lex);
         switch (tv) {
@@ -774,12 +800,14 @@ static expression_t __parser_multiplicative_expression__(parser_t parse)
 
 static expression_t __parser_bitop_expression__(parser_t parse)
 {
-    token_t tok;
+    long          line; 
+    long          column;
+    token_t       tok;
     token_value_t tv;
-    long line, column;
-    expression_t expr = NULL;
+    expression_t  expr;
 
     expr    = __parser_unary_expression__(parse);
+
     tok     = lexer_peek(parse->lex);
     line    = tok->line;
     column  = tok->column;
@@ -819,12 +847,14 @@ static expression_t __parser_bitop_expression__(parser_t parse)
 
 static expression_t __parser_shift_bitop_expression__(parser_t parse)
 {
-    token_t tok;
+    long          line;
+    long          column;
+    token_t       tok;
     token_value_t tv;
-    long line, column;
-    expression_t expr = NULL;
+    expression_t  expr;
 
     expr    = __parser_unary_expression__(parse);
+
     tok     = lexer_peek(parse->lex);
     line    = tok->line;
     column  = tok->column;
@@ -864,10 +894,11 @@ static expression_t __parser_shift_bitop_expression__(parser_t parse)
 
 static expression_t __parser_unary_expression__(parser_t parse)
 {
+    long              line;
+    long              column;
+    token_t           tok;
     expression_type_t expr_type;
-    expression_t expr;
-    long line, column;
-    token_t tok;
+    expression_t      expr;
 
     expr      = NULL;
     tok       = lexer_peek(parse->lex);
@@ -910,9 +941,10 @@ done:
 
 static expression_t __parser_postfix_expression__(parser_t parse)
 {
-    expression_t expr = NULL;
-    long line, column;
-    token_t tok;
+    long         line;
+    long         column;
+    token_t      tok;
+    expression_t expr;
 
     tok     = lexer_peek(parse->lex);
     line    = tok->line;
@@ -988,9 +1020,10 @@ static expression_t __parser_postfix_expression__(parser_t parse)
 
 static expression_t __parser_primary_expression__(parser_t parse)
 {
+    long         line;
+    long         column;
+    token_t      tok;
     expression_t expr;
-    long line, column;
-    token_t tok;
 
     expr      = NULL;
     tok       = lexer_peek(parse->lex);
@@ -1076,11 +1109,12 @@ static expression_t __parser_primary_expression__(parser_t parse)
 
 static expression_t __parser_array_generate_expression__(parser_t parse)
 {
+    long         line;
+    long         column;
+    token_t      tok;
     expression_t expr;
     expression_t elem;
-    list_t elements;
-    long line, column;
-    token_t tok;
+    list_t       elements;
 
     expr      = NULL;
     line      = lexer_peek(parse->lex)->line;
@@ -1111,11 +1145,12 @@ static expression_t __parser_array_generate_expression__(parser_t parse)
 
 static expression_t __parser_table_generate_expression__(parser_t parse)
 {
-    expression_t expr;
-    cstring_t elemname;
-    list_t members;
-    long line, column;
-    token_t tok;
+    long                    line;
+    long                    column;
+    token_t                 tok;
+    expression_t            expr;
+    cstring_t               elemname;
+    list_t                  members;
     expression_table_pair_t pair;
 
     expr      = NULL;
@@ -1155,12 +1190,13 @@ static expression_t __parser_table_generate_expression__(parser_t parse)
 
 static expression_t __parser_function_definition__(parser_t parse)
 {
+    long         line;
+    long         column;
+    token_t      tok;
     expression_t expr;
-    cstring_t funcname;
-    list_t parameters;
-    list_t block;
-    token_t tok;
-    long line, column;
+    cstring_t    funcname;
+    list_t       parameters;
+    list_t       block;
     
     expr   = NULL;
     line   = lexer_peek(parse->lex)->line;
@@ -1191,8 +1227,8 @@ static expression_t __parser_function_definition__(parser_t parse)
 static list_t __parser_parameter_list__(parser_t parse)
 {
     expression_function_parameter_t parameter;
-    list_t parameters;
-    token_t tok;
+    list_t                          parameters;
+    token_t                         tok;
     
     list_init(parameters);
 
@@ -1220,7 +1256,7 @@ static list_t __parser_parameter_list__(parser_t parse)
 static list_t __parser_argument_list__(parser_t parse)
 {
     token_t tok;
-    list_t args;
+    list_t  args;
 
     tok = lexer_next(parse->lex);
 
@@ -1243,7 +1279,7 @@ static list_t __parser_argument_list__(parser_t parse)
 
 static list_t __parser_block__(parser_t parse)
 {
-    list_t block;
+    list_t  block;
     token_t tok;
 
     list_init(block);
@@ -1255,7 +1291,7 @@ static list_t __parser_block__(parser_t parse)
         if (tok->value == TOKEN_VALUE_SEMICOLON) {
             tok = lexer_next(parse->lex);
         } else {
-            list_push_back(block, __parser_statement__(parse)->link);
+            list_push_back(block, __parser_statement__(parse)->llink);
         }
     }
 

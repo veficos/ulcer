@@ -105,7 +105,6 @@ const char* expression_type_string(expression_type_t expr_type)
         return "&&";
     case EXPRESSION_TYPE_OR:
         return "||";
-
     default:
         return "unknown";
     }
@@ -262,7 +261,7 @@ expression_t expression_new_unary(long line, long column, expression_type_t unar
     assert(unary_expr_type == EXPRESSION_TYPE_PLUS || 
            unary_expr_type == EXPRESSION_TYPE_MINUS ||
            unary_expr_type == EXPRESSION_TYPE_NOT || 
-           unary_expr_type == TOKEN_VALUE_CPL);
+           unary_expr_type == EXPRESSION_TYPE_CPL);
 
     assert(expression != NULL);
 
@@ -326,17 +325,6 @@ expression_t expression_new_call(long line, long column, expression_t function_e
     expr->u.call_expr                = call_expr;
     expr->u.call_expr->function_expr = function_expr;
     expr->u.call_expr->args          = args;
-
-    return expr;
-}
-
-expression_t expression_new_list(long line, long column, list_t exprs)
-{
-    expression_t expr;
-    
-    expr = __expression_new__(EXPRESSION_TYPE_LIST, line, column);
-
-    expr->u.expressions_expr = exprs;
 
     return expr;
 }
@@ -489,7 +477,7 @@ void expression_free(expression_t expr)
 
         list_safe_for_each(expr->u.function_expr->block, iter, next_iter) {
             list_erase(expr->u.function_expr->block, *iter);
-            statement_free(list_element(iter, statement_t, link));
+            statement_free(list_element(iter, statement_t, llink));
         }
 
         mem_free(expr->u.function_expr);
@@ -555,13 +543,6 @@ void expression_free(expression_t expr)
         expression_free(expr->u.binary_expr->left);
         expression_free(expr->u.binary_expr->right);
         mem_free(expr->u.binary_expr);
-        break;
-
-    case EXPRESSION_TYPE_LIST:
-        list_safe_for_each(expr->u.expressions_expr, iter, next_iter) {
-            list_erase(expr->u.expressions_expr, *iter);
-            expression_free(list_element(iter, expression_t, link));
-        }
         break;
 
     case EXPRESSION_TYPE_ARRAY_GENERATE:

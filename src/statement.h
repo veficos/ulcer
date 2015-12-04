@@ -6,6 +6,7 @@
 #include "config.h"
 #include "list.h"
 #include "hlist.h"
+#include "stack.h"
 #include "cstring.h"
 #include "hash_table.h"
 #include "expression.h"
@@ -83,7 +84,8 @@ struct statement_s {
         statement_for_t    for_stmt;
     }u;
 
-    list_node_t link;
+    list_node_t  llink;
+    stack_node_t slink;
 };
 
 statement_elif_t        statement_new_elif(expression_t condition, list_t block);

@@ -7,7 +7,7 @@
 #include "list.h"
 #include "statement.h"
 
-typedef struct module_s* module_t;
+typedef struct module_s*         module_t;
 
 struct module_s {
     list_t statements;
@@ -15,8 +15,8 @@ struct module_s {
 };
 
 module_t module_new(void);
-void module_free(module_t module);
-void module_add_function(module_t module, statement_t function_stmt);
-void module_add_statment(module_t module, statement_t stmt);
+void     module_free(module_t module);
+void     module_add_function(module_t module, statement_t function_stmt);
+void     module_add_statment(module_t module, statement_t stmt);
 
 #endif

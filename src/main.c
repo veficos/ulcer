@@ -4,6 +4,8 @@
 #include "parser.h"
 #include "lexer.h"
 #include "list.h"
+#include "environment.h"
+#include "executor.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,9 +20,11 @@ int main(int argc, char** args)
 
     {
         source_code_t sc;
-        module_t module;
-        parser_t parse;
-        lexer_t lex;
+        lexer_t       lex;
+        parser_t      parse;
+        module_t      module;
+        environment_t env;
+        executor_t    executor;
 
         if (argc < 2) {
             printf("usage: ulcer souce_code.u\n");
@@ -32,6 +36,18 @@ int main(int argc, char** args)
         parse = parser_new(lex);
 
         module = parser_generate_module(parse);
+
+        env = environment_new();
+
+        environment_add_module(env, module);
+
+        executor = executor_new(env);
+
+        executor_run(executor);
+
+        executor_free(executor);
+
+        environment_free(env);
 
         parser_free(parse);
         lexer_free(lex);

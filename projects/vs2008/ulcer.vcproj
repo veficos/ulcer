@@ -174,6 +174,14 @@
 			>
 		</File>
 		<File
+			RelativePath="..\..\src\array.c"
+			>
+		</File>
+		<File
+			RelativePath="..\..\src\array.h"
+			>
+		</File>
+		<File
 			RelativePath="..\..\src\config.h"
 			>
 		</File>
@@ -186,11 +194,35 @@
 			>
 		</File>
 		<File
+			RelativePath="..\..\src\environment.c"
+			>
+		</File>
+		<File
+			RelativePath="..\..\src\environment.h"
+			>
+		</File>
+		<File
 			RelativePath="..\..\src\error.c"
 			>
 		</File>
 		<File
 			RelativePath="..\..\src\error.h"
+			>
+		</File>
+		<File
+			RelativePath="..\..\src\evaluator.c"
+			>
+		</File>
+		<File
+			RelativePath="..\..\src\evaluator.h"
+			>
+		</File>
+		<File
+			RelativePath="..\..\src\executor.c"
+			>
+		</File>
+		<File
+			RelativePath="..\..\src\executor.h"
 			>
 		</File>
 		<File
@@ -263,6 +295,10 @@
 		</File>
 		<File
 			RelativePath="..\..\src\source_code.h"
+			>
+		</File>
+		<File
+			RelativePath="..\..\src\stack.h"
 			>
 		</File>
 		<File

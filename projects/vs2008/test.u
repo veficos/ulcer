@@ -1,4 +1,6 @@
 
+function a() {
+}
 
 function(){
     
@@ -50,6 +52,7 @@ default:
 
 for (;;) {
 switch (a) {
+
 case 'a': 
     {
     ab;
