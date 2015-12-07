@@ -84,8 +84,7 @@ struct statement_s {
         statement_for_t    for_stmt;
     }u;
 
-    list_node_t  llink;
-    stack_node_t slink;
+    list_node_t  link;
 };
 
 statement_elif_t        statement_new_elif(expression_t condition, list_t block);

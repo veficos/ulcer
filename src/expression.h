@@ -178,7 +178,6 @@ struct expression_s {
     list_node_t link;
 };
 
-const char*             expression_type_string(expression_type_t expr_type);
 expression_t            expression_new_literal(expression_type_t type, token_t tok);
 expression_t            expression_new_identifier(long line, long column, cstring_t identifier);
 expression_t            expression_new_assign(long line, long column, expression_type_t assign_type, expression_t lvalue_expr, expression_t rvalue_expr);

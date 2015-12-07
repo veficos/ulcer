@@ -806,7 +806,7 @@ static expression_t __parser_bitop_expression__(parser_t parse)
     token_value_t tv;
     expression_t  expr;
 
-    expr    = __parser_unary_expression__(parse);
+    expr    = __parser_shift_bitop_expression__(parse);
 
     tok     = lexer_peek(parse->lex);
     line    = tok->line;
@@ -1291,7 +1291,7 @@ static list_t __parser_block__(parser_t parse)
         if (tok->value == TOKEN_VALUE_SEMICOLON) {
             tok = lexer_next(parse->lex);
         } else {
-            list_push_back(block, __parser_statement__(parse)->llink);
+            list_push_back(block, __parser_statement__(parse)->link);
         }
     }
 

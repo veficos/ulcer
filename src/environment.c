@@ -5,6 +5,7 @@
 #include "hashfn.h"
 #include "hlist.h"
 #include "alloc.h"
+#include "heap.h"
 
 #include <assert.h>
 
@@ -91,14 +92,29 @@ void table_add_member(table_t table, cstring_t key, value_t value)
     hash_table_replace(table->table, &pair->link);
 }
 
-void table_add_native_function(table_t table, cstring_t funcname, native_function_pt func)
+value_t table_search_member(table_t table, cstring_t member_name)
+{
+    struct table_pair_s pair;
+    hlist_node_t* node;
+
+    pair.key = member_name;
+
+    node = hash_table_search(table->table, &pair.link);
+    if (!node) {
+        return NULL;
+    }
+
+    return hlist_element(node, table_pair_t, link)->value;
+}
+
+void table_add_native_function(table_t table, const char* funcname, native_function_pt func)
 {
     table_pair_t pair = (table_pair_t) mem_alloc(sizeof(struct table_pair_s));
     value_t value = value_new(VALUE_TYPE_NATIVE_FUNCTION);
 
     value->u.native_function_value = func;
 
-    pair->key   = cstring_dup(funcname);
+    pair->key   = cstring_new(funcname);
     pair->value = value; 
 
     hash_table_replace(table->table, &pair->link);
@@ -109,6 +125,10 @@ environment_t environment_new(void)
     environment_t env = (environment_t) mem_alloc(sizeof(struct environment_s));
 
     env->global_table = table_new();
+    env->heap         = heap_new();
+    
+    list_init(env->stack);
+    stack_init(env->statement_stack);
 
     return env;
 }
@@ -116,6 +136,7 @@ environment_t environment_new(void)
 void environment_free(environment_t env)
 {
     table_free(env->global_table);
+    heap_free(env->heap);
     mem_free(env);
 }
 
@@ -124,7 +145,7 @@ void environment_add_module(environment_t env, module_t module)
     list_iter_t iter;
 
     list_for_each(module->functions, iter) {
-        statement_t stmt = list_element(iter, statement_t, llink);
+        statement_t stmt = list_element(iter, statement_t, link);
         assert(stmt->type == STATEMENT_TYPE_EXPRESSION && stmt->u.expr->type == EXPRESSION_TYPE_FUNCTION);
         if (!cstring_is_empty(stmt->u.expr->u.function_expr->name)) {
             value_t value           = value_new(VALUE_TYPE_FUNCTION);
@@ -134,7 +155,7 @@ void environment_add_module(environment_t env, module_t module)
         }
     }
 
-    stack_push(env->statement_stack, list_element(list_begin(module->statements), statement_t, llink)->slink);
+    stack_push(env->statement_stack, module->statements->link);
 }
 
 table_t environment_get_global_table(environment_t env)
@@ -142,12 +163,11 @@ table_t environment_get_global_table(environment_t env)
     return env->global_table;
 }
 
-void environment_add_native_function(environment_t env, cstring_t funcname, native_function_pt func)
+void environment_clear_stack(environment_t env)
 {
-    value_t value                   = value_new(VALUE_TYPE_NATIVE_FUNCTION);
-    value->u.native_function_value  = func;
-
-    table_add_member(env->global_table, funcname, value);
-
-    value_free(value);
+    list_iter_t iter, next_iter;
+    list_safe_for_each(env->stack, iter, next_iter) {
+        list_erase(env->stack, *iter);
+        mem_free(list_element(iter, value_t, link));
+    }
 }

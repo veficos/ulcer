@@ -4,14 +4,21 @@
 #define _ULCER_MODULE_H_
 
 #include "config.h"
+#include "stack.h"
 #include "list.h"
 #include "statement.h"
 
 typedef struct module_s*         module_t;
+typedef struct statements_s*     statements_t;
+
+struct statements_s {
+    list_t       stmts;
+    stack_node_t link;
+};
 
 struct module_s {
-    list_t statements;
-    list_t functions;
+    statements_t statements;
+    list_t       functions;
 };
 
 module_t module_new(void);

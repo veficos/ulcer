@@ -22,99 +22,10 @@ static expression_t __expression_new__(expression_type_t expr_type, long line, l
     return expr;
 }
 
-const char* expression_type_string(expression_type_t expr_type)
-{
-    switch (expr_type) {
-    case EXPRESSION_TYPE_CHAR:
-        return "char";
-    case EXPRESSION_TYPE_BOOL:
-        return "bool";
-    case EXPRESSION_TYPE_INT:
-        return "int";
-    case EXPRESSION_TYPE_LONG:
-        return "long";
-    case EXPRESSION_TYPE_FLOAT:
-        return "float";
-    case EXPRESSION_TYPE_DOUBLE:
-        return "double";
-    case EXPRESSION_TYPE_STRING:
-        return "string";
-    case EXPRESSION_TYPE_NULL:
-        return "null";
-    case EXPRESSION_TYPE_IDENTIFIER:
-        return "identifier";
-    case EXPRESSION_TYPE_ASSIGN:
-        return "=";
-    case EXPRESSION_TYPE_ADD_ASSIGN:
-        return "+=";
-    case EXPRESSION_TYPE_SUB_ASSIGN:
-        return "-=";
-    case EXPRESSION_TYPE_MUL_ASSIGN:
-        return "*=";
-    case EXPRESSION_TYPE_DIV_ASSIGN:
-        return "/=";
-    case EXPRESSION_TYPE_MOD_ASSIGN:
-        return "%=";
-    case EXPRESSION_TYPE_CALL:
-        return "function call";
-    case EXPRESSION_TYPE_PLUS:
-        return "+";
-    case EXPRESSION_TYPE_MINUS:
-        return "-";
-    case EXPRESSION_TYPE_NOT:
-        return "!";
-    case EXPRESSION_TYPE_INC:
-        return "++";
-    case EXPRESSION_TYPE_DEC:
-        return "--";
-    case EXPRESSION_TYPE_BITAND:
-        return "&";
-    case EXPRESSION_TYPE_BITOR:
-        return "|";
-    case EXPRESSION_TYPE_XOR:
-        return "^";
-    case EXPRESSION_TYPE_LEFT_SHIFT:
-        return "<<";
-    case EXPRESSION_TYPE_RIGHT_SHIFT:
-        return ">>";
-    case EXPRESSION_TYPE_LOGIC_RIGHT_SHIFT:
-        return ">>>";
-    case EXPRESSION_TYPE_MUL:
-        return "*";
-    case EXPRESSION_TYPE_DIV:
-        return "/";
-    case EXPRESSION_TYPE_MOD:
-        return "%";
-    case EXPRESSION_TYPE_ADD:
-        return "+";
-    case EXPRESSION_TYPE_SUB:
-        return "-";
-    case EXPRESSION_TYPE_GT:
-        return ">";
-    case EXPRESSION_TYPE_GEQ:
-        return ">=";
-    case EXPRESSION_TYPE_LT:
-        return "<";
-    case EXPRESSION_TYPE_LEQ:
-        return "<=";
-    case EXPRESSION_TYPE_EQ:
-        return "==";
-    case EXPRESSION_TYPE_NEQ:
-        return "!=";
-    case EXPRESSION_TYPE_AND:
-        return "&&";
-    case EXPRESSION_TYPE_OR:
-        return "||";
-    default:
-        return "unknown";
-    }
-
-    return "unknown";
-}
-
 expression_t expression_new_literal(expression_type_t type, token_t tok)
 {
     expression_t expr;
+    char *result;
 
     assert(tok->value == TOKEN_VALUE_TRUE           ||
            tok->value == TOKEN_VALUE_FALSE          || 
@@ -142,11 +53,37 @@ expression_t expression_new_literal(expression_type_t type, token_t tok)
         break;
 
     case EXPRESSION_TYPE_INT:
-        sscanf(tok->token, "%d", &expr->u.int_expr);
+        switch (tok->numberbase) {
+        case 8:
+            expr->u.int_expr = strtol(tok->token, &result, 8);
+            break;
+        case 10:
+            expr->u.int_expr = strtol(tok->token, &result, 10);
+            break;
+        case 16:
+            expr->u.int_expr = strtol(tok->token, &result, 16);
+            break;
+        default:
+            assert(false);
+            break;
+        }
         break;
 
     case EXPRESSION_TYPE_LONG:
-        sscanf(tok->token, "%ld", &expr->u.long_expr);
+        switch (tok->numberbase) {
+        case 8:
+            expr->u.int_expr = strtol(tok->token, &result, 8);
+            break;
+        case 10:
+            expr->u.int_expr = strtol(tok->token, &result, 10);
+            break;
+        case 16:
+            expr->u.int_expr = strtol(tok->token, &result, 16);
+            break;
+        default:
+            assert(false);
+            break;
+        }
         break;
 
     case EXPRESSION_TYPE_FLOAT:
@@ -477,7 +414,7 @@ void expression_free(expression_t expr)
 
         list_safe_for_each(expr->u.function_expr->block, iter, next_iter) {
             list_erase(expr->u.function_expr->block, *iter);
-            statement_free(list_element(iter, statement_t, llink));
+            statement_free(list_element(iter, statement_t, link));
         }
 
         mem_free(expr->u.function_expr);

@@ -250,6 +250,14 @@
 			>
 		</File>
 		<File
+			RelativePath="..\..\src\heap.c"
+			>
+		</File>
+		<File
+			RelativePath="..\..\src\heap.h"
+			>
+		</File>
+		<File
 			RelativePath="..\..\src\hlist.h"
 			>
 		</File>

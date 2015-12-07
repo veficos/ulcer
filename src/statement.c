@@ -21,7 +21,7 @@ void statement_free_elif(statement_elif_t elif)
     
     list_safe_for_each(elif->block, iter, next_iter) {
         list_erase(elif->block, *iter);
-        statement_free(list_element(iter, statement_t, llink));
+        statement_free(list_element(iter, statement_t, link));
     }
 
     mem_free(elif);
@@ -45,7 +45,7 @@ void statement_free_switch_case(statement_switch_case_t switch_case)
 
     list_safe_for_each(switch_case->block, iter, next_iter) {
         list_erase(switch_case->block, *iter);
-        statement_free(list_element(iter, statement_t, llink));
+        statement_free(list_element(iter, statement_t, link));
     }
 
     mem_free(switch_case);
@@ -205,7 +205,7 @@ void statement_free(statement_t stmt)
 
         list_safe_for_each(stmt->u.if_stmt->if_block, iter, next_iter) {
             list_erase(stmt->u.if_stmt->if_block, *iter);
-            statement_free(list_element(iter, statement_t, llink));
+            statement_free(list_element(iter, statement_t, link));
         }
 
         list_safe_for_each(stmt->u.if_stmt->elifs, iter, next_iter) {
@@ -214,7 +214,7 @@ void statement_free(statement_t stmt)
 
         list_safe_for_each(stmt->u.if_stmt->else_block, iter, next_iter) {
             list_erase(stmt->u.if_stmt->else_block, *iter);
-            statement_free(list_element(iter, statement_t, llink));
+            statement_free(list_element(iter, statement_t, link));
         }
         
         mem_free(stmt->u.if_stmt);
@@ -230,7 +230,7 @@ void statement_free(statement_t stmt)
 
         list_safe_for_each(stmt->u.switch_stmt->default_block, iter, next_iter) {
             list_erase(stmt->u.switch_stmt->default_block, *iter);
-            statement_free(list_element(iter, statement_t, llink));
+            statement_free(list_element(iter, statement_t, link));
         }
 
         mem_free(stmt->u.switch_stmt);
@@ -240,7 +240,7 @@ void statement_free(statement_t stmt)
         expression_free(stmt->u.while_stmt->condition);
         list_safe_for_each(stmt->u.while_stmt->block, iter, next_iter) {
             list_erase(stmt->u.while_stmt->block, *iter);
-            statement_free(list_element(iter, statement_t, llink));
+            statement_free(list_element(iter, statement_t, link));
         }
         mem_free(stmt->u.while_stmt);
         break;
@@ -260,7 +260,7 @@ void statement_free(statement_t stmt)
 
         list_safe_for_each(stmt->u.for_stmt->block, iter, next_iter) {
             list_erase(stmt->u.for_stmt->block, *iter);
-            statement_free(list_element(iter, statement_t, llink));
+            statement_free(list_element(iter, statement_t, link));
         }
 
         mem_free(stmt->u.for_stmt);

@@ -40,9 +40,11 @@ struct object_s {
 };
 
 
-typedef void (*native_function_pt)(stack_t stack_frame);
+typedef void (*native_function_pt)(environment_t env, list_t stack_frame, unsigned int argc);
 
 enum value_type_e {
+    VALUE_TYPE_NIL,
+
     VALUE_TYPE_CHAR,
     VALUE_TYPE_BOOL,
     VALUE_TYPE_INT,
@@ -76,7 +78,7 @@ struct value_s {
         void*                 pointer_value;
     }u;
 
-    stack_node_t link;
+    list_node_t link;
 };
 
 value_t value_new(value_type_t type);
@@ -95,17 +97,23 @@ struct table_s {
 
 table_t table_new(void);
 void    table_free(table_t table);
-value_t table_search_member(cstring_t member_name);
+value_t table_search_member(table_t table, cstring_t member_name);
+void    table_add_native_function(table_t table, const char* funcname, native_function_pt func);
+
+typedef struct heap_s* heap_t;
 
 struct environment_s {
-    table_t global_table;
     stack_t statement_stack;
+
+    list_t  stack;
+    heap_t  heap;
+    table_t global_table;
 };
 
 environment_t environment_new(void);
 void          environment_free(environment_t env);
 void          environment_add_module(environment_t env, module_t module);
-table_t       environment_get_global_table(environment_t env);  
-void          environment_add_native_function(environment_t env, cstring_t funcname, native_function_pt func);
+table_t       environment_get_global_table(environment_t env);
+void          environment_clear_stack(environment_t env);
 
 #endif
