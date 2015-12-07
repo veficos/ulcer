@@ -19,12 +19,20 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <None Include="test.u" />
+  </ItemGroup>
+  <ItemGroup>
     <ClCompile Include="..\..\src\alloc.c" />
+    <ClCompile Include="..\..\src\array.c" />
     <ClCompile Include="..\..\src\cstring.c" />
+    <ClCompile Include="..\..\src\environment.c" />
     <ClCompile Include="..\..\src\error.c" />
+    <ClCompile Include="..\..\src\evaluator.c" />
+    <ClCompile Include="..\..\src\executor.c" />
     <ClCompile Include="..\..\src\expression.c" />
     <ClCompile Include="..\..\src\hashfn.c" />
     <ClCompile Include="..\..\src\hash_table.c" />
+    <ClCompile Include="..\..\src\heap.c" />
     <ClCompile Include="..\..\src\lexer.c" />
     <ClCompile Include="..\..\src\list.c" />
     <ClCompile Include="..\..\src\main.c" />
@@ -36,23 +44,26 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\alloc.h" />
+    <ClInclude Include="..\..\src\array.h" />
     <ClInclude Include="..\..\src\config.h" />
     <ClInclude Include="..\..\src\cstring.h" />
+    <ClInclude Include="..\..\src\environment.h" />
     <ClInclude Include="..\..\src\error.h" />
+    <ClInclude Include="..\..\src\evaluator.h" />
+    <ClInclude Include="..\..\src\executor.h" />
     <ClInclude Include="..\..\src\expression.h" />
     <ClInclude Include="..\..\src\hashfn.h" />
     <ClInclude Include="..\..\src\hash_table.h" />
+    <ClInclude Include="..\..\src\heap.h" />
     <ClInclude Include="..\..\src\hlist.h" />
     <ClInclude Include="..\..\src\lexer.h" />
     <ClInclude Include="..\..\src\list.h" />
     <ClInclude Include="..\..\src\module.h" />
     <ClInclude Include="..\..\src\parser.h" />
     <ClInclude Include="..\..\src\source_code.h" />
+    <ClInclude Include="..\..\src\stack.h" />
     <ClInclude Include="..\..\src\statement.h" />
     <ClInclude Include="..\..\src\token.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="test.u" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{09549DA9-64BE-4FF5-A5C8-7FD0C6694227}</ProjectGuid>

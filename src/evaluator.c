@@ -233,10 +233,12 @@ static void __evaluator_call_expression__(environment_t env, expression_t call_e
 {
     value_t function_value = __evaluator_search_function__(env, call_expr->u.call_expr->function_expr);
 
-    switch (function_value->type) {
-    case VALUE_TYPE_NATIVE_FUNCTION:
-        __evaluator_native_function_call_expression__(env, function_value->u.native_function_value, call_expr->u.call_expr->args);
-        break;
+    if (function_value) {
+        switch (function_value->type) {
+        case VALUE_TYPE_NATIVE_FUNCTION:
+            __evaluator_native_function_call_expression__(env, function_value->u.native_function_value, call_expr->u.call_expr->args);
+            break;
+        }
     }
 }
 
@@ -919,7 +921,7 @@ static void __evaluator_string_binary_expression__(environment_t env, long line,
     result = list_element(list_rbegin(env->stack), value_t, link);
 
     if (type == EXPRESSION_TYPE_ADD) {
-        result->u.object_value = heap_alloc_string(env, left->u.object_value->u.string);
+        result->u.object_value = left->u.object_value;
         result->type           = VALUE_TYPE_STRING;
 
     } else if (__is_compare_operator__(type)) {

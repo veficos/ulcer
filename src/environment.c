@@ -128,6 +128,7 @@ environment_t environment_new(void)
     env->heap         = heap_new();
     
     list_init(env->stack);
+
     stack_init(env->statement_stack);
 
     return env;
@@ -135,8 +136,12 @@ environment_t environment_new(void)
 
 void environment_free(environment_t env)
 {
+    heap_gc(env);
+
     table_free(env->global_table);
+
     heap_free(env->heap);
+
     mem_free(env);
 }
 

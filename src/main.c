@@ -98,14 +98,10 @@ int main(int argc, char** args)
 
         setup_stdlib(env);
 
-        executor = executor_new(env);
-
-        executor_run(executor);
+        executor_run((executor = executor_new(env)));
 
         executor_free(executor);
-
         environment_free(env);
-
         parser_free(parse);
         lexer_free(lex);
         source_code_free(sc);

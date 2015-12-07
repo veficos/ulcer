@@ -82,7 +82,7 @@ typedef struct list_node_s*   list_iter_t;
          (iter)->next == (list).head ? ((iter) = NULL) : ((iter) = (iter)->next))
 
 #define list_safe_for_each(list, iter, next_iter)                             \
-    for (((iter) = (list).head), ((list).head != NULL ? ((next_iter) = (iter)->next) : NULL);\
+    for (((iter) = (list).head), ((list).head != NULL ? ((next_iter) = (iter)->next) : ((next_iter) = NULL)); \
          ((iter) != NULL);                                                    \
          (((next_iter) == (list).head) || ((list).head == NULL)) ? ((iter) = NULL) : (((iter) = (next_iter)), ((next_iter) = (iter)->next)))
 
@@ -92,7 +92,7 @@ typedef struct list_node_s*   list_iter_t;
          (iter)->prev == (list).tail ? ((iter) = NULL) : ((iter) = (iter)->prev))
 
 #define list_safe_reverse_for_each(list, iter, next_iter)                     \
-    for (((iter) = (list).tail), ((list).tail != NULL ? ((next_iter) = (iter)->prev) : NULL);\
+    for (((iter) = (list).tail), ((list).tail != NULL ? ((next_iter) = (iter)->prev) : ((next_iter) = NULL)); \
          ((iter) != NULL);                                                    \
          (((next_iter) == (list).tail) || ((list).tail == NULL)) ? ((iter) = NULL) : (((iter) = (next_iter)), ((next_iter) = (iter)->prev)))
 
