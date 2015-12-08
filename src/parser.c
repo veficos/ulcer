@@ -1161,9 +1161,13 @@ static expression_t __parser_table_generate_expression__(parser_t parse)
     list_init(members);
 
     while (tok->type != TOKEN_TYPE_END && tok->value != TOKEN_VALUE_RC) {
-        __parser_need__(parse, TOKEN_VALUE_IDENTIFIER, "expected identifier");
+        if (tok->value == TOKEN_VALUE_IDENTIFIER || tok->value == TOKEN_VALUE_LITERAL_STRING) {
+            elemname = cstring_dup(tok->token);
 
-        elemname = cstring_dup(tok->token);
+        } else {
+            elemname = NULL; /* disable warring */
+            error(tok->filename, tok->line, tok->column, "expected identifier or string");
+        }
 
         __parser_expect_next__(parse, TOKEN_VALUE_COLON, "expected ':'");
         

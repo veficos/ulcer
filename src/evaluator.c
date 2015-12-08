@@ -36,19 +36,18 @@ static void __evaluator_string_expression__(environment_t env, cstring_t string_
 static void __evaluator_null_expression__(environment_t env);
 static void __evaluator_call_expression__(environment_t env, expression_t call_expr);
 static void __evaluator_native_function_call_expression__(environment_t env, native_function_pt native_function, list_t args);
-
-static void __evaluator_binary_expression__(environment_t env, bool toplevel, expression_type_t type, expression_t left_expr, expression_t right_expr);
+static void         __evaluator_binary_expression__(environment_t env, bool toplevel, expression_type_t type, expression_t left_expr, expression_t right_expr);
 static value_type_t __evaluator_implicit_cast_expression__(value_t left_value, value_t right_value);
-static void __evaluator_char_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
-static void __evaluator_bool_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
-static void __evaluator_int_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
-static void __evaluator_long_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
-static void __evaluator_float_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
-static void __evaluator_double_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
-static void __evaluator_string_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
-static value_t __evaluator_search_function__(environment_t env, expression_t function_expr);
-const char* __get_expression_type_string__(expression_type_t type);
-const char* __get_value_type_string__(value_type_t type);
+static void         __evaluator_char_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
+static void         __evaluator_bool_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
+static void         __evaluator_int_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
+static void         __evaluator_long_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
+static void         __evaluator_float_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
+static void         __evaluator_double_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
+static void         __evaluator_string_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
+static value_t      __evaluator_search_function__(environment_t env, expression_t function_expr);
+const char*         __get_expression_type_string__(expression_type_t type);
+const char*         __get_value_type_string__(value_type_t type);
 
 void evaluator_expression(environment_t env, expression_t expr, bool toplevel)
 {
