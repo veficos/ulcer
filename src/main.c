@@ -65,12 +65,32 @@ static void setup_stdlib(environment_t env)
     table_add_native_function(environment_get_global_table(env), "print", native_print);
 }
 
+void test() 
+{
+    list_node_t nodes[100];
+    int i;
+    list_iter_t iter, next_iter;
+    list_t list;
+
+    list_init(list);
+
+    for (i = 0; i < 100; i++) {
+        nodes[0].data = 0;
+        list_push_back(list, nodes[0]);
+    }
+
+    list_safe_for_each(list, iter, next_iter) {
+        printf("%d\n", iter->data);
+    }
+}
+
 int main(int argc, char** args)
 {
     {
 #ifdef WIN32
         _CrtSetDbgFlag(_CrtSetDbgFlag(_CRTDBG_REPORT_FLAG) | _CRTDBG_LEAK_CHECK_DF);  
 #endif
+      
     }
 
     {

@@ -37,7 +37,7 @@ cstring_t cstring_newlen(const void *data, unsigned long len)
     }
 
     hdr->length = len;
-    hdr->free = 0;
+    hdr->free   = 0;
 
     if (data && len) {
         memcpy(hdr->buffer, data, len);

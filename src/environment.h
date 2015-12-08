@@ -98,6 +98,7 @@ struct table_s {
 table_t table_new(void);
 void    table_free(table_t table);
 value_t table_search_member(table_t table, cstring_t member_name);
+value_t table_new_member(table_t table, cstring_t member_name);
 void    table_add_native_function(table_t table, const char* funcname, native_function_pt func);
 
 typedef struct heap_s* heap_t;

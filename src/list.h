@@ -6,6 +6,7 @@
 #include "config.h"
 
 struct list_node_s {
+    int data;
     struct list_node_s *prev;
     struct list_node_s *next;
 };
@@ -32,7 +33,7 @@ typedef struct list_node_s*   list_iter_t;
     (((list).head == NULL) && ((list).tail == NULL))
 
 #define list_is_singular(list)                                                \
-    (!list_is_empty(list)) && ((list).head == (list).tail)
+    ((!list_is_empty(list)) && ((list).head == (list).tail))
 
 #define list_replace(o, n)                                                    \
     __list_replace__(&(o), &(n))
@@ -81,20 +82,20 @@ typedef struct list_node_s*   list_iter_t;
          ((iter) != NULL);                                                    \
          (iter)->next == (list).head ? ((iter) = NULL) : ((iter) = (iter)->next))
 
-#define list_safe_for_each(list, iter, next_iter)                             \
-    for (((iter) = (list).head), ((list).head != NULL ? ((next_iter) = (iter)->next) : ((next_iter) = NULL)); \
-         ((iter) != NULL);                                                    \
-         (((next_iter) == (list).head) || ((list).head == NULL)) ? ((iter) = NULL) : (((iter) = (next_iter)), ((next_iter) = (iter)->next)))
+#define list_safe_for_each(list, iter, next_iter)                                \
+    for (((iter) = (list).head), ((next_iter) = (((iter) && (!list_is_singular((list)))) ? (iter)->next : NULL)); \
+         (iter) && (list).head;                                                  \
+         ((iter) = (next_iter), (next_iter) = ((iter) ? (iter)->next : NULL)), ((next_iter) = (((next_iter) == list.head) ? NULL : (next_iter))))
 
 #define list_reverse_for_each(list, iter)                                     \
     for ((iter) = (list).tail;                                                \
          ((iter) != NULL);                                                    \
          (iter)->prev == (list).tail ? ((iter) = NULL) : ((iter) = (iter)->prev))
 
-#define list_safe_reverse_for_each(list, iter, next_iter)                     \
-    for (((iter) = (list).tail), ((list).tail != NULL ? ((next_iter) = (iter)->prev) : ((next_iter) = NULL)); \
-         ((iter) != NULL);                                                    \
-         (((next_iter) == (list).tail) || ((list).tail == NULL)) ? ((iter) = NULL) : (((iter) = (next_iter)), ((next_iter) = (iter)->prev)))
+#define list_safe_reverse_for_each(list, iter, next_iter)                        \
+    for (((iter) = (list).tail), ((next_iter) = (((iter) && (!list_is_singular((list)))) ? (iter)->prev : NULL)); \
+         (iter) && (list).tail;                                                  \
+         ((iter) = (next_iter), (next_iter) = ((iter) ? (iter)->prev : NULL)), ((next_iter) = (((next_iter) == list.tail) ? NULL : (next_iter))))
 
 void __list_push_back__(list_t *list, list_node_t *node);
 void __list_push_front__(list_t *list, list_node_t *node);

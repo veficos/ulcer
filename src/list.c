@@ -18,13 +18,23 @@ static void __list_del__(list_node_t *prev, list_node_t *next)
 
 void __list_erase__(list_t *list, list_node_t *node)
 {
-    if (node->prev == node && node->next == node) {
+    list_iter_t next, prev;
+
+    if (list_is_singular(*list)) {
         list->head = list->tail = NULL;
+        
     } else {
+        next = node->next;
+        prev = node->prev;
+
         __list_del__(node->prev, node->next);
-        node->prev = NULL;
-        node->next = NULL;
+
+        list->head = list->head == node ? next : list->head;
+        list->tail = list->tail == node ? prev : list->tail;
     }
+
+    node->prev = NULL;
+    node->next = NULL;
 }
 
 void __list_replace__(list_node_t *o, list_node_t *n)

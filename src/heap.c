@@ -70,6 +70,15 @@ object_t heap_alloc_string(environment_t env, cstring_t cstr)
     return object;
 }
 
+object_t heap_alloc_string_by_length(environment_t env, unsigned long n) 
+{
+    object_t object = __heap_alloc_object__(env, OBJECT_TYPE_STRING);
+
+    object->u.string = cstring_newempty(n);
+
+    return object;
+}
+
 static object_t __heap_alloc_object__(environment_t env, object_type_t type)
 {
     object_t object;

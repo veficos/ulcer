@@ -48,6 +48,10 @@ expression_t expression_new_literal(expression_type_t type, token_t tok)
         }
         break;
 
+    case EXPRESSION_TYPE_NULL:
+        expr->type = EXPRESSION_TYPE_NULL;
+        break;
+
     case EXPRESSION_TYPE_CHAR:
         sscanf(tok->token, "%c", &expr->u.char_expr);
         break;

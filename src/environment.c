@@ -107,6 +107,26 @@ value_t table_search_member(table_t table, cstring_t member_name)
     return hlist_element(node, table_pair_t, link)->value;
 }
 
+value_t table_new_member(table_t table, cstring_t member_name)
+{
+    table_pair_t pair;
+    value_t value;
+
+    pair = (table_pair_t) mem_alloc(sizeof(struct table_pair_s));
+    if (!pair) {
+        return NULL;
+    }
+
+    value = value_new(VALUE_TYPE_REFERENCE);
+
+    pair->key   = cstring_dup(member_name);
+    pair->value = value;
+
+    hash_table_replace(table->table, &pair->link);
+
+    return value;
+}
+
 void table_add_native_function(table_t table, const char* funcname, native_function_pt func)
 {
     table_pair_t pair = (table_pair_t) mem_alloc(sizeof(struct table_pair_s));
