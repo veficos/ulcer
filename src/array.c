@@ -213,8 +213,6 @@ void array_range(array_t a, unsigned long start, unsigned long end)
         return ;
     }
 
-    start = start >= 0 ? start : 0;
-    end = end >= 0 ? end : a->nelts - 1;
     newlen = (unsigned long)(start > end ? 0 : end - start + 1);
     newlen = a->nelts > newlen ? newlen : a->nelts;
 

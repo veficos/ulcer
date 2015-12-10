@@ -116,5 +116,15 @@ void          environment_free(environment_t env);
 void          environment_add_module(environment_t env, module_t module);
 table_t       environment_get_global_table(environment_t env);
 void          environment_clear_stack(environment_t env);
+void          environment_push_char(environment_t env, char char_value);
+void          environment_push_bool(environment_t env, bool bool_value);
+void          environment_push_int(environment_t env, int int_value);
+void          environment_push_long(environment_t env, long long_value);
+void          environment_push_float(environment_t env, float float_value);
+void          environment_push_double(environment_t env, double double_value);
+void          environment_push_string(environment_t env, cstring_t string_value);
+void          environment_push_null(environment_t env);
+void          environment_push_function(environment_t env, expression_function_t function);
+void          environment_push_native_function(environment_t env, native_function_pt native_function);
 
 #endif

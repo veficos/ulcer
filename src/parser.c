@@ -23,6 +23,8 @@ static statement_t  __parser_switch_statement__(parser_t parse);
 static statement_t  __parser_while_statement__(parser_t parse);
 static statement_t  __parser_for_statement__(parser_t parse);
 static expression_t __parser_expression__(parser_t parse);
+static bool         __parser_check_expression__(cstring_t filename, expression_t expr);
+static void         __parser_without_function_expression__(cstring_t filename, expression_t expr);
 static bool         __parser_check_lvalue_expression__(expression_t expr);
 static expression_t __parser_assign_expression__(parser_t parse);
 static expression_t __parser_logical_or_expression__(parser_t parse);
@@ -65,6 +67,7 @@ void parser_free(parser_t parse)
 module_t parser_generate_module(parser_t parse)
 {
     __parser_translation_unit__(parse);
+
     return parse->module;
 }
 
@@ -103,7 +106,6 @@ static void __parser_translation_unit__(parser_t parse)
 static void __parser_toplevel_statement__(parser_t parse)
 {
     statement_t stmt;
-
     switch (lexer_peek(parse->lex)->value) {
     case TOKEN_VALUE_REQUIRE:
         module_add_statment(parse->module, __parser_require_statement__(parse));
@@ -116,7 +118,7 @@ static void __parser_toplevel_statement__(parser_t parse)
     default:
         stmt = __parser_statement__(parse);
         if (stmt->type == STATEMENT_TYPE_EXPRESSION && 
-            stmt->u.expr->type == EXPRESSION_TYPE_FUNCTION) {           
+            stmt->u.expr->type == EXPRESSION_TYPE_FUNCTION) {
             module_add_function(parse->module, stmt);
         } else {
             module_add_statment(parse->module, stmt);
@@ -149,11 +151,12 @@ static statement_t __parser_require_statement__(parser_t parse)
 
 static statement_t __parser_statement__(parser_t parse)
 {
-    long        line; 
-    long        column;
-    token_t     tok;
-    statement_t stmt;
-
+    long         line; 
+    long         column;
+    token_t      tok;
+    statement_t  stmt;
+    expression_t expr;
+ 
     stmt    = NULL;
     tok     = lexer_peek(parse->lex);
     line    = tok->line;
@@ -178,7 +181,8 @@ static statement_t __parser_statement__(parser_t parse)
 
     case TOKEN_VALUE_RETURN:
         if (lexer_next(parse->lex)->value != TOKEN_VALUE_SEMICOLON) {
-            stmt = statement_new_return(line, column, __parser_expression__(parse));
+            __parser_check_expression__(tok->filename, (expr = __parser_expression__(parse)));
+            stmt = statement_new_return(line, column, expr);
         } else {
             stmt = statement_new_return(line, column, NULL);
         }
@@ -233,6 +237,8 @@ static statement_t __parser_if_statement__(parser_t parse)
 
     if_condition = __parser_expression__(parse);
 
+    __parser_without_function_expression__(tok->filename, if_condition);
+
     __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
 
     if_block = __parser_block__(parse);
@@ -268,6 +274,8 @@ static list_t __parser_elifs_statement__(parser_t parse)
         __parser_expect__(parse, TOKEN_VALUE_LP, "expected '(' after elif");
 
         condition = __parser_expression__(parse);
+        
+        __parser_without_function_expression__(tok->filename, condition);
 
         __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
 
@@ -282,6 +290,7 @@ static list_t __parser_elifs_statement__(parser_t parse)
 static list_t __parser_else_statement__(parser_t parse)
 {
     lexer_next(parse->lex);
+
     return __parser_block__(parse);
 }
 
@@ -313,6 +322,8 @@ static statement_t __parser_switch_statement__(parser_t parse)
 
     switch_expr = __parser_expression__(parse);
 
+    __parser_without_function_expression__(tok->filename, switch_expr);
+
     __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
 
     __parser_expect__(parse, TOKEN_VALUE_LC, "expected '{'");
@@ -327,6 +338,8 @@ static statement_t __parser_switch_statement__(parser_t parse)
             lexer_next(parse->lex);
 
             case_expr = __parser_expression__(parse);
+
+            __parser_without_function_expression__(tok->filename, case_expr);
 
             __parser_expect__(parse, TOKEN_VALUE_COLON, "expected ':'");
 
@@ -374,6 +387,8 @@ static statement_t __parser_while_statement__(parser_t parse)
 
     condition = __parser_expression__(parse);
 
+    __parser_without_function_expression__(tok->filename, condition);
+
     __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
 
     block = __parser_block__(parse);
@@ -409,18 +424,21 @@ static statement_t __parser_for_statement__(parser_t parse)
 
     if (lexer_peek(parse->lex)->value != TOKEN_VALUE_SEMICOLON) {
         init = __parser_expression__(parse);
+        __parser_without_function_expression__(tok->filename, init);
     }
 
     __parser_expect__(parse, TOKEN_VALUE_SEMICOLON, "expected ';'");
 
     if (lexer_peek(parse->lex)->value != TOKEN_VALUE_SEMICOLON) {
         condition = __parser_expression__(parse);
+        __parser_without_function_expression__(tok->filename, condition);
     }
 
     __parser_expect__(parse, TOKEN_VALUE_SEMICOLON, "expected ';'");
 
     if (lexer_peek(parse->lex)->value != TOKEN_VALUE_RP) {
         post = __parser_expression__(parse);
+        __parser_without_function_expression__(tok->filename, post);
     }
 
     __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
@@ -436,6 +454,26 @@ static expression_t __parser_expression__(parser_t parse)
     return __parser_assign_expression__(parse);
 }
 
+static bool __parser_check_expression__(cstring_t filename, expression_t expr)
+{
+    if (expr->type == EXPRESSION_TYPE_FUNCTION) {
+        if (!cstring_is_empty(expr->u.function_expr->name)) {
+            error(filename, expr->line, expr->column, "expected anonymous function expression");
+        }
+        /* function expression */
+        return true;
+    }
+    /* normal expression */
+    return false;
+}
+
+static void __parser_without_function_expression__(cstring_t filename, expression_t expr)
+{
+    if (__parser_check_expression__(filename, expr)) {
+        error(filename, expr->line, expr->column, "unexpected expression");
+    }
+}
+
 static bool __parser_check_lvalue_expression__(expression_t expr)
 {
     if (expr->type != EXPRESSION_TYPE_IDENTIFIER &&
@@ -443,127 +481,91 @@ static bool __parser_check_lvalue_expression__(expression_t expr)
         expr->type != EXPRESSION_TYPE_TABLE_DOT_MEMBER) {
         return false;
     }
-
     return true;
 }
 
 static expression_t __parser_assign_expression__(parser_t parse)
 {
-    long         line;
-    long         column;
-    token_t      tok;
-    expression_t expr;
+    long              line;
+    long              column;
+    token_t           tok;
+    expression_t      lexpr;
+    expression_t      rexpr;
+    expression_type_t expr_type;
 
-    expr   = NULL;
     tok    = lexer_peek(parse->lex);
     line   = tok->line;
     column = tok->column;
 
-    expr = __parser_logical_or_expression__(parse);
+    lexpr  = __parser_logical_or_expression__(parse);
 
     switch (lexer_peek(parse->lex)->value) {
     case TOKEN_VALUE_ASSIGN:
-        lexer_next(parse->lex);
-        if (!__parser_check_lvalue_expression__(expr))  {
-            error(tok->filename, line, column, "expected lvalue expression");
-        }
-        expr = expression_new_assign(line, column, EXPRESSION_TYPE_ASSIGN, expr, __parser_expression__(parse));
+        expr_type = EXPRESSION_TYPE_ASSIGN;
         break;
 
     case TOKEN_VALUE_ADD_ASSIGN:
-        lexer_next(parse->lex);
-        if (!__parser_check_lvalue_expression__(expr))  {
-            error(tok->filename, line, column, "expected lvalue expression");
-        }
-        expr = expression_new_assign(line, column, EXPRESSION_TYPE_ADD_ASSIGN, expr, __parser_expression__(parse));
+        expr_type = EXPRESSION_TYPE_ADD_ASSIGN;
         break;
 
     case TOKEN_VALUE_SUB_ASSIGN:
-        lexer_next(parse->lex);
-        if (!__parser_check_lvalue_expression__(expr))  {
-            error(tok->filename, line, column, "expected lvalue expression");
-        }
-        expr = expression_new_assign(line, column, EXPRESSION_TYPE_SUB_ASSIGN, expr, __parser_expression__(parse));
+        expr_type = EXPRESSION_TYPE_SUB_ASSIGN;
         break;
 
     case TOKEN_VALUE_MUL_ASSIGN:
-        lexer_next(parse->lex);
-        if (!__parser_check_lvalue_expression__(expr))  {
-            error(tok->filename, line, column, "expected lvalue expression");
-        }
-        expr = expression_new_assign(line, column, EXPRESSION_TYPE_MUL_ASSIGN, expr, __parser_expression__(parse));
+        expr_type = EXPRESSION_TYPE_MUL_ASSIGN;
         break;
 
     case TOKEN_VALUE_DIV_ASSIGN:
-        lexer_next(parse->lex);
-        if (!__parser_check_lvalue_expression__(expr))  {
-            error(tok->filename, line, column, "expected lvalue expression");
-        }
-        expr = expression_new_assign(line, column, EXPRESSION_TYPE_DIV_ASSIGN, expr, __parser_expression__(parse));
+        expr_type = EXPRESSION_TYPE_DIV_ASSIGN;
         break;
 
     case TOKEN_VALUE_MOD_ASSIGN:
-        lexer_next(parse->lex);
-        if (!__parser_check_lvalue_expression__(expr))  {
-            error(tok->filename, line, column, "expected lvalue expression");
-        }
-        expr = expression_new_assign(line, column, EXPRESSION_TYPE_MOD_ASSIGN, expr, __parser_expression__(parse));
+        expr_type = EXPRESSION_TYPE_MOD_ASSIGN;
         break;
 
     case TOKEN_VALUE_BITAND_ASSIGN:
-        lexer_next(parse->lex);
-        if (!__parser_check_lvalue_expression__(expr))  {
-            error(tok->filename, line, column, "expected lvalue expression");
-        }
-        expr = expression_new_assign(line, column, EXPRESSION_TYPE_BITAND_ASSIGN, expr, __parser_expression__(parse));
+        expr_type = EXPRESSION_TYPE_BITAND_ASSIGN;
         break;
 
     case TOKEN_VALUE_BITOR_ASSIGN:
-        lexer_next(parse->lex);
-        if (!__parser_check_lvalue_expression__(expr))  {
-            error(tok->filename, line, column, "expected lvalue expression");
-        }
-        expr = expression_new_assign(line, column, EXPRESSION_TYPE_BITOR_ASSIGN, expr, __parser_expression__(parse));
+        expr_type = EXPRESSION_TYPE_BITOR_ASSIGN;
         break;
 
     case TOKEN_VALUE_XOR_ASSIGN:
-        lexer_next(parse->lex);
-        if (!__parser_check_lvalue_expression__(expr))  {
-            error(tok->filename, line, column, "expected lvalue expression");
-        }
-        expr = expression_new_assign(line, column, EXPRESSION_TYPE_XOR_ASSIGN, expr, __parser_expression__(parse));
+        expr_type = EXPRESSION_TYPE_XOR_ASSIGN;
         break;
 
     case TOKEN_VALUE_LEFI_SHIFT_ASSIGN:
-        lexer_next(parse->lex);
-        if (!__parser_check_lvalue_expression__(expr))  {
-            error(tok->filename, line, column, "expected lvalue expression");
-        }
-        expr = expression_new_assign(line, column, EXPRESSION_TYPE_LEFT_SHIFT_ASSIGN, expr, __parser_expression__(parse));
+        expr_type = EXPRESSION_TYPE_LEFT_SHIFT_ASSIGN;
         break;
 
     case TOKEN_VALUE_RIGHT_SHIFT_ASSIGN:
-        lexer_next(parse->lex);
-        if (!__parser_check_lvalue_expression__(expr))  {
-            error(tok->filename, line, column, "expected lvalue expression");
-        }
-        expr = expression_new_assign(line, column, EXPRESSION_TYPE_RIGHT_SHIFT_ASSIGN, expr, __parser_expression__(parse));
+        expr_type = EXPRESSION_TYPE_RIGHT_SHIFT_ASSIGN;
         break;
 
     case TOKEN_VALUE_LOGIC_RIGHT_SHIFT_ASSIGN:
-        lexer_next(parse->lex);
-        if (!__parser_check_lvalue_expression__(expr))  {
-            error(tok->filename, line, column, "expected lvalue expression");
-        }
-        expr = expression_new_assign(line, column, EXPRESSION_TYPE_LOGIC_RIGHT_SHIFT_ASSIGN, expr, __parser_expression__(parse));
+        expr_type = EXPRESSION_TYPE_LOGIC_RIGHT_SHIFT_ASSIGN;
         break;
 
     default:
+        goto leave;
         break;
     }
 
-    assert(expr != NULL);
-    return expr;
+    lexer_next(parse->lex);
+
+    if (!__parser_check_lvalue_expression__(lexpr))  {
+        error(tok->filename, line, column, "expected lvalue expression");
+    }
+
+    __parser_check_expression__(tok->filename, (rexpr = __parser_expression__(parse)));
+
+    lexpr = expression_new_assign(line, column, expr_type, lexpr, rexpr);
+
+leave:
+    assert(lexpr != NULL);
+    return lexpr;
 }
 
 static expression_t __parser_logical_or_expression__(parser_t parse)
@@ -571,23 +573,30 @@ static expression_t __parser_logical_or_expression__(parser_t parse)
     long         line;
     long         column;
     token_t      tok;
-    expression_t expr;
+    expression_t lexpr;
+    expression_t rexpr;
 
-    expr    = __parser_logical_and_expression__(parse);
     tok     = lexer_peek(parse->lex);
     line    = tok->line;
     column  = tok->column;
 
+    lexpr   = __parser_logical_and_expression__(parse);
+
     while (tok->value == TOKEN_VALUE_OR) {
+        __parser_without_function_expression__(tok->filename, lexpr);
+
         lexer_next(parse->lex);
-        expr    = expression_new_binary(line, column, EXPRESSION_TYPE_OR, expr, __parser_logical_and_expression__(parse));
+
+        __parser_without_function_expression__(tok->filename, (rexpr =  __parser_logical_and_expression__(parse)));
+
+        lexpr   = expression_new_binary(line, column, EXPRESSION_TYPE_OR, lexpr, rexpr);
         tok     = lexer_peek(parse->lex);
         line    = tok->line;
         column  = tok->column;
     }
 
-    assert(expr != NULL);
-    return expr;
+    assert(lexpr != NULL);
+    return lexpr;
 }
 
 static expression_t __parser_logical_and_expression__(parser_t parse)
@@ -595,35 +604,43 @@ static expression_t __parser_logical_and_expression__(parser_t parse)
     long         line;
     long         column;
     token_t      tok;
-    expression_t expr;
-
-    expr   = __parser_equality_expression__(parse);
+    expression_t lexpr;
+    expression_t rexpr;
 
     tok    = lexer_peek(parse->lex);
     line   = tok->line;
     column = tok->column;
 
+    lexpr  = __parser_equality_expression__(parse);
+
     while (tok->value == TOKEN_VALUE_AND) {
+        __parser_without_function_expression__(tok->filename, lexpr);
+
         lexer_next(parse->lex);
-        expr   = expression_new_binary(line, column, EXPRESSION_TYPE_AND, expr, __parser_equality_expression__(parse));
+
+        __parser_without_function_expression__(tok->filename, (rexpr = __parser_equality_expression__(parse)));
+
+        lexpr  = expression_new_binary(line, column, EXPRESSION_TYPE_AND, lexpr, rexpr);
         tok    = lexer_peek(parse->lex);
         line   = tok->line;
         column = tok->column;
     }
 
-    assert(expr != NULL);
-    return expr;
+    assert(lexpr != NULL);
+    return lexpr;
 }
 
 static expression_t __parser_equality_expression__(parser_t parse)
 {
-    long          line;
-    long          column;
-    token_t       tok;
-    token_value_t tv;
-    expression_t  expr;
+    long              line;
+    long              column;
+    token_t           tok;
+    token_value_t     tv;
+    expression_t      lexpr;
+    expression_t      rexpr;
+    expression_type_t expr_type;
 
-    expr   = __parser_relational_expression__(parse);
+    lexpr   = __parser_relational_expression__(parse);
 
     tok    = lexer_peek(parse->lex);
     line   = tok->line;
@@ -631,16 +648,19 @@ static expression_t __parser_equality_expression__(parser_t parse)
 
     while (tok->value == TOKEN_VALUE_EQ || 
            tok->value == TOKEN_VALUE_NEQ) {
+        __parser_without_function_expression__(tok->filename, lexpr);
+
         tv  = tok->value;
 
         lexer_next(parse->lex);
+
         switch (tv) {
         case TOKEN_VALUE_EQ:
-            expr = expression_new_binary(line, column, EXPRESSION_TYPE_EQ, expr, __parser_relational_expression__(parse));
+            expr_type = EXPRESSION_TYPE_EQ;
             break;
 
         case TOKEN_VALUE_NEQ:
-            expr = expression_new_binary(line, column, EXPRESSION_TYPE_NEQ, expr, __parser_relational_expression__(parse));
+            expr_type = EXPRESSION_TYPE_NEQ;
             break;
 
         default:
@@ -648,51 +668,58 @@ static expression_t __parser_equality_expression__(parser_t parse)
             break;
         }
 
+        __parser_without_function_expression__(tok->filename, (rexpr = __parser_relational_expression__(parse)));
+        
+        lexpr  = expression_new_binary(line, column, expr_type, lexpr, rexpr);
         tok    = lexer_peek(parse->lex);
         line   = tok->line;
         column = tok->column;
     }
 
-    assert(expr != NULL);
-    return expr;
+    assert(lexpr != NULL);
+    return lexpr;
 }
 
 static expression_t __parser_relational_expression__(parser_t parse)
 {
-    long          line;
-    long          column;
-    token_t       tok;
-    token_value_t tv;
-    expression_t  expr;
-
-    expr   = __parser_additive_expression__(parse);
+    long              line;
+    long              column;
+    token_t           tok;
+    token_value_t     tv;
+    expression_t      lexpr;
+    expression_t      rexpr;
+    expression_type_t expr_type;
 
     tok    = lexer_peek(parse->lex);
     line   = tok->line;
     column = tok->column;
 
+    lexpr   = __parser_additive_expression__(parse);
+
     while (tok->value == TOKEN_VALUE_GT  || 
            tok->value == TOKEN_VALUE_GEQ || 
            tok->value == TOKEN_VALUE_LT  || 
            tok->value == TOKEN_VALUE_LEQ) {
+       __parser_without_function_expression__(tok->filename, lexpr);
+
         tv = tok->value;
 
         lexer_next(parse->lex);
         switch (tv) {
         case TOKEN_VALUE_GT:
-            expr = expression_new_binary(line, column, EXPRESSION_TYPE_GT, expr, __parser_additive_expression__(parse));
+            expr_type = EXPRESSION_TYPE_GT;
             break;
 
         case TOKEN_VALUE_GEQ:
-            expr = expression_new_binary(line, column, EXPRESSION_TYPE_GEQ, expr, __parser_additive_expression__(parse));
+            expr_type = EXPRESSION_TYPE_GEQ;
             break;
 
         case TOKEN_VALUE_LT:
-            expr = expression_new_binary(line, column, EXPRESSION_TYPE_LT, expr, __parser_additive_expression__(parse));
+            expr_type = EXPRESSION_TYPE_LT;
             break;
 
         case TOKEN_VALUE_LEQ:
-            expr = expression_new_binary(line, column, EXPRESSION_TYPE_LEQ, expr, __parser_additive_expression__(parse));
+            expr_type = EXPRESSION_TYPE_LEQ;
             break;
 
         default:
@@ -700,41 +727,49 @@ static expression_t __parser_relational_expression__(parser_t parse)
             break;
         }
 
+        __parser_without_function_expression__(tok->filename, (rexpr = __parser_additive_expression__(parse)));
+
+        lexpr = expression_new_binary(line, column, expr_type, lexpr, rexpr);
+
         tok    = lexer_peek(parse->lex);
         line   = tok->line;
         column = tok->column;
     }
 
-    assert(expr != NULL);
-    return expr;
+    assert(lexpr != NULL);
+    return lexpr;
 }
 
 static expression_t __parser_additive_expression__(parser_t parse)
 {
-    long          line;
-    long          column;
-    token_t       tok;
-    token_value_t tv;
-    expression_t  expr;
-
-    expr    = __parser_multiplicative_expression__(parse);
+    long              line;
+    long              column;
+    token_t           tok;
+    token_value_t     tv;
+    expression_t      lexpr;
+    expression_t      rexpr;
+    expression_type_t expr_type;
 
     tok     = lexer_peek(parse->lex);
     line    = tok->line;
     column  = tok->column;
 
+    lexpr   = __parser_multiplicative_expression__(parse);
+
     while (tok->value == TOKEN_VALUE_ADD || 
            tok->value == TOKEN_VALUE_SUB) {
+        __parser_without_function_expression__(tok->filename, lexpr);
+
         tv = tok->value;
 
         lexer_next(parse->lex);
         switch (tv) {
         case TOKEN_VALUE_ADD:
-            expr = expression_new_binary(line, column, EXPRESSION_TYPE_ADD, expr, __parser_multiplicative_expression__(parse));
+            expr_type = EXPRESSION_TYPE_ADD;
             break;
 
         case TOKEN_VALUE_SUB:
-            expr = expression_new_binary(line, column, EXPRESSION_TYPE_SUB, expr, __parser_multiplicative_expression__(parse));
+            expr_type = EXPRESSION_TYPE_SUB;
             break;
 
         default:
@@ -742,46 +777,53 @@ static expression_t __parser_additive_expression__(parser_t parse)
             break;
         }
 
+        __parser_without_function_expression__(tok->filename, (rexpr = __parser_multiplicative_expression__(parse)));
+
+        lexpr  = expression_new_binary(line, column, expr_type, lexpr, rexpr);
         tok    = lexer_peek(parse->lex);
         line   = tok->line;
         column = tok->column;
     }
 
-    assert(expr != NULL);
-    return expr;
+    assert(lexpr != NULL);
+    return lexpr;
 }
 
 static expression_t __parser_multiplicative_expression__(parser_t parse)
 {
-    long          line;
-    long          column;
-    token_t       tok;
-    token_value_t tv;
-    expression_t  expr;
-
-    expr    = __parser_bitop_expression__(parse);
+    long              line;
+    long              column;
+    token_t           tok;
+    token_value_t     tv;
+    expression_t      lexpr;
+    expression_t      rexpr;
+    expression_type_t expr_type;
 
     tok     = lexer_peek(parse->lex);
     line    = tok->line;
     column  = tok->column;
 
+    lexpr   = __parser_bitop_expression__(parse);
+
     while (tok->value == TOKEN_VALUE_MUL ||
            tok->value == TOKEN_VALUE_DIV || 
            tok->value == TOKEN_VALUE_MOD) {
+        __parser_without_function_expression__(tok->filename, lexpr);
+
         tv = tok->value;
 
         lexer_next(parse->lex);
         switch (tv) {
         case TOKEN_VALUE_MUL:
-            expr = expression_new_binary(line, column, EXPRESSION_TYPE_MUL, expr, __parser_bitop_expression__(parse));
+            expr_type = EXPRESSION_TYPE_MUL;
             break;
 
         case TOKEN_VALUE_DIV:
-            expr = expression_new_binary(line, column, EXPRESSION_TYPE_DIV, expr, __parser_bitop_expression__(parse));
+            expr_type = EXPRESSION_TYPE_DIV;
             break;
 
         case TOKEN_VALUE_MOD:
-            expr = expression_new_binary(line, column, EXPRESSION_TYPE_MOD, expr, __parser_bitop_expression__(parse));
+            expr_type = EXPRESSION_TYPE_MOD;
             break;
 
         default:
@@ -789,46 +831,53 @@ static expression_t __parser_multiplicative_expression__(parser_t parse)
             break;
         }
 
+        __parser_without_function_expression__(tok->filename, (rexpr = __parser_bitop_expression__(parse)));
+
+        lexpr  = expression_new_binary(line, column, expr_type, lexpr, rexpr);
         tok    = lexer_peek(parse->lex);
         line   = tok->line;
         column = tok->column;
     }
 
-    assert(expr != NULL);
-    return expr;
+    assert(lexpr != NULL);
+    return lexpr;
 }
 
 static expression_t __parser_bitop_expression__(parser_t parse)
 {
-    long          line; 
-    long          column;
-    token_t       tok;
-    token_value_t tv;
-    expression_t  expr;
-
-    expr    = __parser_shift_bitop_expression__(parse);
+    long              line; 
+    long              column;
+    token_t           tok;
+    token_value_t     tv;
+    expression_t      lexpr;
+    expression_t      rexpr;
+    expression_type_t expr_type;
 
     tok     = lexer_peek(parse->lex);
     line    = tok->line;
     column  = tok->column;
 
+    lexpr    = __parser_shift_bitop_expression__(parse);
+
     while (tok->value == TOKEN_VALUE_BITAND ||
            tok->value == TOKEN_VALUE_BITOR  || 
            tok->value == TOKEN_VALUE_XOR) {
+        __parser_without_function_expression__(tok->filename, lexpr);
+
         tv = tok->value;
 
         lexer_next(parse->lex);
         switch (tv) {
         case TOKEN_VALUE_BITAND:
-            expr = expression_new_binary(line, column, EXPRESSION_TYPE_BITAND, expr, __parser_shift_bitop_expression__(parse));
+            expr_type = EXPRESSION_TYPE_BITAND;
             break;
 
         case TOKEN_VALUE_BITOR:
-            expr = expression_new_binary(line, column, EXPRESSION_TYPE_BITOR, expr, __parser_shift_bitop_expression__(parse));
+            expr_type = EXPRESSION_TYPE_BITOR;
             break;
 
         case TOKEN_VALUE_XOR:
-            expr = expression_new_binary(line, column, EXPRESSION_TYPE_XOR, expr, __parser_shift_bitop_expression__(parse));
+            expr_type = EXPRESSION_TYPE_XOR;
             break;
 
         default:
@@ -836,46 +885,53 @@ static expression_t __parser_bitop_expression__(parser_t parse)
             break;
         }
 
+        __parser_without_function_expression__(tok->filename, (rexpr = __parser_shift_bitop_expression__(parse)));
+        
+        lexpr  = expression_new_binary(line, column, expr_type, lexpr, rexpr);
         tok    = lexer_peek(parse->lex);
         line   = tok->line;
         column = tok->column;
     }
 
-    assert(expr != NULL);
-    return expr;
+    assert(lexpr != NULL);
+    return lexpr;
 }
 
 static expression_t __parser_shift_bitop_expression__(parser_t parse)
 {
-    long          line;
-    long          column;
-    token_t       tok;
-    token_value_t tv;
-    expression_t  expr;
-
-    expr    = __parser_unary_expression__(parse);
+    long              line;
+    long              column;
+    token_t           tok;
+    token_value_t     tv;
+    expression_t      lexpr;
+    expression_t      rexpr;
+    expression_type_t expr_type;
 
     tok     = lexer_peek(parse->lex);
     line    = tok->line;
     column  = tok->column;
 
+    lexpr   = __parser_unary_expression__(parse);
+
     while (tok->value == TOKEN_VALUE_LEFT_SHIFT  ||
            tok->value == TOKEN_VALUE_RIGHT_SHIFT || 
            tok->value == TOKEN_VALUE_LOGIC_RIGHT_SHIFT_ASSIGN) {
+        __parser_without_function_expression__(tok->filename, lexpr);
+
         tv = tok->value;
 
         lexer_next(parse->lex);
         switch (tv) {
         case TOKEN_VALUE_LEFT_SHIFT:
-            expr = expression_new_binary(line, column, EXPRESSION_TYPE_LEFT_SHIFT, expr, __parser_unary_expression__(parse));
+            expr_type = EXPRESSION_TYPE_LEFT_SHIFT;
             break;
 
         case TOKEN_VALUE_RIGHT_SHIFT:
-            expr = expression_new_binary(line, column, EXPRESSION_TYPE_RIGHT_SHIFT, expr, __parser_unary_expression__(parse));
+            expr_type = EXPRESSION_TYPE_RIGHT_SHIFT;
             break;
 
         case TOKEN_VALUE_LOGIC_RIGHT_SHIFT_ASSIGN:
-            expr = expression_new_binary(line, column, EXPRESSION_TYPE_LOGIC_RIGHT_SHIFT, expr, __parser_unary_expression__(parse));
+            expr_type = EXPRESSION_TYPE_LOGIC_RIGHT_SHIFT;
             break;
 
         default:
@@ -883,13 +939,16 @@ static expression_t __parser_shift_bitop_expression__(parser_t parse)
             break;
         }
 
+        __parser_without_function_expression__(tok->filename, (rexpr = __parser_unary_expression__(parse)));
+
+        lexpr  = expression_new_binary(line, column, expr_type, lexpr, rexpr);
         tok    = lexer_peek(parse->lex);
         line   = tok->line;
         column = tok->column;
     }
 
-    assert(expr != NULL);
-    return expr;
+    assert(lexpr != NULL);
+    return lexpr;
 }
 
 static expression_t __parser_unary_expression__(parser_t parse)
@@ -899,8 +958,8 @@ static expression_t __parser_unary_expression__(parser_t parse)
     token_t           tok;
     expression_type_t expr_type;
     expression_t      expr;
+    expression_t      rexpr;
 
-    expr      = NULL;
     tok       = lexer_peek(parse->lex);
     line      = tok->line;
     column    = tok->column;
@@ -932,7 +991,9 @@ static expression_t __parser_unary_expression__(parser_t parse)
         break;
     }
 
-    expr = expression_new_unary(line, column, expr_type, __parser_unary_expression__(parse));
+    __parser_without_function_expression__(tok->filename, (rexpr = __parser_unary_expression__(parse)));
+
+    expr = expression_new_unary(line, column, expr_type, rexpr);
 
 done:
     assert(expr != NULL);
@@ -945,6 +1006,7 @@ static expression_t __parser_postfix_expression__(parser_t parse)
     long         column;
     token_t      tok;
     expression_t expr;
+    expression_t rexpr;
 
     tok     = lexer_peek(parse->lex);
     line    = tok->line;
@@ -959,25 +1021,40 @@ static expression_t __parser_postfix_expression__(parser_t parse)
            tok->value == TOKEN_VALUE_LP         ||
            tok->value == TOKEN_VALUE_INC        ||
            tok->value == TOKEN_VALUE_DEC) {
+
+        __parser_check_expression__(tok->filename, expr);
+
         switch (tok->value) {
         case TOKEN_VALUE_LB:
+            /* index expression */
             lexer_next(parse->lex);
 
-            expr = expression_new_index(line, column, expr, __parser_expression__(parse));
+            __parser_without_function_expression__(tok->filename, (rexpr = __parser_expression__(parse)));
+
+            expr = expression_new_index(line, column, expr, rexpr);
 
             __parser_expect__(parse, TOKEN_VALUE_RB, "expected ']'");
             break;
 
         case TOKEN_VALUE_ARRAY_PUSH:
+            /* array push expression */
             lexer_next(parse->lex);
 
-            expr = expression_new_array_push(line, column, expr, __parser_expression__(parse));
+            __parser_check_expression__(tok->filename, (rexpr = __parser_expression__(parse)));
+
+            expr = expression_new_array_push(line, column, expr, rexpr);
             break;
 
         case TOKEN_VALUE_ARRAY_POP:
             lexer_next(parse->lex);
 
-            expr = expression_new_array_pop(line, column, expr, __parser_expression__(parse));
+            rexpr = __parser_expression__(parse);
+
+            if (!__parser_check_lvalue_expression__(rexpr)) {
+                error(tok->filename, line, column, "expected lvalue expression");
+            }
+            
+            expr = expression_new_array_pop(line, column, expr, rexpr);
             break;
 
         case TOKEN_VALUE_DOT:
@@ -1124,7 +1201,7 @@ static expression_t __parser_array_generate_expression__(parser_t parse)
     list_init(elements);
 
     while (tok->type != TOKEN_TYPE_END && tok->value != TOKEN_VALUE_RB) {
-        elem = __parser_expression__(parse);
+        __parser_check_expression__(tok->filename, (elem = __parser_expression__(parse)));
 
         list_push_back(elements, elem->link);
 
@@ -1152,6 +1229,7 @@ static expression_t __parser_table_generate_expression__(parser_t parse)
     cstring_t               elemname;
     list_t                  members;
     expression_table_pair_t pair;
+    expression_t            value_expr;
 
     expr      = NULL;
     line      = lexer_peek(parse->lex)->line;
@@ -1173,7 +1251,9 @@ static expression_t __parser_table_generate_expression__(parser_t parse)
         
         lexer_next(parse->lex);
 
-        pair = expression_new_table_pair(elemname, __parser_expression__(parse));
+        __parser_check_expression__(tok->filename, (value_expr = __parser_expression__(parse)));
+
+        pair = expression_new_table_pair(elemname, value_expr);
 
         list_push_back(members, pair->link);
 
@@ -1259,15 +1339,18 @@ static list_t __parser_parameter_list__(parser_t parse)
 
 static list_t __parser_argument_list__(parser_t parse)
 {
-    token_t tok;
-    list_t  args;
+    token_t      tok;
+    list_t       args;
+    expression_t expr;
 
     tok = lexer_next(parse->lex);
 
     list_init(args);
 
     while (tok->type != TOKEN_TYPE_END && tok->value != TOKEN_VALUE_RP) {
-        list_push_back(args, __parser_expression__(parse)->link);
+        __parser_check_expression__(tok->filename, (expr = __parser_expression__(parse)));
+
+        list_push_back(args, expr->link);
 
         if (lexer_peek(parse->lex)->value != TOKEN_VALUE_COMMA) {
             break;

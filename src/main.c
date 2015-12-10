@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 static void print_value(value_t value)
 {
@@ -44,6 +45,9 @@ static void print_value(value_t value)
     case VALUE_TYPE_NULL:
         printf("null");
         break;
+    default:
+        assert(false);
+        break;
     }
 }
 
@@ -58,6 +62,8 @@ static void native_print(environment_t env, list_t stack_frame, unsigned int arg
     }
     
     environment_clear_stack(env);
+
+    environment_push_null(env);
 }
 
 static void setup_stdlib(environment_t env)

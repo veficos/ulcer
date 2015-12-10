@@ -196,3 +196,91 @@ void environment_clear_stack(environment_t env)
         mem_free(list_element(iter, value_t, link));
     }
 }
+
+void environment_push_char(environment_t env, char char_value)
+{
+    value_t value = value_new(VALUE_TYPE_CHAR);
+
+    value->u.char_value = char_value;
+
+    list_push_back(env->stack, value->link);
+}
+
+void environment_push_bool(environment_t env, bool bool_value)
+{
+    value_t value = value_new(VALUE_TYPE_BOOL);
+
+    value->u.bool_value = bool_value;
+
+    list_push_back(env->stack, value->link);
+}
+
+void environment_push_int(environment_t env, int int_value)
+{
+    value_t value = value_new(VALUE_TYPE_INT);
+
+    value->u.int_value  = int_value;
+
+    list_push_back(env->stack, value->link);
+}
+
+void environment_push_long(environment_t env, long long_value)
+{
+    value_t value = value_new(VALUE_TYPE_LONG);
+
+    value->u.long_value = long_value;
+
+    list_push_back(env->stack, value->link);
+}
+
+void environment_push_float(environment_t env, float float_value)
+{
+    value_t value = value_new(VALUE_TYPE_FLOAT);
+
+    value->u.float_value = float_value;
+
+    list_push_back(env->stack, value->link);
+}
+
+void environment_push_double(environment_t env, double double_value)
+{
+    value_t value = value_new(VALUE_TYPE_DOUBLE);
+
+    value->u.double_value = double_value;
+
+    list_push_back(env->stack, value->link);
+}
+
+void environment_push_string(environment_t env, cstring_t string_value)
+{
+    value_t value = value_new(VALUE_TYPE_STRING);
+
+    value->u.object_value = heap_alloc_string(env, string_value);
+
+    list_push_back(env->stack, value->link);
+}
+
+void environment_push_null(environment_t env)
+{
+    value_t value = value_new(VALUE_TYPE_NULL);
+
+    list_push_back(env->stack, value->link);
+}
+
+void environment_push_function(environment_t env, expression_function_t function)
+{
+    value_t value = value_new(VALUE_TYPE_FUNCTION);
+
+    value->u.function_value = function;
+
+    list_push_back(env->stack, value->link);
+}
+
+void environment_push_native_function(environment_t env, native_function_pt native_function)
+{
+    value_t value = value_new(VALUE_TYPE_NATIVE_FUNCTION);
+
+    value->u.native_function_value = native_function;
+
+    list_push_back(env->stack, value->link);
+}
