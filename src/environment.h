@@ -12,18 +12,20 @@
 #include "expression.h"
 #include "module.h"
 
-typedef struct environment_s* environment_t;
-typedef enum object_type_e    object_type_t;
-typedef struct object_s*      object_t;
-typedef enum value_type_e     value_type_t;
-typedef struct value_s*       value_t;
-typedef struct table_pair_s*  table_pair_t;
-typedef struct table_s*       table_t;
+typedef struct environment_s*   environment_t;
+typedef enum object_type_e      object_type_t;
+typedef struct object_s*        object_t;
+typedef enum value_type_e       value_type_t;
+typedef struct value_s*         value_t;
+typedef struct table_pair_s*    table_pair_t;
+typedef struct table_s*         table_t;
+typedef struct local_context_s* local_context_t;
 
 enum object_type_e {
     OBJECT_TYPE_STRING,
     OBJECT_TYPE_ARRAY,
     OBJECT_TYPE_TABLE,
+    OBJECT_TYPE_LOCAL_CONTEXT,
 };
 
 struct object_s {
@@ -31,14 +33,14 @@ struct object_s {
     bool marked;
 
     union {
-        cstring_t    string;
-        array_t      array;
-        hash_table_t table;
+        cstring_t       string;
+        array_t         array;
+        hash_table_t    table;
+        local_context_t context;
     } u;
 
     list_node_t link;
 };
-
 
 typedef void (*native_function_pt)(environment_t env, list_t stack_frame, unsigned int argc);
 
@@ -51,8 +53,8 @@ enum value_type_e {
     VALUE_TYPE_LONG,
     VALUE_TYPE_FLOAT,
     VALUE_TYPE_DOUBLE,
-    VALUE_TYPE_FUNCTION,
     VALUE_TYPE_NATIVE_FUNCTION,
+    VALUE_TYPE_FUNCTION,
     VALUE_TYPE_STRING,
     VALUE_TYPE_ARRAY,
     VALUE_TYPE_TABLE,
@@ -72,8 +74,16 @@ struct value_s {
         long                  long_value;
         float                 float_value;
         double                double_value;
-        native_function_pt    native_function_value;
-        expression_function_t function_value;
+
+        native_function_pt    native_function;
+
+        struct {
+            union {
+                expression_function_t function_expr;
+            };
+            list_t scopes;
+        } function_value;
+
         object_t              object_value;
         void*                 pointer_value;
     }u;
@@ -103,9 +113,19 @@ void    table_add_native_function(table_t table, const char* funcname, native_fu
 
 typedef struct heap_s* heap_t;
 
+struct local_context_s {
+    table_t  context;
+    object_t self;
+
+    struct {
+        list_node_t stack;
+        list_node_t scope;
+    }link;
+};
+
 struct environment_s {
     stack_t statement_stack;
-
+    list_t  local_context_stack;
     list_t  stack;
     heap_t  heap;
     table_t global_table;
@@ -115,6 +135,8 @@ environment_t environment_new(void);
 void          environment_free(environment_t env);
 void          environment_add_module(environment_t env, module_t module);
 table_t       environment_get_global_table(environment_t env);
+void          environment_push_local_context(environment_t env);
+void          environment_pop_local_context(environment_t env);
 void          environment_clear_stack(environment_t env);
 void          environment_push_char(environment_t env, char char_value);
 void          environment_push_bool(environment_t env, bool bool_value);
@@ -126,5 +148,6 @@ void          environment_push_string(environment_t env, cstring_t string_value)
 void          environment_push_null(environment_t env);
 void          environment_push_function(environment_t env, expression_function_t function);
 void          environment_push_native_function(environment_t env, native_function_pt native_function);
+void          environment_push_array_generate(environment_t env, list_t array_generate, bool toplevel);
 
 #endif

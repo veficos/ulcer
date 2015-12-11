@@ -149,7 +149,12 @@ void evaluator_expression(environment_t env, expression_t expr, bool toplevel)
         break;
 
     case EXPRESSION_TYPE_ARRAY_GENERATE:
+        environment_push_array_generate(env, expr->u.array_generate_expr, toplevel);
+        break;
+
     case EXPRESSION_TYPE_TABLE_GENERATE:
+        break;
+
     case EXPRESSION_TYPE_ARRAY_PUSH:
     case EXPRESSION_TYPE_ARRAY_POP:
     case EXPRESSION_TYPE_TABLE_DOT_MEMBER:
@@ -187,7 +192,7 @@ static value_t __evaluator_search_function__(environment_t env, expression_t fun
 
     case EXPRESSION_TYPE_FUNCTION:
         value = value_new(VALUE_TYPE_FUNCTION);
-        value->u.function_value = function_expr->u.function_expr;
+        value->u.function_value.function_expr = function_expr->u.function_expr;
         return value;
 
     default:
@@ -214,10 +219,10 @@ static void __evaluator_call_expression__(environment_t env, expression_t call_e
     if (function_value) {
         switch (function_value->type) {
         case VALUE_TYPE_FUNCTION:
-            __evaluator_function_call_expression__(env, function_value->u.function_value, toplevel);
+            __evaluator_function_call_expression__(env, function_value->u.function_value.function_expr, toplevel);
             break;
         case VALUE_TYPE_NATIVE_FUNCTION:
-            __evaluator_native_function_call_expression__(env, function_value->u.native_function_value, call_expr->u.call_expr->args);
+            __evaluator_native_function_call_expression__(env, function_value->u.native_function, call_expr->u.call_expr->args);
             break;
         default:
             assert(false);
@@ -926,7 +931,7 @@ static void __evaluator_string_binary_expression__(environment_t env, long line,
     result = list_element(list_rbegin(env->stack), value_t, link);
 
     if (type == EXPRESSION_TYPE_ADD) {
-        result->u.object_value           = heap_alloc_string_by_length(env, cstring_length(left->u.object_value->u.string) + cstring_length(right->u.object_value->u.string) + 10);
+        result->u.object_value           = heap_alloc_string_n(env, cstring_length(left->u.object_value->u.string) + cstring_length(right->u.object_value->u.string) + 10);
         result->u.object_value->u.string = cstring_cat(result->u.object_value->u.string, left->u.object_value->u.string);
         result->type                     = VALUE_TYPE_STRING;
 

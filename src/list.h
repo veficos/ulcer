@@ -6,7 +6,6 @@
 #include "config.h"
 
 struct list_node_s {
-    int data;
     struct list_node_s *prev;
     struct list_node_s *next;
 };

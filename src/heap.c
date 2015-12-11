@@ -5,6 +5,8 @@
 #include "list.h"
 #include "heap.h"
 
+#include <assert.h>
+
 struct heap_s {
     long   allocated;
     long   threshold;
@@ -16,13 +18,14 @@ struct heap_s {
 #endif
 
 #define __heap_value_is_object__(value)                                       \
-    ((value)->type == VALUE_TYPE_STRING)
+    (((value)->type == VALUE_TYPE_STRING) || ((value)->type == VALUE_TYPE_ARRAY))
 
 static void     __heap_unmark_object__(object_t obj);
 static void     __heap_mark_object__(object_t obj);
 static void     __heap_dispose_object__(object_t obj);
 static void     __heap_mark_objects__(environment_t env);
 static void     __heap_sweep_objects__(environment_t env);
+static void     __heap_sweep_null_objects__(environment_t env);
 static object_t __heap_alloc_object__(environment_t env, object_type_t type);
 static void     __heap_auto_gc__(environment_t env);
 
@@ -70,11 +73,39 @@ object_t heap_alloc_string(environment_t env, cstring_t cstr)
     return object;
 }
 
-object_t heap_alloc_string_by_length(environment_t env, unsigned long n) 
+object_t heap_alloc_string_n(environment_t env, unsigned long n) 
 {
     object_t object = __heap_alloc_object__(env, OBJECT_TYPE_STRING);
 
     object->u.string = cstring_newempty(n);
+
+    return object;
+}
+
+object_t heap_alloc_array(environment_t env)
+{
+    object_t object = __heap_alloc_object__(env, OBJECT_TYPE_ARRAY);
+
+    object->u.array = array_new(sizeof(value_t));
+
+    return object;
+}
+
+object_t heap_alloc_array_n(environment_t env, unsigned long n)
+{
+    object_t object = __heap_alloc_object__(env, OBJECT_TYPE_ARRAY);
+
+    object->u.array = array_newlen(sizeof(value_t), n);
+
+    return object;
+}
+
+object_t heap_alloc_local_context(environment_t env)
+{
+    object_t object = __heap_alloc_object__(env, OBJECT_TYPE_LOCAL_CONTEXT);
+
+    object->u.context->context = table_new();
+    object->u.context->self    = object;
 
     return object;
 }
@@ -199,8 +230,21 @@ static void __heap_sweep_objects__(environment_t env)
 
 static void __heap_dispose_object__(object_t obj)
 {
-    if (obj->type == OBJECT_TYPE_STRING) {
+    value_t *base;
+    int index;
+
+    switch (obj->type) {
+    case OBJECT_TYPE_STRING:
         cstring_free(obj->u.string);
+        break;
+    case OBJECT_TYPE_ARRAY:
+        array_for_each(obj->u.array, base, index) {
+            value_free(base[index]);
+        }
+        array_free(obj->u.array);
+        break;
+    case OBJECT_TYPE_TABLE:
+        break;
     }
 
     mem_free(obj);
@@ -213,8 +257,28 @@ static void __heap_unmark_object__(object_t obj)
 
 static void __heap_mark_object__(object_t obj)
 {
+    value_t *base;
+    int index;
+
     if (obj->marked) {
         return ;
     }
+
+    switch (obj->type) {
+    case OBJECT_TYPE_STRING:
+        break;
+
+    case OBJECT_TYPE_ARRAY:
+        array_for_each(obj->u.array, base, index) {
+            if (__heap_value_is_object__(base[index])) {
+                __heap_mark_object__(base[index]->u.object_value);
+            }
+        }
+        break;
+
+    case OBJECT_TYPE_TABLE:
+        break;
+    }
+
     obj->marked = true;
 }

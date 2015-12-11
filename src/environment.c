@@ -6,6 +6,7 @@
 #include "hlist.h"
 #include "alloc.h"
 #include "heap.h"
+#include "evaluator.h"
 
 #include <assert.h>
 
@@ -17,6 +18,10 @@ value_t value_new(value_type_t type)
     }
 
     value->type = type;
+
+    if (value->type == VALUE_TYPE_FUNCTION || value->type == VALUE_TYPE_NATIVE_FUNCTION) {
+        list_init(value->u.function_value.scopes);
+    }
 
     return value;
 }
@@ -132,7 +137,7 @@ void table_add_native_function(table_t table, const char* funcname, native_funct
     table_pair_t pair = (table_pair_t) mem_alloc(sizeof(struct table_pair_s));
     value_t value = value_new(VALUE_TYPE_NATIVE_FUNCTION);
 
-    value->u.native_function_value = func;
+    value->u.native_function = func;
 
     pair->key   = cstring_new(funcname);
     pair->value = value; 
@@ -148,6 +153,7 @@ environment_t environment_new(void)
     env->heap         = heap_new();
     
     list_init(env->stack);
+    list_init(env->local_context_stack);
 
     stack_init(env->statement_stack);
 
@@ -174,7 +180,7 @@ void environment_add_module(environment_t env, module_t module)
         assert(stmt->type == STATEMENT_TYPE_EXPRESSION && stmt->u.expr->type == EXPRESSION_TYPE_FUNCTION);
         if (!cstring_is_empty(stmt->u.expr->u.function_expr->name)) {
             value_t value           = value_new(VALUE_TYPE_FUNCTION);
-            value->u.function_value = stmt->u.expr->u.function_expr;
+            value->u.function_value.function_expr = stmt->u.expr->u.function_expr;
             table_add_member(env->global_table, stmt->u.expr->u.function_expr->name, value);
             value_free(value);
         }
@@ -186,6 +192,31 @@ void environment_add_module(environment_t env, module_t module)
 table_t environment_get_global_table(environment_t env)
 {
     return env->global_table;
+}
+
+void environment_push_local_context(environment_t env)
+{
+    local_context_t local = (local_context_t) mem_alloc(sizeof(struct local_context_s));
+    if (!local) {
+        return;
+    }
+
+    local->context = table_new();
+    
+    
+    list_push_back(env->local_context_stack, local->link.stack);
+}
+
+void environment_pop_local_context(environment_t env)
+{
+    local_context_t local;
+
+    if (list_is_empty(env->local_context_stack)) {
+        return;
+    }
+
+    local = list_element(list_rbegin(env->local_context_stack), local_context_t, link.stack);
+
 }
 
 void environment_clear_stack(environment_t env)
@@ -269,9 +300,20 @@ void environment_push_null(environment_t env)
 
 void environment_push_function(environment_t env, expression_function_t function)
 {
-    value_t value = value_new(VALUE_TYPE_FUNCTION);
+    local_context_t local;
+    list_iter_t iter;
+    value_t value;
+    
+    value = value_new(VALUE_TYPE_FUNCTION);
 
-    value->u.function_value = function;
+    list_init(value->u.function_value.scopes);
+
+    list_for_each(env->local_context_stack, iter) {
+        local = list_element(iter, local_context_t, link.stack);
+        list_push_back(value->u.function_value.scopes, local->link.scope);
+    }
+
+    value->u.function_value.function_expr = function;
 
     list_push_back(env->stack, value->link);
 }
@@ -280,7 +322,36 @@ void environment_push_native_function(environment_t env, native_function_pt nati
 {
     value_t value = value_new(VALUE_TYPE_NATIVE_FUNCTION);
 
-    value->u.native_function_value = native_function;
+    value->u.native_function = native_function;
 
     list_push_back(env->stack, value->link);
+}
+
+void environment_push_array_generate(environment_t env, list_t array_generate, bool toplevel)
+{
+    list_iter_t  iter;
+    expression_t expr;
+    value_t      value;
+    value_t      elem;
+    value_t*     dst;
+
+    value = value_new(VALUE_TYPE_ARRAY);
+
+    value->u.object_value = heap_alloc_array_n(env, 10);
+
+    list_push_back(env->stack, value->link);
+
+    list_for_each(array_generate, iter) {
+        expr = list_element(iter, expression_t, link);
+
+        evaluator_expression(env, expr, toplevel);
+
+        elem = list_element(list_rbegin(env->stack), value_t, link);
+
+        list_pop_back(env->stack);
+
+        dst = (value_t*) array_push(value->u.object_value->u.array);
+
+        *dst = elem;
+    }
 }

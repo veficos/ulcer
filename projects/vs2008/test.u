@@ -2,3 +2,4 @@
 
 
 print(print("ab", "\n"), "\n");
+[function(){a;}, 1, "ab"];
