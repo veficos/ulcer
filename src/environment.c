@@ -19,10 +19,6 @@ value_t value_new(value_type_t type)
 
     value->type = type;
 
-    if (value->type == VALUE_TYPE_FUNCTION || value->type == VALUE_TYPE_NATIVE_FUNCTION) {
-        list_init(value->u.function_value.scopes);
-    }
-
     return value;
 }
 
@@ -87,12 +83,17 @@ void table_free(table_t table)
     mem_free(table);
 }
 
+void table_clear(table_t table)
+{
+    hash_table_clear(table->table);
+}
+
 void table_add_member(table_t table, cstring_t key, value_t value)
 {
     table_pair_t pair = (table_pair_t) mem_alloc(sizeof(struct table_pair_s));
     
-    pair->key   = cstring_dup(key);
-    pair->value = value_dup(value); 
+    pair->key   = key;
+    pair->value = value; 
 
     hash_table_replace(table->table, &pair->link);
 }
@@ -132,19 +133,6 @@ value_t table_new_member(table_t table, cstring_t member_name)
     return value;
 }
 
-void table_add_native_function(table_t table, const char* funcname, native_function_pt func)
-{
-    table_pair_t pair = (table_pair_t) mem_alloc(sizeof(struct table_pair_s));
-    value_t value = value_new(VALUE_TYPE_NATIVE_FUNCTION);
-
-    value->u.native_function = func;
-
-    pair->key   = cstring_new(funcname);
-    pair->value = value; 
-
-    hash_table_replace(table->table, &pair->link);
-}
-
 environment_t environment_new(void)
 {
     environment_t env = (environment_t) mem_alloc(sizeof(struct environment_s));
@@ -162,6 +150,8 @@ environment_t environment_new(void)
 
 void environment_free(environment_t env)
 {
+    table_clear(env->global_table);
+
     heap_gc(env);
 
     table_free(env->global_table);
@@ -179,8 +169,8 @@ void environment_add_module(environment_t env, module_t module)
         statement_t stmt = list_element(iter, statement_t, link);
         assert(stmt->type == STATEMENT_TYPE_EXPRESSION && stmt->u.expr->type == EXPRESSION_TYPE_FUNCTION);
         if (!cstring_is_empty(stmt->u.expr->u.function_expr->name)) {
-            value_t value           = value_new(VALUE_TYPE_FUNCTION);
-            value->u.function_value.function_expr = stmt->u.expr->u.function_expr;
+            value_t value         = value_new(VALUE_TYPE_FUNCTION);
+            value->u.object_value = heap_alloc_function(env, stmt->u.expr->u.function_expr);
             table_add_member(env->global_table, stmt->u.expr->u.function_expr->name, value);
             value_free(value);
         }
@@ -196,27 +186,18 @@ table_t environment_get_global_table(environment_t env)
 
 void environment_push_local_context(environment_t env)
 {
-    local_context_t local = (local_context_t) mem_alloc(sizeof(struct local_context_s));
-    if (!local) {
-        return;
-    }
+    object_t obj = heap_alloc_local_context(env);
 
-    local->context = table_new();
-    
-    
-    list_push_back(env->local_context_stack, local->link.stack);
+    list_push_back(env->local_context_stack, obj->u.context->link.stack);
 }
 
 void environment_pop_local_context(environment_t env)
 {
-    local_context_t local;
-
     if (list_is_empty(env->local_context_stack)) {
         return;
     }
 
-    local = list_element(list_rbegin(env->local_context_stack), local_context_t, link.stack);
-
+    list_pop_back(env->local_context_stack);
 }
 
 void environment_clear_stack(environment_t env)
@@ -224,8 +205,13 @@ void environment_clear_stack(environment_t env)
     list_iter_t iter, next_iter;
     list_safe_for_each(env->stack, iter, next_iter) {
         list_erase(env->stack, *iter);
-        mem_free(list_element(iter, value_t, link));
+        value_free(list_element(iter, value_t, link));
     }
+}
+
+void environment_push_value(environment_t env, value_t value)
+{
+    list_push_back(env->stack, value->link);
 }
 
 void environment_push_char(environment_t env, char char_value)
@@ -298,22 +284,20 @@ void environment_push_null(environment_t env)
     list_push_back(env->stack, value->link);
 }
 
-void environment_push_function(environment_t env, expression_function_t function)
+void environment_push_function(environment_t env, expression_function_t function_expr)
 {
-    local_context_t local;
-    list_iter_t iter;
     value_t value;
+    list_iter_t iter;
+    local_context_t context;
     
     value = value_new(VALUE_TYPE_FUNCTION);
 
-    list_init(value->u.function_value.scopes);
+    value->u.object_value = heap_alloc_function(env, function_expr);
 
     list_for_each(env->local_context_stack, iter) {
-        local = list_element(iter, local_context_t, link.stack);
-        list_push_back(value->u.function_value.scopes, local->link.scope);
+        context = list_element(iter, local_context_t, link.stack);
+        list_push_back(value->u.object_value->u.function->scopes, context->link.scope);
     }
-
-    value->u.function_value.function_expr = function;
 
     list_push_back(env->stack, value->link);
 }
@@ -322,7 +306,7 @@ void environment_push_native_function(environment_t env, native_function_pt nati
 {
     value_t value = value_new(VALUE_TYPE_NATIVE_FUNCTION);
 
-    value->u.native_function = native_function;
+    value->u.object_value = heap_alloc_native_function(env, native_function);
 
     list_push_back(env->stack, value->link);
 }

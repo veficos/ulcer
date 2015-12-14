@@ -1,5 +1,3 @@
+a = "helloworld";
 
-
-
-print(print("ab", "\n"), "\n");
-[function(){a;}, 1, "ab"];
+print(a, "\n");

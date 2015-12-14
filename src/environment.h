@@ -13,6 +13,7 @@
 #include "module.h"
 
 typedef struct environment_s*   environment_t;
+typedef struct function_s*      function_t;
 typedef enum object_type_e      object_type_t;
 typedef struct object_s*        object_t;
 typedef enum value_type_e       value_type_t;
@@ -25,24 +26,35 @@ enum object_type_e {
     OBJECT_TYPE_STRING,
     OBJECT_TYPE_ARRAY,
     OBJECT_TYPE_TABLE,
+    OBJECT_TYPE_NATIVE_FUNCTION,
+    OBJECT_TYPE_FUNCTION,
     OBJECT_TYPE_LOCAL_CONTEXT,
+};
+
+typedef void (*native_function_pt)(environment_t env, unsigned int argc);
+
+struct function_s {
+    union {
+        expression_function_t function_expr;
+        native_function_pt    native_function;
+    } f;
+    list_t scopes;
 };
 
 struct object_s {
     object_type_t type;
     bool marked;
 
-    union {
+    union {       
         cstring_t       string;
         array_t         array;
         hash_table_t    table;
+        function_t      function;
         local_context_t context;
     } u;
 
     list_node_t link;
 };
-
-typedef void (*native_function_pt)(environment_t env, list_t stack_frame, unsigned int argc);
 
 enum value_type_e {
     VALUE_TYPE_NIL,
@@ -74,16 +86,6 @@ struct value_s {
         long                  long_value;
         float                 float_value;
         double                double_value;
-
-        native_function_pt    native_function;
-
-        struct {
-            union {
-                expression_function_t function_expr;
-            };
-            list_t scopes;
-        } function_value;
-
         object_t              object_value;
         void*                 pointer_value;
     }u;
@@ -109,7 +111,7 @@ table_t table_new(void);
 void    table_free(table_t table);
 value_t table_search_member(table_t table, cstring_t member_name);
 value_t table_new_member(table_t table, cstring_t member_name);
-void    table_add_native_function(table_t table, const char* funcname, native_function_pt func);
+void    table_add_member(table_t table, cstring_t key, value_t value);
 
 typedef struct heap_s* heap_t;
 
@@ -138,6 +140,7 @@ table_t       environment_get_global_table(environment_t env);
 void          environment_push_local_context(environment_t env);
 void          environment_pop_local_context(environment_t env);
 void          environment_clear_stack(environment_t env);
+void          environment_push_value(environment_t env, value_t value);
 void          environment_push_char(environment_t env, char char_value);
 void          environment_push_bool(environment_t env, bool bool_value);
 void          environment_push_int(environment_t env, int int_value);

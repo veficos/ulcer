@@ -72,7 +72,7 @@ executor_result_t executor_statement(environment_t env, statement_t stmt, bool t
     switch (stmt->type) {
     case STATEMENT_TYPE_EXPRESSION:
         evaluator_expression(env, stmt->u.expr, toplevel);
-        environment_clear_stack(env);
+        list_pop_back(env->stack);
         return EXECUTOR_RESULT_NORMAL;
 
     case STATEMENT_TYPE_IF:

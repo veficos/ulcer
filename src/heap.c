@@ -18,7 +18,8 @@ struct heap_s {
 #endif
 
 #define __heap_value_is_object__(value)                                       \
-    (((value)->type == VALUE_TYPE_STRING) || ((value)->type == VALUE_TYPE_ARRAY))
+    (((value)->type == VALUE_TYPE_STRING) || ((value)->type == VALUE_TYPE_ARRAY) || \
+     ((value)->type == VALUE_TYPE_FUNCTION) ||  ((value)->type == VALUE_TYPE_NATIVE_FUNCTION))
 
 static void     __heap_unmark_object__(object_t obj);
 static void     __heap_mark_object__(object_t obj);
@@ -100,6 +101,30 @@ object_t heap_alloc_array_n(environment_t env, unsigned long n)
     return object;
 }
 
+object_t heap_alloc_function(environment_t env, expression_function_t function_expr)
+{
+    object_t object = __heap_alloc_object__(env, OBJECT_TYPE_FUNCTION);
+
+    object->u.function = mem_alloc(sizeof(struct function_s));
+
+    object->u.function->f.function_expr = function_expr;
+    
+    list_init(object->u.function->scopes);
+
+    return object;
+}
+
+object_t heap_alloc_native_function(environment_t env, native_function_pt native_function)
+{
+    object_t object = __heap_alloc_object__(env, OBJECT_TYPE_NATIVE_FUNCTION);
+
+    object->u.function = mem_alloc(sizeof(struct function_s));
+
+    object->u.function->f.native_function = native_function;
+
+    return object;
+}
+
 object_t heap_alloc_local_context(environment_t env)
 {
     object_t object = __heap_alloc_object__(env, OBJECT_TYPE_LOCAL_CONTEXT);
@@ -174,44 +199,6 @@ static void __heap_mark_objects__(environment_t env)
             }
         }
     }
-
-#if 0
-    {
-         /* mark local variable */
-        local_context_t lctx;
-        list_iter_t iter;
-        hash_table_iter_t hiter;
-        variable_t variable;
-
-        list_reverse_for_each(env->local_context_stack, iter) {
-            lctx = list_element(iter, local_context_t, link);
-
-            hiter = hash_table_iter_new(lctx->variables);
-            hash_table_for_each(lctx->variables, hiter) {
-                variable = hash_table_iter_element(hiter, variable_t, link);
-                if (__heap_value_is_object__(*variable->value)) {
-                    __heap_mark_object__(variable->value->u.object_value);
-                }
-            }
-            hash_table_iter_free(hiter);
-        }
-    }
-#endif
-
-    {
-        /* mark stack */
-        /*
-        int index;
-        array_t stack;
-        value_t stack_base;
-        
-        stack = env->stack;
-        array_for_each(stack, stack_base, index) {
-            if (__heap_value_is_object__(stack_base[index])) {
-                __heap_mark_object__(stack_base[index].u.object_value);
-            }
-        }*/
-    }
 }
 
 static void __heap_sweep_objects__(environment_t env)
@@ -245,6 +232,19 @@ static void __heap_dispose_object__(object_t obj)
         break;
     case OBJECT_TYPE_TABLE:
         break;
+
+    case OBJECT_TYPE_FUNCTION:
+
+    case OBJECT_TYPE_NATIVE_FUNCTION:
+        mem_free(obj->u.function);
+        break;
+
+    case OBJECT_TYPE_LOCAL_CONTEXT:
+        table_free(obj->u.context->context);
+        break;
+
+    default:
+        break;
     }
 
     mem_free(obj);
@@ -265,7 +265,7 @@ static void __heap_mark_object__(object_t obj)
     }
 
     switch (obj->type) {
-    case OBJECT_TYPE_STRING:
+    case OBJECT_TYPE_FUNCTION:
         break;
 
     case OBJECT_TYPE_ARRAY:
@@ -277,6 +277,9 @@ static void __heap_mark_object__(object_t obj)
         break;
 
     case OBJECT_TYPE_TABLE:
+        break;
+
+    default:
         break;
     }
 

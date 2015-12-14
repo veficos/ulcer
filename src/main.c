@@ -6,6 +6,7 @@
 #include "list.h"
 #include "environment.h"
 #include "executor.h"
+#include "heap.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,12 +52,13 @@ static void print_value(value_t value)
     }
 }
 
-static void native_print(environment_t env, list_t stack_frame, unsigned int argc)
+static void native_print(environment_t env, unsigned int argc)
 {
     value_t value;
     list_iter_t iter;
+    int i = 0;
 
-    list_for_each(stack_frame, iter) {
+    list_for_each(env->stack, iter) {        
         value = list_element(iter, value_t, link);
         print_value(value);
     }
@@ -68,7 +70,17 @@ static void native_print(environment_t env, list_t stack_frame, unsigned int arg
 
 static void setup_stdlib(environment_t env)
 {
-    table_add_native_function(environment_get_global_table(env), "print", native_print);
+    value_t value;
+
+    value = value_new(VALUE_TYPE_NATIVE_FUNCTION);
+    value->u.object_value = heap_alloc_native_function(env, native_print);
+
+    table_add_member(environment_get_global_table(env), cstring_new("print"), value);
+
+    value = value_new(VALUE_TYPE_NATIVE_FUNCTION);
+    value->u.object_value = heap_alloc_native_function(env, native_print);
+
+    table_add_member(environment_get_global_table(env), cstring_new("shit"), value);
 }
 
 int main(int argc, char** args)
@@ -106,6 +118,8 @@ int main(int argc, char** args)
         setup_stdlib(env);
 
         executor_run((executor = executor_new(env)));
+
+        assert(list_is_empty(env->stack));
 
         executor_free(executor);
         environment_free(env);
