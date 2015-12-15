@@ -1,2 +1,75 @@
 
-print("hello" + " " + "world");
+function cccc() {
+    print("normal function\n");
+}
+
+cccc();
+
+a = function () {
+    print("anonymous function\n");
+};
+
+a();
+
+function() {
+    print("anonymous function\n");
+}();
+
+a = "hello world";
+
+print(a + "\n");
+
+print(1024%512 + 1024*2 + 1024/2, "\n");
+
+a = 1;
+
+while (a < 10) {
+    print(a, "\n");
+    a = a + 1;
+}
+
+for (a = 1; a < 10; a = a + 2) {
+    print(a, "\n");
+}
+
+print(a, "\n");
+
+if (a!=1) {
+   print("eq\n");
+} else {
+   print("neq\n");
+}
+
+
+a = "abc";
+switch ("abc") {
+case a:
+    {
+        print("1\n");
+        break;
+        print("1\n");
+    }
+case "ab":
+    {
+        break;
+        print("2\n");
+        break;
+    }
+default:
+    {
+        print("default\n");
+        break;
+    }
+}
+
+i = 0;
+
+while (i < 10) {
+    i = i + 1;
+    if (i > 5) {
+        break;
+    }
+    print(i, "\n");
+}
+
+print("ha\n");
