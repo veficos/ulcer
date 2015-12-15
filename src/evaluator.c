@@ -1,6 +1,7 @@
 
 
 #include "statement.h"
+#include "executor.h"
 #include "expression.h"
 #include "environment.h"
 #include "alloc.h"
@@ -166,13 +167,64 @@ void evaluator_expression(environment_t env, expression_t expr, bool toplevel)
     }
 }
 
+void evaluator_binary_value(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right)
+{
+    switch (__evaluator_implicit_cast_expression__(left, right)) {
+    case VALUE_TYPE_CHAR:
+        __evaluator_char_binary_expression__(env, line, column, type, left, right);
+        break;
+
+    case VALUE_TYPE_BOOL:
+        __evaluator_bool_binary_expression__(env, line, column, type, left, right);
+        break;
+
+    case VALUE_TYPE_INT:
+        __evaluator_int_binary_expression__(env, line, column, type, left, right);
+        break;
+
+    case VALUE_TYPE_LONG:
+        __evaluator_long_binary_expression__(env, line, column, type, left, right);
+        break;
+
+    case VALUE_TYPE_FLOAT:
+        __evaluator_float_binary_expression__(env, line, column, type, left, right);
+        break;
+
+    case VALUE_TYPE_DOUBLE:
+        __evaluator_double_binary_expression__(env, line, column, type, left, right);
+        break;
+
+    case VALUE_TYPE_STRING:
+        __evaluator_string_binary_expression__(env, line, column, type, left, right);
+        break;
+
+    case VALUE_TYPE_TABLE:
+    case VALUE_TYPE_NULL:
+        __evaluator_null_binary_expression__(env, line, column, type, left, right);
+        break;
+
+    case VALUE_TYPE_REFERENCE:
+    case VALUE_TYPE_POINTER:
+    case VALUE_TYPE_FUNCTION:
+    case VALUE_TYPE_NATIVE_FUNCTION:
+    case VALUE_TYPE_ARRAY:
+    default:
+        runtime_error("(%d, %d): unsupported operand for : type(%s) %s type(%s)",
+                      line,
+                      column,
+                      get_value_type_string(left->type),
+                      get_expression_type_string(type),
+                      get_value_type_string(right->type));
+        break;
+    }
+}
+
 static void __evaluator_identifier_expression__(environment_t env, expression_t lexpr, bool toplevel)
 {
     value_t value = __evaluator_search_variable__(env, lexpr, toplevel);
 
     if (value) {
-        list_push_back(env->stack, value->link);
-
+        list_push_back(env->stack, value_dup(value)->link);
     } else {
         environment_push_null(env);
     }
@@ -188,12 +240,13 @@ static value_t __evaluator_search_function__(environment_t env, expression_t fun
     value_t value;
     switch (function_expr->type) {
     case EXPRESSION_TYPE_IDENTIFIER:
-        value = __evaluator_search_identifier_variable__(env, function_expr->u.identifier_expr, toplevel);
+        value = value_dup(__evaluator_search_identifier_variable__(env, function_expr->u.identifier_expr, toplevel));
         break;
 
     case EXPRESSION_TYPE_FUNCTION:
         environment_push_function(env, function_expr->u.function_expr);
         value = list_element(list_rbegin(env->stack), value_t, link);
+        list_pop_back(env->stack);
         break;
 
     default:
@@ -229,6 +282,7 @@ static value_t __evaluator_get_variable_lvalue__(environment_t env, cstring_t id
 static value_t __evaluator_get_lvalue__(environment_t env, expression_t lexpr, bool toplevel)
 {
     value_t value;
+
     switch (lexpr->type) {
     case EXPRESSION_TYPE_IDENTIFIER:
         value = __evaluator_get_variable_lvalue__(env, lexpr->u.identifier_expr, toplevel);
@@ -237,6 +291,7 @@ static value_t __evaluator_get_lvalue__(environment_t env, expression_t lexpr, b
     default:
         value = NULL;
     }
+
     return value;
 }
 
@@ -248,7 +303,6 @@ static void __evaluator_call_expression__(environment_t env, expression_t call_e
         switch (function_value->type) {
         case VALUE_TYPE_FUNCTION:
             __evaluator_function_call_expression__(env, function_value->u.object_value->u.function->f.function_expr, toplevel);
-            list_erase(env->stack, function_value->link);
             break;
 
         case VALUE_TYPE_NATIVE_FUNCTION:
@@ -259,11 +313,20 @@ static void __evaluator_call_expression__(environment_t env, expression_t call_e
             assert(false);
             break;
         }
+        value_free(function_value);
     }
 }
 
 static void __evaluator_function_call_expression__(environment_t env, expression_function_t function, bool toplevel)
 {
+    list_iter_t iter;
+    statement_t stmt;
+
+    list_for_each(function->block, iter) {
+        stmt = list_element(iter, statement_t, link);
+        executor_statement(env, stmt, false);
+    }
+
     environment_push_null(env);
 }
 
@@ -295,11 +358,6 @@ static void __evaluator_assign_expression__(environment_t env, expression_type_t
     lvalue = __evaluator_get_lvalue__(env, lvalue_expr, toplevel);
 
     __evaluator_do_assign_expression__(env, lvalue_expr->line, lvalue_expr->column, type, lvalue, rvalue);
-
-    list_erase(env->stack, rvalue->link);
-    value_free(rvalue);
-
-    list_push_back(env->stack, lvalue->link);
 }
 
 static void __evaluator_do_assign_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right)
@@ -317,54 +375,7 @@ static void __evaluator_binary_expression__(environment_t env, expression_type_t
     evaluator_expression(env, right_expr, toplevel);
     right_value = list_element(list_rbegin(env->stack), value_t, link);
 
-    switch (__evaluator_implicit_cast_expression__(left_value, right_value)) {
-    case VALUE_TYPE_CHAR:
-        __evaluator_char_binary_expression__(env, left_expr->line, right_expr->column, type, left_value, right_value);
-        break;
-
-    case VALUE_TYPE_BOOL:
-        __evaluator_bool_binary_expression__(env, left_expr->line, right_expr->column, type, left_value, right_value);
-        break;
-
-    case VALUE_TYPE_INT:
-        __evaluator_int_binary_expression__(env, left_expr->line, right_expr->column, type, left_value, right_value);
-        break;
-
-    case VALUE_TYPE_LONG:
-        __evaluator_long_binary_expression__(env, left_expr->line, right_expr->column, type, left_value, right_value);
-        break;
-
-    case VALUE_TYPE_FLOAT:
-        __evaluator_float_binary_expression__(env, left_expr->line, right_expr->column, type, left_value, right_value);
-        break;
-
-    case VALUE_TYPE_DOUBLE:
-        __evaluator_double_binary_expression__(env, left_expr->line, right_expr->column, type, left_value, right_value);
-        break;
-
-    case VALUE_TYPE_STRING:
-        __evaluator_string_binary_expression__(env, left_expr->line, right_expr->column, type, left_value, right_value);
-        break;
-
-    case VALUE_TYPE_TABLE:
-    case VALUE_TYPE_NULL:
-        __evaluator_null_binary_expression__(env, left_expr->line, right_expr->column, type, left_value, right_value);
-        break;
-
-    case VALUE_TYPE_REFERENCE:
-    case VALUE_TYPE_POINTER:
-    case VALUE_TYPE_FUNCTION:
-    case VALUE_TYPE_NATIVE_FUNCTION:
-    case VALUE_TYPE_ARRAY:
-    default:
-        runtime_error("(%d, %d): unsupported operand for : type(%s) %s type(%s)",
-                      left_expr->line,
-                      right_expr->column,
-                      get_value_type_string(left_value->type),
-                      get_expression_type_string(type),
-                      get_value_type_string(right_value->type));
-        break;
-    }
+    evaluator_binary_value(env, left_expr->line, left_expr->column, type, left_value, right_value);
 
     list_erase(env->stack, left_value->link);
     value_free(left_value);

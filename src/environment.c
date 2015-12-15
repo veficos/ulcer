@@ -25,7 +25,7 @@ value_t value_new(value_type_t type)
 value_t value_dup(const value_t src)
 {
     value_t value = value_new(src->type);
-    value->u = src->u;
+    *value = *src;
     return value;
 }
 
@@ -53,7 +53,6 @@ static void __table_node_destructor__(hlist_node_t *node)
 
     cstring_free(pair->key);
     value_free(pair->value);
-
     mem_free(pair);
 }
 
@@ -171,8 +170,7 @@ void environment_add_module(environment_t env, module_t module)
         if (!cstring_is_empty(stmt->u.expr->u.function_expr->name)) {
             value_t value         = value_new(VALUE_TYPE_FUNCTION);
             value->u.object_value = heap_alloc_function(env, stmt->u.expr->u.function_expr);
-            table_add_member(env->global_table, stmt->u.expr->u.function_expr->name, value);
-            value_free(value);
+            table_add_member(env->global_table, cstring_dup(stmt->u.expr->u.function_expr->name), value);
         }
     }
 
@@ -187,7 +185,6 @@ table_t environment_get_global_table(environment_t env)
 void environment_push_local_context(environment_t env)
 {
     object_t obj = heap_alloc_local_context(env);
-
     list_push_back(env->local_context_stack, obj->u.context->link.stack);
 }
 
@@ -196,7 +193,6 @@ void environment_pop_local_context(environment_t env)
     if (list_is_empty(env->local_context_stack)) {
         return;
     }
-
     list_pop_back(env->local_context_stack);
 }
 

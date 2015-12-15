@@ -46,6 +46,7 @@ static void print_value(value_t value)
     case VALUE_TYPE_NULL:
         printf("null");
         break;
+
     default:
         assert(false);
         break;
@@ -89,7 +90,6 @@ int main(int argc, char** args)
 #ifdef WIN32
         _CrtSetDbgFlag(_CrtSetDbgFlag(_CRTDBG_REPORT_FLAG) | _CRTDBG_LEAK_CHECK_DF);  
 #endif
-      
     }
 
     {

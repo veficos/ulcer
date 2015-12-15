@@ -15,6 +15,7 @@ struct executor_s {
 
 static executor_result_t __executor_if_statement__(environment_t env, statement_t stmt, bool toplevel);
 static executor_result_t __executor_elif_statement__(environment_t env, statement_t stmt, bool toplevel);
+static executor_result_t __executor_switch_statement__(environment_t env, statement_t stmt, bool toplevel);
 static executor_result_t __executor_for_statement__(environment_t env, statement_t stmt, bool toplevel);
 static executor_result_t __executor_while_statement__(environment_t env, statement_t stmt, bool toplevel);
 static executor_result_t __executor_block_statement__(environment_t env, list_t block, bool toplevel);
@@ -69,14 +70,27 @@ void executor_run(executor_t exec)
 
 executor_result_t executor_statement(environment_t env, statement_t stmt, bool toplevel)
 {
+    value_t value;
+
     switch (stmt->type) {
     case STATEMENT_TYPE_EXPRESSION:
         evaluator_expression(env, stmt->u.expr, toplevel);
+        value = list_element(list_rbegin(env->stack), value_t, link);
         list_pop_back(env->stack);
+        value_free(value);
         return EXECUTOR_RESULT_NORMAL;
 
     case STATEMENT_TYPE_IF:
         return __executor_if_statement__(env, stmt, toplevel);
+
+    case STATEMENT_TYPE_SWITCH:
+        return __executor_switch_statement__(env, stmt, toplevel);
+
+    case STATEMENT_TYPE_WHILE:
+        return __executor_while_statement__(env, stmt, toplevel);
+
+    case STATEMENT_TYPE_FOR:
+        return __executor_for_statement__(env, stmt, toplevel);
 
     case STATEMENT_TYPE_CONTINUE:
         return EXECUTOR_RESULT_CONTINUE;
@@ -127,7 +141,8 @@ static executor_result_t __executor_if_statement__(environment_t env, statement_
     list_erase(env->stack, condition_value->link);
 
     if (condition_value->type != VALUE_TYPE_BOOL) {
-        runtime_error("(%d, %d): %s cannot be converted to bool", stmt->line, 
+        runtime_error("(%d, %d): %s cannot be converted to bool", 
+                      stmt->line, 
                       stmt->column,
                       get_value_type_string(condition_value->type));
     }
@@ -182,4 +197,115 @@ static executor_result_t __executor_elif_statement__(environment_t env, statemen
     }
 
     return EXECUTOR_RESULT_NORMAL;
+}
+
+static executor_result_t __executor_switch_statement__(environment_t env, statement_t stmt, bool toplevel)
+{
+    statement_switch_t stmt_switch;
+
+    stmt_switch = stmt->u.switch_stmt;
+
+    return EXECUTOR_RESULT_NORMAL;
+}
+
+static executor_result_t __executor_while_statement__(environment_t env, statement_t stmt, bool toplevel)
+{
+    bool condition;
+    value_t condition_value;
+    statement_while_t stmt_while;
+    executor_result_t result = EXECUTOR_RESULT_NORMAL;
+
+    stmt_while = stmt->u.while_stmt;
+
+    while (true) {
+        evaluator_expression(env, stmt_while->condition, toplevel);
+        condition_value = list_element(list_rbegin(env->stack), value_t, link);
+        list_pop_back(env->stack);
+
+        if (condition_value->type != VALUE_TYPE_BOOL) {
+            runtime_error("(%d, %d): %s cannot be converted to bool",
+                          stmt->line,
+                          stmt->column,
+                          get_value_type_string(condition_value->type));
+        }
+       
+        condition = condition_value->u.bool_value;
+
+        value_free(condition_value);
+
+        if (!condition) {
+            break;
+        }
+
+        result = __executor_block_statement__(env, stmt_while->block, toplevel);
+        if (result == EXECUTOR_RESULT_RETURN) {
+            result = EXECUTOR_RESULT_NORMAL;
+            break;
+        } else if (result == EXECUTOR_RESULT_BREAK) {
+            break;
+        }
+    }
+
+    return EXECUTOR_RESULT_NORMAL;
+}
+
+static executor_result_t __executor_for_statement__(environment_t env, statement_t stmt, bool toplevel)
+{
+    value_t value;
+    bool condition;
+    statement_for_t stmt_for;
+    executor_result_t result = EXECUTOR_RESULT_NORMAL;
+
+    stmt_for = stmt->u.for_stmt;
+
+    if (stmt_for->init) {
+        evaluator_expression(env, stmt_for->init, toplevel);
+        value = list_element(list_rbegin(env->stack), value_t, link);
+        list_pop_back(env->stack);
+        value_free(value);
+    }
+
+    while (true) {
+        if (stmt_for->condition) {
+            evaluator_expression(env, stmt_for->condition, toplevel);
+            value = list_element(list_rbegin(env->stack), value_t, link);
+            list_pop_back(env->stack);
+
+            if (value->type != VALUE_TYPE_BOOL) {
+                runtime_error("(%d, %d): %s cannot be converted to bool",
+                              stmt->line,
+                              stmt->column,
+                              get_value_type_string(value->type));
+            }
+
+            condition = value->u.bool_value;
+
+            value_free(value);
+
+            if (!condition) {
+                break;
+            }
+        }
+
+        result = __executor_block_statement__(env, stmt_for->block, toplevel);
+        if (result == EXECUTOR_RESULT_RETURN) {
+            result = EXECUTOR_RESULT_NORMAL;
+            break;
+
+        } else if (result == EXECUTOR_RESULT_BREAK) {
+            break;
+        }
+
+        if (stmt_for->post) {
+            evaluator_expression(env, stmt_for->post, toplevel);
+            
+            value = list_element(list_rbegin(env->stack), value_t, link);
+            
+            list_pop_back(env->stack);
+
+            value_free(value);
+        }
+    }
+
+    return result;
 }
