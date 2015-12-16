@@ -39,6 +39,8 @@ static void         __evaluator_function_call_expression__(environment_t env, ex
 static void         __evaluator_native_function_call_expression__(environment_t env, native_function_pt native_function, list_t args);
 static void         __evaluator_assign_expression__(environment_t env, expression_type_t type, expression_t lvalue_expr, expression_t rvalue_expr, bool toplevel);
 static void         __evaluator_do_assign_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
+static void         __evaluator_unary_expression__(environment_t env, expression_t expr, bool toplevel);
+static void         __evaluator_inc_dec_expression__(environment_t env, expression_t expr, bool toplevel);
 static void         __evaluator_binary_expression__(environment_t env, expression_type_t type, expression_t left_expr, expression_t right_expr, bool toplevel);
 static value_type_t __evaluator_implicit_cast_expression__(value_t left_value, value_t right_value);
 static void         __evaluator_char_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
@@ -113,15 +115,16 @@ void evaluator_expression(environment_t env, expression_t expr, bool toplevel)
         __evaluator_call_expression__(env, expr, toplevel);
         break;
 
+    case EXPRESSION_TYPE_CPL:
+    case EXPRESSION_TYPE_NOT:
     case EXPRESSION_TYPE_PLUS:
     case EXPRESSION_TYPE_MINUS:
+        __evaluator_unary_expression__(env, expr, toplevel);
         break;
 
     case EXPRESSION_TYPE_INC:
     case EXPRESSION_TYPE_DEC:
-        break;
-
-    case EXPRESSION_TYPE_CPL:
+        __evaluator_inc_dec_expression__(env, expr, toplevel);
         break;
  
     /* binary expression */
@@ -155,12 +158,9 @@ void evaluator_expression(environment_t env, expression_t expr, bool toplevel)
         break;
 
     case EXPRESSION_TYPE_TABLE_GENERATE:
-        break;
-
     case EXPRESSION_TYPE_ARRAY_PUSH:
     case EXPRESSION_TYPE_ARRAY_POP:
     case EXPRESSION_TYPE_TABLE_DOT_MEMBER:
-
     case EXPRESSION_TYPE_INDEX:
     default:
        break;
@@ -198,11 +198,11 @@ void evaluator_binary_value(environment_t env, long line, long column, expressio
         __evaluator_string_binary_expression__(env, line, column, type, left, right);
         break;
 
-    case VALUE_TYPE_TABLE:
     case VALUE_TYPE_NULL:
         __evaluator_null_binary_expression__(env, line, column, type, left, right);
         break;
 
+    case VALUE_TYPE_TABLE:
     case VALUE_TYPE_REFERENCE:
     case VALUE_TYPE_POINTER:
     case VALUE_TYPE_FUNCTION:
@@ -238,20 +238,24 @@ static value_t __evaluator_search_identifier_variable__(environment_t env, cstri
 static value_t __evaluator_search_function__(environment_t env, expression_t function_expr, bool toplevel)
 {
     value_t value;
+
     switch (function_expr->type) {
     case EXPRESSION_TYPE_IDENTIFIER:
-        value = value_dup(__evaluator_search_identifier_variable__(env, function_expr->u.identifier_expr, toplevel));
-        break;
-
-    case EXPRESSION_TYPE_FUNCTION:
-        environment_push_function(env, function_expr->u.function_expr);
-        value = list_element(list_rbegin(env->stack), value_t, link);
-        list_pop_back(env->stack);
+        value = __evaluator_search_identifier_variable__(env, function_expr->u.identifier_expr, toplevel);
+        if (value) {
+            value = value_dup(value);
+        } else {
+            value = value_new(VALUE_TYPE_NULL);
+        }
         break;
 
     default:
-        value = NULL;
+        evaluator_expression(env, function_expr, toplevel);
+        value = list_element(list_rbegin(env->stack), value_t, link);
+        list_pop_back(env->stack);
+        break;
     }
+
     return value;
 }
 
@@ -302,7 +306,7 @@ static void __evaluator_call_expression__(environment_t env, expression_t call_e
     if (function_value) {
         switch (function_value->type) {
         case VALUE_TYPE_FUNCTION:
-            __evaluator_function_call_expression__(env, function_value->u.object_value->u.function->f.function_expr, toplevel);
+            __evaluator_function_call_expression__(env, function_value->u.object_value->u.function->f.function_expr, false);
             break;
 
         case VALUE_TYPE_NATIVE_FUNCTION:
@@ -310,7 +314,10 @@ static void __evaluator_call_expression__(environment_t env, expression_t call_e
             break;
 
         default:
-            assert(false);
+            runtime_error("(%d, %d): called object type '%s' is not a function", 
+                          call_expr->line, 
+                          call_expr->column, 
+                          get_value_type_string(function_value->type));
             break;
         }
         value_free(function_value);
@@ -321,13 +328,26 @@ static void __evaluator_function_call_expression__(environment_t env, expression
 {
     list_iter_t iter;
     statement_t stmt;
+    executor_result_t result;
 
     list_for_each(function->block, iter) {
         stmt = list_element(iter, statement_t, link);
-        executor_statement(env, stmt, false);
+        result = executor_statement(env, stmt, false);
+        if (result == EXECUTOR_RESULT_RETURN) {
+            break;
+        } else if (result == EXECUTOR_RESULT_BREAK) {
+            runtime_error("(%d, %d): %s", stmt->line, stmt->column, "break outside loop");
+            break;
+
+        } else if (result == EXECUTOR_RESULT_CONTINUE) {
+            runtime_error("(%d, %d): %s", stmt->line, stmt->column, "break outside loop");
+            break;
+        }
     }
 
-    environment_push_null(env);
+    if (result != EXECUTOR_RESULT_RETURN) {
+        environment_push_null(env);
+    }
 }
 
 static void __evaluator_native_function_call_expression__(environment_t env, native_function_pt native_function, list_t args)
@@ -363,6 +383,217 @@ static void __evaluator_assign_expression__(environment_t env, expression_type_t
 static void __evaluator_do_assign_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right)
 {
     *left = *right;
+}
+
+static void __evaluator_unary_expression__(environment_t env, expression_t expr, bool toplevel)
+{
+    value_t operand;
+
+    assert(expr->type == EXPRESSION_TYPE_PLUS || expr->type == EXPRESSION_TYPE_MINUS ||
+           expr->type == EXPRESSION_TYPE_CPL || expr->type == EXPRESSION_TYPE_NOT);
+
+    evaluator_expression(env, expr->u.unary_expr, toplevel);
+
+    operand = list_element(list_rbegin(env->stack), value_t, link);
+
+    switch (operand->type) {
+    case VALUE_TYPE_BOOL:
+        switch (expr->type) {
+        case EXPRESSION_TYPE_NOT:
+            operand->u.bool_value = !operand->u.bool_value;
+            break;
+        default:
+            runtime_error("(%d, %d): unsupport %s(%s)", 
+                          expr->line, 
+                          expr->column,
+                          get_expression_type_string(expr->type),
+                          get_value_type_string(operand->type));
+        }
+        break;
+
+    case VALUE_TYPE_CHAR:
+        switch (expr->type) {
+        case EXPRESSION_TYPE_PLUS:
+            break;
+        case EXPRESSION_TYPE_MINUS:
+            operand->u.bool_value = -operand->u.bool_value;
+            break;
+        case EXPRESSION_TYPE_CPL:
+            operand->u.bool_value = ~operand->u.bool_value;
+            break;
+        default:
+            runtime_error("(%d, %d): unsupport %s(%s)", 
+                          expr->line, 
+                          expr->column,
+                          get_expression_type_string(expr->type),
+                          get_value_type_string(operand->type));
+        }
+        break;
+
+    case VALUE_TYPE_INT:
+        switch (expr->type) {
+        case EXPRESSION_TYPE_PLUS:
+            break;
+        case EXPRESSION_TYPE_MINUS:
+            operand->u.int_value = -operand->u.int_value;
+            break;
+        case EXPRESSION_TYPE_CPL:
+            operand->u.int_value = ~operand->u.int_value;
+            break;
+        default:
+            runtime_error("(%d, %d): unsupport %s(%s)", 
+                          expr->line, 
+                          expr->column,
+                          get_expression_type_string(expr->type),
+                          get_value_type_string(operand->type));
+        }
+        break;
+
+    case VALUE_TYPE_LONG:
+        switch (expr->type) {
+        case EXPRESSION_TYPE_PLUS:
+            break;
+        case EXPRESSION_TYPE_MINUS:
+            operand->u.long_value = -operand->u.long_value;
+            break;
+        case EXPRESSION_TYPE_CPL:
+            operand->u.long_value = ~operand->u.long_value;
+            break;
+        default:
+            runtime_error("(%d, %d): unsupport %s(%s)", 
+                          expr->line, 
+                          expr->column,
+                          get_expression_type_string(expr->type),
+                          get_value_type_string(operand->type));
+        }
+        break;
+
+    case VALUE_TYPE_FLOAT:
+        switch (expr->type) {
+        case EXPRESSION_TYPE_PLUS:
+            break;
+        case EXPRESSION_TYPE_MINUS:
+            operand->u.float_value = -operand->u.float_value;
+            break;
+        default:
+            runtime_error("(%d, %d): unsupport %s(%s)", 
+                          expr->line, 
+                          expr->column,
+                          get_expression_type_string(expr->type),
+                          get_value_type_string(operand->type));
+        }
+        break;
+
+    case VALUE_TYPE_DOUBLE:
+        switch (expr->type) {
+        case EXPRESSION_TYPE_PLUS:
+            break;
+        case EXPRESSION_TYPE_MINUS:
+            operand->u.double_value = -operand->u.double_value;
+            break;
+        default:
+            runtime_error("(%d, %d): unsupport %s(%s)", 
+                          expr->line, 
+                          expr->column,
+                          get_expression_type_string(expr->type),
+                          get_value_type_string(operand->type));
+        }
+        break;
+
+    default:
+        runtime_error("(%d, %d): unsupport %s(%s)", 
+                      expr->line, 
+                      expr->column,
+                      get_expression_type_string(expr->type),
+                      get_value_type_string(operand->type));
+        break;
+    }
+}
+
+static void __evaluator_inc_dec_expression__(environment_t env, expression_t expr, bool toplevel)
+{
+    value_t operand;
+
+    assert(expr->type == EXPRESSION_TYPE_INC || expr->type == EXPRESSION_TYPE_DEC);
+
+    operand = __evaluator_get_lvalue__(env, expr->u.unary_expr, toplevel);
+
+    switch (operand->type) {
+    case VALUE_TYPE_CHAR:
+        switch (expr->type) {
+        case EXPRESSION_TYPE_INC:
+            operand->u.char_value++;
+            break;
+        case EXPRESSION_TYPE_DEC:
+            operand->u.char_value--;
+            break;
+        default:
+            assert(false);
+            break;
+        }
+        break;
+    case VALUE_TYPE_INT:
+        switch (expr->type) {
+        case EXPRESSION_TYPE_INC:
+            operand->u.int_value++;
+            break;
+        case EXPRESSION_TYPE_DEC:
+            operand->u.int_value--;
+            break;
+        default:
+            assert(false);
+            break;
+        }
+        break;
+    case VALUE_TYPE_LONG:
+        switch (expr->type) {
+        case EXPRESSION_TYPE_INC:
+            operand->u.long_value++;
+            break;
+        case EXPRESSION_TYPE_DEC:
+            operand->u.long_value--;
+            break;
+        default:
+            assert(false);
+            break;
+        }
+        break;
+    case VALUE_TYPE_FLOAT:
+        switch (expr->type) {
+        case EXPRESSION_TYPE_INC:
+            operand->u.float_value++;
+            break;
+        case EXPRESSION_TYPE_DEC:
+            operand->u.float_value--;
+            break;
+        default:
+            assert(false);
+            break;
+        }
+        break;
+    case VALUE_TYPE_DOUBLE:
+        switch (expr->type) {
+        case EXPRESSION_TYPE_INC:
+            operand->u.double_value++;
+            break;
+        case EXPRESSION_TYPE_DEC:
+            operand->u.double_value--;
+            break;
+        default:
+            assert(false);
+            break;
+        }
+        break;
+    default:
+        runtime_error("(%d, %d): unsupport %s(%s)", 
+                      expr->line, 
+                      expr->column,
+                      get_expression_type_string(expr->type),
+                      get_value_type_string(operand->type));
+        break;
+    }
+
+    list_push_back(env->stack, value_dup(operand)->link);
 }
 
 static void __evaluator_binary_expression__(environment_t env, expression_type_t type, expression_t left_expr, expression_t right_expr, bool toplevel)

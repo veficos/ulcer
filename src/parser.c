@@ -189,6 +189,7 @@ static statement_t __parser_statement__(parser_t parse)
         break;
 
     case TOKEN_VALUE_BREAK:
+        __parser_expect_next__(parse, TOKEN_VALUE_SEMICOLON, "expected ';'");
         lexer_next(parse->lex);
         stmt = statement_new_break(line, column);
         break;

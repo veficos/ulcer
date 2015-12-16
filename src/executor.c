@@ -99,6 +99,11 @@ executor_result_t executor_statement(environment_t env, statement_t stmt, bool t
         return EXECUTOR_RESULT_BREAK;
 
     case STATEMENT_TYPE_RETURN:
+        if (stmt->u.return_expr) {
+            evaluator_expression(env, stmt->u.return_expr, false);
+        } else {
+            environment_push_null(env);
+        }
         return EXECUTOR_RESULT_RETURN;
 
     default:
