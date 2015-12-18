@@ -28,7 +28,6 @@ enum object_type_e {
     OBJECT_TYPE_TABLE,
     OBJECT_TYPE_NATIVE_FUNCTION,
     OBJECT_TYPE_FUNCTION,
-    OBJECT_TYPE_LOCAL_CONTEXT,
 };
 
 typedef void (*native_function_pt)(environment_t env, unsigned int argc);
@@ -50,7 +49,6 @@ struct object_s {
         array_t         array;
         hash_table_t    table;
         function_t      function;
-        local_context_t context;
     } u;
 
     list_node_t link;
@@ -117,12 +115,7 @@ typedef struct heap_s* heap_t;
 
 struct local_context_s {
     table_t  context;
-    object_t self;
-
-    struct {
-        list_node_t stack;
-        list_node_t scope;
-    }link;
+    list_node_t link;
 };
 
 struct environment_s {
@@ -131,14 +124,21 @@ struct environment_s {
     list_t  stack;
     heap_t  heap;
     table_t global_table;
+
+    list_t  function_stack;
 };
 
 environment_t environment_new(void);
 void          environment_free(environment_t env);
 void          environment_add_module(environment_t env, module_t module);
 table_t       environment_get_global_table(environment_t env);
+
+/* local context */
 void          environment_push_local_context(environment_t env);
+void          environment_push_scope_local_context(environment_t env, local_context_t context);
 void          environment_pop_local_context(environment_t env);
+
+/* stack op */
 void          environment_clear_stack(environment_t env);
 void          environment_push_value(environment_t env, value_t value);
 void          environment_push_char(environment_t env, char char_value);
@@ -152,5 +152,9 @@ void          environment_push_null(environment_t env);
 void          environment_push_function(environment_t env, expression_function_t function);
 void          environment_push_native_function(environment_t env, native_function_pt native_function);
 void          environment_push_array_generate(environment_t env, list_t array_generate, bool toplevel);
+
+/* function stack */
+void          environment_push_value_to_function_stack(environment_t env, value_t v);
+void          environment_pop_value_from_function_stack(environment_t env);
 
 #endif

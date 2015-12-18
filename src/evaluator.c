@@ -35,8 +35,8 @@ static value_t      __evaluator_search_function__(environment_t env, expression_
 static value_t      __evaluator_search_variable__(environment_t env, expression_t lexpr, bool toplevel);
 static value_t      __evaluator_get_lvalue__(environment_t env, expression_t lexpr, bool toplevel);
 static void         __evaluator_call_expression__(environment_t env, expression_t call_expr, bool toplevel);
-static void         __evaluator_function_call_expression__(environment_t env, expression_function_t function, bool toplevel);
-static void         __evaluator_native_function_call_expression__(environment_t env, native_function_pt native_function, list_t args);
+static void         __evaluator_function_call_expression__(environment_t env, value_t function_value, list_t args, bool toplevel);
+static void         __evaluator_native_function_call_expression__(environment_t env, value_t function_value, list_t args);
 static void         __evaluator_assign_expression__(environment_t env, expression_type_t type, expression_t lvalue_expr, expression_t rvalue_expr, bool toplevel);
 static void         __evaluator_do_assign_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
 static void         __evaluator_unary_expression__(environment_t env, expression_t expr, bool toplevel);
@@ -301,16 +301,20 @@ static value_t __evaluator_get_lvalue__(environment_t env, expression_t lexpr, b
 
 static void __evaluator_call_expression__(environment_t env, expression_t call_expr, bool toplevel)
 {
-    value_t function_value = __evaluator_search_function__(env, call_expr->u.call_expr->function_expr, toplevel);
+    value_t function_value;
+
+    function_value = __evaluator_search_function__(env, call_expr->u.call_expr->function_expr, toplevel);
 
     if (function_value) {
+        environment_push_value_to_function_stack(env, function_value);
+
         switch (function_value->type) {
         case VALUE_TYPE_FUNCTION:
-            __evaluator_function_call_expression__(env, function_value->u.object_value->u.function->f.function_expr, false);
+            __evaluator_function_call_expression__(env, function_value, call_expr->u.call_expr->args, false);
             break;
 
         case VALUE_TYPE_NATIVE_FUNCTION:
-            __evaluator_native_function_call_expression__(env, function_value->u.object_value->u.function->f.native_function, call_expr->u.call_expr->args);
+            __evaluator_native_function_call_expression__(env, function_value, call_expr->u.call_expr->args);
             break;
 
         default:
@@ -320,15 +324,31 @@ static void __evaluator_call_expression__(environment_t env, expression_t call_e
                           get_value_type_string(function_value->type));
             break;
         }
+
+        environment_pop_value_from_function_stack(env);
+
         value_free(function_value);
     }
 }
 
-static void __evaluator_function_call_expression__(environment_t env, expression_function_t function, bool toplevel)
+static void __evaluator_function_call_expression__(environment_t env, value_t function_value, list_t args, bool toplevel)
 {
     list_iter_t iter;
     statement_t stmt;
+    local_context_t context;
     executor_result_t result;
+    expression_function_t function;
+    int scopecount = 0;
+
+    environment_push_local_context(env);
+
+    function = function_value->u.object_value->u.function->f.function_expr;
+
+    list_for_each(function_value->u.object_value->u.function->scopes, iter) {
+        context = list_element(iter, local_context_t, link);
+        environment_push_scope_local_context(env, context);
+        scopecount++;
+    }
 
     list_for_each(function->block, iter) {
         stmt = list_element(iter, statement_t, link);
@@ -338,7 +358,6 @@ static void __evaluator_function_call_expression__(environment_t env, expression
         } else if (result == EXECUTOR_RESULT_BREAK) {
             runtime_error("(%d, %d): %s", stmt->line, stmt->column, "break outside loop");
             break;
-
         } else if (result == EXECUTOR_RESULT_CONTINUE) {
             runtime_error("(%d, %d): %s", stmt->line, stmt->column, "break outside loop");
             break;
@@ -348,13 +367,22 @@ static void __evaluator_function_call_expression__(environment_t env, expression
     if (result != EXECUTOR_RESULT_RETURN) {
         environment_push_null(env);
     }
+
+     while (scopecount--) {
+         environment_pop_local_context(env);
+     }
+
+    environment_pop_local_context(env);
 }
 
-static void __evaluator_native_function_call_expression__(environment_t env, native_function_pt native_function, list_t args)
+static void __evaluator_native_function_call_expression__(environment_t env, value_t function_value, list_t args)
 {
     list_iter_t iter;
     expression_t expr;
     unsigned int argc;
+    native_function_pt native_function;
+
+    native_function = function_value->u.object_value->u.function->f.native_function;
 
     argc = 0;
     list_for_each(args, iter) {

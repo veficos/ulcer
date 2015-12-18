@@ -139,6 +139,7 @@ environment_t environment_new(void)
     env->global_table = table_new();
     env->heap         = heap_new();
     
+    list_init(env->function_stack);
     list_init(env->stack);
     list_init(env->local_context_stack);
 
@@ -184,16 +185,17 @@ table_t environment_get_global_table(environment_t env)
 
 void environment_push_local_context(environment_t env)
 {
-    object_t obj = heap_alloc_local_context(env);
-    list_push_back(env->local_context_stack, obj->u.context->link.stack);
+    
+}
+
+void environment_push_scope_local_context(environment_t env, local_context_t context)
+{
+    
 }
 
 void environment_pop_local_context(environment_t env)
 {
-    if (list_is_empty(env->local_context_stack)) {
-        return;
-    }
-    list_pop_back(env->local_context_stack);
+    
 }
 
 void environment_clear_stack(environment_t env)
@@ -291,8 +293,8 @@ void environment_push_function(environment_t env, expression_function_t function
     value->u.object_value = heap_alloc_function(env, function_expr);
 
     list_for_each(env->local_context_stack, iter) {
-        context = list_element(iter, local_context_t, link.stack);
-        list_push_back(value->u.object_value->u.function->scopes, context->link.scope);
+        context = list_element(iter, local_context_t, link);
+        //list_push_back(value->u.object_value->u.function->scopes, context->link.scope);
     }
 
     list_push_back(env->stack, value->link);
@@ -334,4 +336,17 @@ void environment_push_array_generate(environment_t env, list_t array_generate, b
 
         *dst = elem;
     }
+}
+
+void environment_push_value_to_function_stack(environment_t env, value_t v)
+{
+    list_push_back(env->function_stack, v->link);
+}
+
+void environment_pop_value_from_function_stack(environment_t env)
+{
+    if (list_is_empty(env->function_stack)) {
+        return;
+    }
+    list_pop_back(env->function_stack);
 }

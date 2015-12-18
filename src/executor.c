@@ -71,6 +71,7 @@ void executor_run(executor_t exec)
 executor_result_t executor_statement(environment_t env, statement_t stmt, bool toplevel)
 {
     value_t value;
+    executor_result_t result;
 
     switch (stmt->type) {
     case STATEMENT_TYPE_EXPRESSION:
@@ -81,16 +82,28 @@ executor_result_t executor_statement(environment_t env, statement_t stmt, bool t
         return EXECUTOR_RESULT_NORMAL;
 
     case STATEMENT_TYPE_IF:
-        return __executor_if_statement__(env, stmt, toplevel);
+        environment_push_local_context(env);
+        result = __executor_if_statement__(env, stmt, toplevel);
+        environment_pop_local_context(env);
+        return result;
 
     case STATEMENT_TYPE_SWITCH:
-        return __executor_switch_statement__(env, stmt, toplevel);
+        environment_push_local_context(env);
+        result = __executor_switch_statement__(env, stmt, toplevel);
+        environment_pop_local_context(env);
+        return result;
 
     case STATEMENT_TYPE_WHILE:
-        return __executor_while_statement__(env, stmt, toplevel);
+        environment_push_local_context(env);
+        result = __executor_while_statement__(env, stmt, toplevel);
+        environment_pop_local_context(env);
+        return result;
 
     case STATEMENT_TYPE_FOR:
-        return __executor_for_statement__(env, stmt, toplevel);
+        environment_push_local_context(env);
+        result = __executor_for_statement__(env, stmt, toplevel);
+        environment_pop_local_context(env);
+        return result;
 
     case STATEMENT_TYPE_CONTINUE:
         return EXECUTOR_RESULT_CONTINUE;

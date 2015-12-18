@@ -125,16 +125,6 @@ object_t heap_alloc_native_function(environment_t env, native_function_pt native
     return object;
 }
 
-object_t heap_alloc_local_context(environment_t env)
-{
-    object_t object = __heap_alloc_object__(env, OBJECT_TYPE_LOCAL_CONTEXT);
-
-    object->u.context->context = table_new();
-    object->u.context->self    = object;
-
-    return object;
-}
-
 static object_t __heap_alloc_object__(environment_t env, object_type_t type)
 {
     object_t object;
@@ -189,10 +179,44 @@ static void __heap_mark_objects__(environment_t env)
     }
 
     {
+        /* mark stack */
         list_iter_t iter;
         value_t value;
 
         list_for_each(env->stack, iter) {
+            value = list_element(iter, value_t, link);
+            if (__heap_value_is_object__(value)) {
+                __heap_mark_object__(value->u.object_value);
+            }
+        }
+    }
+
+    {
+        /* mark local context */
+        list_iter_t iter;
+        local_context_t context;
+        table_pair_t variable;
+        hash_table_iter_t hiter;
+
+        list_for_each(env->local_context_stack, iter) {
+            context = list_element(iter, local_context_t, link);
+
+            hiter = hash_table_iter_new(context->context->table);
+            hash_table_for_each(context->context->table, hiter) {
+                variable = hash_table_iter_element(hiter, table_pair_t, link);
+                if (__heap_value_is_object__(variable->value)) {
+                    __heap_mark_object__(variable->value->u.object_value);
+                }
+            }
+            hash_table_iter_free(hiter);
+        }
+    }
+
+    {
+        list_iter_t iter;
+        value_t value;
+
+        list_for_each(env->function_stack, iter) {
             value = list_element(iter, value_t, link);
             if (__heap_value_is_object__(value)) {
                 __heap_mark_object__(value->u.object_value);
@@ -224,23 +248,22 @@ static void __heap_dispose_object__(object_t obj)
     case OBJECT_TYPE_STRING:
         cstring_free(obj->u.string);
         break;
+
     case OBJECT_TYPE_ARRAY:
         array_for_each(obj->u.array, base, index) {
             value_free(base[index]);
         }
         array_free(obj->u.array);
         break;
+
     case OBJECT_TYPE_TABLE:
         break;
 
     case OBJECT_TYPE_FUNCTION:
+        
 
     case OBJECT_TYPE_NATIVE_FUNCTION:
         mem_free(obj->u.function);
-        break;
-
-    case OBJECT_TYPE_LOCAL_CONTEXT:
-        table_free(obj->u.context->context);
         break;
 
     default:
@@ -259,6 +282,10 @@ static void __heap_mark_object__(object_t obj)
 {
     value_t *base;
     int index;
+    list_iter_t iter;
+    local_context_t context;
+    table_pair_t variable;
+    hash_table_iter_t hiter;
 
     if (obj->marked) {
         return ;
@@ -266,6 +293,17 @@ static void __heap_mark_object__(object_t obj)
 
     switch (obj->type) {
     case OBJECT_TYPE_FUNCTION:
+        list_for_each(obj->u.function->scopes, iter) {
+            context = list_element(iter, local_context_t, link);
+            hiter = hash_table_iter_new(context->context->table);
+            hash_table_for_each(context->context->table, hiter) {
+                variable = hash_table_iter_element(hiter, table_pair_t, link);
+                if (__heap_value_is_object__(variable->value)) {
+                    __heap_mark_object__(variable->value->u.object_value);
+                }
+            }
+            hash_table_iter_free(hiter);
+        }
         break;
 
     case OBJECT_TYPE_ARRAY:

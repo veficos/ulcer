@@ -1367,8 +1367,9 @@ static list_t __parser_argument_list__(parser_t parse)
 
 static list_t __parser_block__(parser_t parse)
 {
-    list_t  block;
-    token_t tok;
+    statement_t stmt;
+    list_t      block;
+    token_t     tok;
 
     list_init(block);
 
@@ -1378,8 +1379,15 @@ static list_t __parser_block__(parser_t parse)
     while (tok->type != TOKEN_TYPE_END && tok->value != TOKEN_VALUE_RC) {
         if (tok->value == TOKEN_VALUE_SEMICOLON) {
             tok = lexer_next(parse->lex);
+
         } else {
-            list_push_back(block, __parser_statement__(parse)->link);
+            stmt = __parser_statement__(parse);
+            if (stmt->type == STATEMENT_TYPE_EXPRESSION && 
+                stmt->u.expr->type == EXPRESSION_TYPE_FUNCTION) {
+                __parser_check_expression__(tok->filename, stmt->u.expr);
+            }
+
+            list_push_back(block, stmt->link);
         }
     }
 

@@ -14,6 +14,7 @@ object_t heap_alloc_array(environment_t env);
 object_t heap_alloc_array_n(environment_t env, unsigned long n);
 object_t heap_alloc_function(environment_t env, expression_function_t function_expr);
 object_t heap_alloc_native_function(environment_t env, native_function_pt native_function);
-object_t heap_alloc_local_context(environment_t env);
+void     heap_hold_value(environment_t env, value_t v);
+void     heap_drop_value(environment_t env, value_t v);
 
 #endif
