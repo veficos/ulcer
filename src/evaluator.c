@@ -52,9 +52,12 @@ static void         __evaluator_double_binary_expression__(environment_t env, lo
 static void         __evaluator_string_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
 static void         __evaluator_null_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
 static void         __evaluator_logic_binary_expression__(environment_t env, expression_type_t type, expression_t left_expr, expression_t right_expr, bool toplevel);
+static value_t      __evaluator_index_expression__(environment_t env, expression_t expr, bool toplevel);
 
 void evaluator_expression(environment_t env, expression_t expr, bool toplevel)
 {
+    value_t value = NULL;
+
     switch (expr->type) {
     case EXPRESSION_TYPE_CHAR:
         environment_push_char(env, expr->u.char_expr);
@@ -162,6 +165,11 @@ void evaluator_expression(environment_t env, expression_t expr, bool toplevel)
     case EXPRESSION_TYPE_ARRAY_POP:
     case EXPRESSION_TYPE_TABLE_DOT_MEMBER:
     case EXPRESSION_TYPE_INDEX:
+        value = __evaluator_get_lvalue__(env, expr, toplevel);
+        if (value) {
+            list_push_back(env->stack, value_dup(value)->link);
+        }
+        break;
     default:
        break;
     }
@@ -232,6 +240,18 @@ static void __evaluator_identifier_expression__(environment_t env, expression_t 
 
 static value_t __evaluator_search_identifier_variable__(environment_t env, cstring_t identifier, bool toplevel) 
 {
+    list_iter_t iter;
+
+    list_reverse_for_each(env->local_context_stack, iter) {
+        local_context_t context = list_element(iter, local_context_t, link);
+
+        value_t value = table_search_member(context->object->u.table, identifier);
+
+        if (value) {
+            return value;
+        }
+    }
+
     return table_search_member(environment_get_global_table(env), identifier);
 }
 
@@ -272,26 +292,60 @@ static value_t __evaluator_search_variable__(environment_t env, expression_t lex
 
 static value_t __evaluator_get_variable_lvalue__(environment_t env, cstring_t identifier, bool toplevel)
 {
-    value_t value;
+    value_t value = NULL;
 
     value = __evaluator_search_identifier_variable__(env, identifier, toplevel);
 
-    if (!value && toplevel) {
-        value = table_new_member(environment_get_global_table(env), identifier);
+   // if (!value && toplevel) {
+        if (list_is_empty(env->local_context_stack)) {
+            value = table_new_member(environment_get_global_table(env), identifier);
+        } else {
+            local_context_t context = list_element(list_rbegin(env->local_context_stack), local_context_t, link);
+            value = table_new_member(context->object->u.table, identifier);
+        }
+  //  }
+
+    assert(value != NULL);
+    return value;
+}
+
+static value_t __evaluator_index_expression__(environment_t env, expression_t expr, bool toplevel)
+{
+    value_t value;
+    value_t index_value;
+
+    evaluator_expression(env, expr->u.index_expr->dict, toplevel);
+
+    value = list_element(list_rbegin(env->stack), value_t, link);
+
+    list_pop_back(env->stack);
+
+    evaluator_expression(env, expr->u.index_expr->index, toplevel);
+
+    index_value = list_element(list_rbegin(env->stack), value_t, link);
+
+    list_pop_back(env->stack);
+
+    switch (value->type) {
+    case VALUE_TYPE_ARRAY:
+        value = *(value_t*)array_index(value->u.object_value->u.array, index_value->u.int_value);
+        break;
     }
 
     return value;
 }
 
-static value_t __evaluator_get_lvalue__(environment_t env, expression_t lexpr, bool toplevel)
+static value_t __evaluator_get_lvalue__(environment_t env, expression_t expr, bool toplevel)
 {
     value_t value;
-
-    switch (lexpr->type) {
+ 
+    switch (expr->type) {
     case EXPRESSION_TYPE_IDENTIFIER:
-        value = __evaluator_get_variable_lvalue__(env, lexpr->u.identifier_expr, toplevel);
+        value = __evaluator_get_variable_lvalue__(env, expr->u.identifier_expr, toplevel);
         break;
-
+    case EXPRESSION_TYPE_INDEX:
+        value = __evaluator_index_expression__(env, expr, toplevel);
+        break;
     default:
         value = NULL;
     }
@@ -335,7 +389,7 @@ static void __evaluator_function_call_expression__(environment_t env, value_t fu
 {
     list_iter_t iter;
     statement_t stmt;
-    local_context_t context;
+    object_t object;
     executor_result_t result;
     expression_function_t function;
     int scopecount = 0;
@@ -345,8 +399,8 @@ static void __evaluator_function_call_expression__(environment_t env, value_t fu
     function = function_value->u.object_value->u.function->f.function_expr;
 
     list_for_each(function_value->u.object_value->u.function->scopes, iter) {
-        context = list_element(iter, local_context_t, link);
-        environment_push_scope_local_context(env, context);
+        object = list_element(iter, object_t, link_scope);
+        environment_push_scope_local_context(env, object);
         scopecount++;
     }
 
@@ -368,9 +422,9 @@ static void __evaluator_function_call_expression__(environment_t env, value_t fu
         environment_push_null(env);
     }
 
-     while (scopecount--) {
-         environment_pop_local_context(env);
-     }
+    while (scopecount--) {
+        environment_pop_local_context(env);
+    }
 
     environment_pop_local_context(env);
 }

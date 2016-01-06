@@ -152,6 +152,10 @@ void environment_free(environment_t env)
 {
     table_clear(env->global_table);
 
+    list_init(env->function_stack);
+
+    list_init(env->local_context_stack);
+
     heap_gc(env);
 
     table_free(env->global_table);
@@ -185,17 +189,35 @@ table_t environment_get_global_table(environment_t env)
 
 void environment_push_local_context(environment_t env)
 {
-    
+    local_context_t context;
+
+    context = (local_context_t)mem_alloc(sizeof(struct local_context_s));
+
+    context->object = heap_alloc_table(env);
+
+    list_push_back(env->local_context_stack, context->link);
 }
 
-void environment_push_scope_local_context(environment_t env, local_context_t context)
+void environment_push_scope_local_context(environment_t env, object_t object)
 {
-    
+    local_context_t context;
+
+    context = (local_context_t)mem_alloc(sizeof(struct local_context_s));
+
+    context->object = object;
+
+    list_push_back(env->local_context_stack, context->link);
 }
 
 void environment_pop_local_context(environment_t env)
 {
-    
+    local_context_t context;
+
+    context = list_element(list_rbegin(env->local_context_stack), local_context_t, link);
+
+    list_pop_back(env->local_context_stack);
+
+    mem_free(context);
 }
 
 void environment_clear_stack(environment_t env)
@@ -294,7 +316,7 @@ void environment_push_function(environment_t env, expression_function_t function
 
     list_for_each(env->local_context_stack, iter) {
         context = list_element(iter, local_context_t, link);
-        //list_push_back(value->u.object_value->u.function->scopes, context->link.scope);
+        list_push_back(value->u.object_value->u.function->scopes, context->object->link_scope);
     }
 
     list_push_back(env->stack, value->link);

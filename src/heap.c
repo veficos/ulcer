@@ -19,14 +19,14 @@ struct heap_s {
 
 #define __heap_value_is_object__(value)                                       \
     (((value)->type == VALUE_TYPE_STRING) || ((value)->type == VALUE_TYPE_ARRAY) || \
-     ((value)->type == VALUE_TYPE_FUNCTION) ||  ((value)->type == VALUE_TYPE_NATIVE_FUNCTION))
+     ((value)->type == VALUE_TYPE_FUNCTION) ||  ((value)->type == VALUE_TYPE_NATIVE_FUNCTION) || \
+     ((value)->type == VALUE_TYPE_TABLE)) 
 
 static void     __heap_unmark_object__(object_t obj);
 static void     __heap_mark_object__(object_t obj);
 static void     __heap_dispose_object__(object_t obj);
 static void     __heap_mark_objects__(environment_t env);
 static void     __heap_sweep_objects__(environment_t env);
-static void     __heap_sweep_null_objects__(environment_t env);
 static object_t __heap_alloc_object__(environment_t env, object_type_t type);
 static void     __heap_auto_gc__(environment_t env);
 
@@ -51,7 +51,7 @@ void heap_free(heap_t heap)
     object_t object;
 
     list_safe_for_each(heap->objects, iter, next_iter) {
-        object = list_element(iter, object_t, link);
+        object = list_element(iter, object_t, link_heap);
         list_erase(heap->objects, *iter);
         __heap_dispose_object__(object);
     }
@@ -101,6 +101,15 @@ object_t heap_alloc_array_n(environment_t env, unsigned long n)
     return object;
 }
 
+object_t heap_alloc_table(environment_t env)
+{
+    object_t object = __heap_alloc_object__(env, OBJECT_TYPE_TABLE);
+
+    object->u.table = table_new();
+
+    return object;
+}
+
 object_t heap_alloc_function(environment_t env, expression_function_t function_expr)
 {
     object_t object = __heap_alloc_object__(env, OBJECT_TYPE_FUNCTION);
@@ -139,7 +148,7 @@ static object_t __heap_alloc_object__(environment_t env, object_type_t type)
     object->type   = type;
     object->marked = false;
 
-    list_push_back(env->heap->objects, object->link);
+    list_push_back(env->heap->objects, object->link_heap);
 
     return object;
 }
@@ -158,7 +167,7 @@ static void __heap_mark_objects__(environment_t env)
         object_t object;
 
         list_for_each(env->heap->objects, iter) {
-            object = list_element(iter, object_t, link);
+            object = list_element(iter, object_t, link_heap);
             __heap_unmark_object__(object);
         }
     }
@@ -175,6 +184,7 @@ static void __heap_mark_objects__(environment_t env)
                 __heap_mark_object__(variable->value->u.object_value);
             }
         }
+
         hash_table_iter_free(iter);
     }
 
@@ -201,13 +211,16 @@ static void __heap_mark_objects__(environment_t env)
         list_for_each(env->local_context_stack, iter) {
             context = list_element(iter, local_context_t, link);
 
-            hiter = hash_table_iter_new(context->context->table);
-            hash_table_for_each(context->context->table, hiter) {
+            __heap_mark_object__(context->object);
+
+            hiter = hash_table_iter_new(context->object->u.table->table);
+            hash_table_for_each(context->object->u.table->table, hiter) {
                 variable = hash_table_iter_element(hiter, table_pair_t, link);
                 if (__heap_value_is_object__(variable->value)) {
                     __heap_mark_object__(variable->value->u.object_value);
                 }
             }
+
             hash_table_iter_free(hiter);
         }
     }
@@ -231,7 +244,7 @@ static void __heap_sweep_objects__(environment_t env)
     object_t object;
 
     list_safe_for_each(env->heap->objects, iter, next_iter) {
-        object = list_element(iter, object_t, link);
+        object = list_element(iter, object_t, link_heap);
         if (!object->marked) {
             list_erase(env->heap->objects, *iter);
             __heap_dispose_object__(object);
@@ -257,10 +270,11 @@ static void __heap_dispose_object__(object_t obj)
         break;
 
     case OBJECT_TYPE_TABLE:
+        table_free(obj->u.table);
         break;
 
     case OBJECT_TYPE_FUNCTION:
-        
+      
 
     case OBJECT_TYPE_NATIVE_FUNCTION:
         mem_free(obj->u.function);
@@ -283,7 +297,7 @@ static void __heap_mark_object__(object_t obj)
     value_t *base;
     int index;
     list_iter_t iter;
-    local_context_t context;
+    object_t object;
     table_pair_t variable;
     hash_table_iter_t hiter;
 
@@ -294,14 +308,18 @@ static void __heap_mark_object__(object_t obj)
     switch (obj->type) {
     case OBJECT_TYPE_FUNCTION:
         list_for_each(obj->u.function->scopes, iter) {
-            context = list_element(iter, local_context_t, link);
-            hiter = hash_table_iter_new(context->context->table);
-            hash_table_for_each(context->context->table, hiter) {
+            object = list_element(iter, object_t, link_scope);
+
+            __heap_mark_object__(object);
+            
+            hiter = hash_table_iter_new(object->u.table->table);
+            hash_table_for_each(object->u.table->table, hiter) {
                 variable = hash_table_iter_element(hiter, table_pair_t, link);
                 if (__heap_value_is_object__(variable->value)) {
                     __heap_mark_object__(variable->value->u.object_value);
                 }
             }
+
             hash_table_iter_free(hiter);
         }
         break;

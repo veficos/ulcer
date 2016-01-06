@@ -66,7 +66,7 @@ cstring_t cstring_newempty(unsigned long len)
 
 cstring_t cstring_new(const char *s)
 {
-    unsigned long len = s == NULL ? 0 : strlen(s);
+    unsigned long len = s == NULL ? 0 : (unsigned long)strlen(s);
     return cstring_newlen(s, len);
 }
 
@@ -101,7 +101,7 @@ unsigned long cstring_size(const cstring_t cstr)
 void cstring_update_length(cstring_t cstr)
 {
     struct cstring_hdr_s *hdr = cstring_of(cstr);
-    unsigned long reallen = strlen(cstr);
+    unsigned long reallen = (unsigned long) strlen(cstr);
     hdr->free += (hdr->length - reallen);
     hdr->length = reallen;
 }
@@ -144,7 +144,7 @@ cstring_t cstring_catlen(cstring_t cstr, const void *s, unsigned long n)
 
 cstring_t cstring_catstr(cstring_t cstr, const char *s)
 {
-    return cstring_catlen(cstr, s, strlen(s));
+    return cstring_catlen(cstr, s, (unsigned long)strlen(s));
 }
 
 cstring_t cstring_catch(cstring_t cstr, char ch)
@@ -181,7 +181,7 @@ cstring_t cstring_cpylen(cstring_t cstr, const void *s, unsigned long n)
 
 cstring_t cstring_cpystr(cstring_t cstr, const char *s)
 {
-    return cstring_cpylen(cstr, s, strlen(s));
+    return cstring_cpylen(cstr, s, (unsigned long)strlen(s));
 }
 
 cstring_t cstring_cpych(cstring_t cstr, char ch)

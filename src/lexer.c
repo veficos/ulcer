@@ -693,7 +693,7 @@ static void __lexer_parse_escape_char__(lexer_t lex)
 
 static void __lexer_parse_literal_char__(lexer_t lex)
 {
-    char ch;
+    char ch = 0;
 
     token_reset(lex->tok, lex->current_line, lex->current_column,
         TOKEN_TYPE_LITERAL, TOKEN_VALUE_LITERAL_CHAR);

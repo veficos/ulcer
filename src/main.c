@@ -47,6 +47,25 @@ static void print_value(value_t value)
         printf("null");
         break;
 
+    case VALUE_TYPE_ARRAY:
+        {
+            int index;
+            int last;
+            value_t* base;
+
+            last = array_length(value->u.object_value->u.array) - 1;
+
+            printf("[");
+            array_for_each(value->u.object_value->u.array, base, index) {
+                print_value(base[index]);
+                if (last != index) {
+                    printf(", ");
+                }
+            }
+            printf("]");
+        }
+        break;
+
     default:
         assert(false);
         break;
@@ -101,7 +120,7 @@ int main(int argc, char** args)
         executor_t    executor;
 
         if (argc < 2) {
-            printf("usage: ulcer souce_code.u\n");
+            printf("usage: ulcer souce_code.ul\n");
             exit(-1);
         }
 

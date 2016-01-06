@@ -47,11 +47,12 @@ struct object_s {
     union {       
         cstring_t       string;
         array_t         array;
-        hash_table_t    table;
+        table_t         table;
         function_t      function;
     } u;
 
-    list_node_t link;
+    list_node_t link_heap;
+    list_node_t link_scope;
 };
 
 enum value_type_e {
@@ -114,7 +115,7 @@ void    table_add_member(table_t table, cstring_t key, value_t value);
 typedef struct heap_s* heap_t;
 
 struct local_context_s {
-    table_t  context;
+    object_t object;
     list_node_t link;
 };
 
@@ -124,7 +125,6 @@ struct environment_s {
     list_t  stack;
     heap_t  heap;
     table_t global_table;
-
     list_t  function_stack;
 };
 
@@ -135,7 +135,7 @@ table_t       environment_get_global_table(environment_t env);
 
 /* local context */
 void          environment_push_local_context(environment_t env);
-void          environment_push_scope_local_context(environment_t env, local_context_t context);
+void          environment_push_scope_local_context(environment_t env, object_t object);
 void          environment_pop_local_context(environment_t env);
 
 /* stack op */
