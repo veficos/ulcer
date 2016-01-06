@@ -4,9 +4,9 @@
 
 ```
 f = function() {
-    i = "hello world";
+    str = "hello world";
     return function() {
-        return i;
+        return str;
     };
 }();
 
