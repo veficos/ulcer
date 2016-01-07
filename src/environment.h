@@ -152,6 +152,7 @@ void          environment_push_null(environment_t env);
 void          environment_push_function(environment_t env, expression_function_t function);
 void          environment_push_native_function(environment_t env, native_function_pt native_function);
 void          environment_push_array_generate(environment_t env, list_t array_generate, bool toplevel);
+void          environment_push_table_generate(environment_t env, list_t table_generate, bool toplevel);
 
 /* function stack */
 void          environment_push_value_to_function_stack(environment_t env, value_t v);

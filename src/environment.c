@@ -360,6 +360,26 @@ void environment_push_array_generate(environment_t env, list_t array_generate, b
     }
 }
 
+void environment_push_table_generate(environment_t env, list_t table_generate, bool toplevel)
+{
+    list_iter_t     iter;
+    value_t         value;
+    value_t         elem;
+    value_t*        dst;
+
+    value = value_new(VALUE_TYPE_TABLE);
+
+    value->u.object_value = heap_alloc_table(env);
+
+    list_push_back(env->stack, value->link);
+
+    list_for_each(table_generate, iter) {
+        expression_table_pair_t expr;
+
+        expr = list_element(iter, expression_table_pair_t, link);       
+    }
+}
+
 void environment_push_value_to_function_stack(environment_t env, value_t v)
 {
     list_push_back(env->function_stack, v->link);

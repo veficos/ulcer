@@ -1,9 +1,15 @@
 
 f = function() {
-    i = "hello world";
+    var = "hello world";
     return function() {
-        return i;
+        return var;
     };
 }();
 
 print(f(), "\n");
+
+print(f);
+
+
+t = {"a":"shit"};
+

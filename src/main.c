@@ -66,6 +66,10 @@ static void print_value(value_t value)
         }
         break;
 
+    case VALUE_TYPE_FUNCTION:
+        printf("function");
+        break;
+
     default:
         assert(false);
         break;

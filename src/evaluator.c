@@ -161,6 +161,9 @@ void evaluator_expression(environment_t env, expression_t expr, bool toplevel)
         break;
 
     case EXPRESSION_TYPE_TABLE_GENERATE:
+        environment_push_table_generate(env, expr->u.table_generate_expr, toplevel);
+        break;
+
     case EXPRESSION_TYPE_ARRAY_PUSH:
     case EXPRESSION_TYPE_ARRAY_POP:
     case EXPRESSION_TYPE_TABLE_DOT_MEMBER:
