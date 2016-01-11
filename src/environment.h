@@ -97,7 +97,8 @@ value_t value_dup(const value_t src);
 void    value_free(value_t value);
 
 struct table_pair_s {
-    cstring_t    key;
+    //cstring_t    key;
+    value_t      key;
     value_t      value;
     hlist_node_t link;
 };

@@ -319,7 +319,7 @@ expression_t expression_new_array_pop(long line, long column, expression_t array
     return expr;
 }
 
-expression_table_pair_t expression_new_table_pair(cstring_t name, expression_t expr)
+expression_table_pair_t expression_new_table_pair(expression_t name, expression_t expr)
 {
     expression_table_pair_t pair = (expression_table_pair_t) mem_alloc(sizeof(struct expression_table_pair_s));
     if (!pair) {
@@ -334,7 +334,7 @@ expression_table_pair_t expression_new_table_pair(cstring_t name, expression_t e
 
 void expression_free_table_pair(expression_table_pair_t pair)
 {
-    cstring_free(pair->member_name);
+    expression_free(pair->member_name);
     expression_free(pair->member_expr);
     mem_free(pair);
 }

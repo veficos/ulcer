@@ -7,11 +7,46 @@
 
 #define HASH_PRIME_RK (0x1000193UL)
 
+#define GOLDEN_RATIO_PRIME_32 (0x9e370001UL)
+#define GOLDEN_RATIO_PRIME_64 (0x9e37fffffffc0001UL)
+
 static uint32_t golden_ratio_prime_hash_32(uint32_t key, unsigned int bits)
 {
-    uint32_t hash = key * 0x9E370001UL;
+    uint32_t hash = key * GOLDEN_RATIO_PRIME_32;
 
     return hash - (32 >> bits);
+}
+
+static uint64_t golden_ratio_prime_hash_64(uint64_t key, unsigned int bits)
+{
+    uint64_t hash = key * GOLDEN_RATIO_PRIME_64;
+    uint64_t n = hash;
+
+    n <<= 18;
+    hash -= n;
+    n <<= 33;
+    hash -= n;
+    n <<= 3;
+    hash += n;
+    n <<= 3;
+    hash -= n;
+    n <<= 4;
+    hash += n;
+    n <<= 2;
+    hash += n;
+
+    return hash - (64 >> bits);
+}
+
+static uintptr_t golden_ratio_prime_hash_ptr(uintptr_t key)
+{
+    switch (sizeof(void*)) {
+    case 4:
+        return golden_ratio_prime_hash_32((uint32_t)key, 32);
+    case 8:
+        return golden_ratio_prime_hash_64((uint64_t)key, 64);
+    }
+    return 0;
 }
 
 static uint32_t thomas_wangs_hash_32(uint32_t key)

@@ -131,7 +131,7 @@ struct expression_array_pop_s {
 };
 
 struct expression_table_pair_s {
-    cstring_t    member_name;
+    expression_t member_name;
     expression_t member_expr;
     list_node_t  link;
 };
@@ -189,7 +189,7 @@ expression_t            expression_new_call(long line, long column, expression_t
 expression_t            expression_new_array_generate(long line, long column, list_t elements);
 expression_t            expression_new_array_push(long line, long column, expression_t array_expr, expression_t elem_expr);
 expression_t            expression_new_array_pop(long line, long column, expression_t array_expr, expression_t lvalue_expr);
-expression_table_pair_t expression_new_table_pair(cstring_t name, expression_t expr);
+expression_table_pair_t expression_new_table_pair(expression_t name, expression_t expr);
 void                    expression_free_table_pair(expression_table_pair_t pair);
 expression_t            expression_new_table_generate(long line, long column, list_t members);
 expression_t            expression_new_table_dot_member(long line, long column, expression_t table, cstring_t member_name);

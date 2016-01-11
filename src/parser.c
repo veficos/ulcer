@@ -1227,10 +1227,10 @@ static expression_t __parser_table_generate_expression__(parser_t parse)
     long                    column;
     token_t                 tok;
     expression_t            expr;
-    cstring_t               elemname;
     list_t                  members;
     expression_table_pair_t pair;
     expression_t            value_expr;
+    expression_t            name_expr;
 
     expr      = NULL;
     line      = lexer_peek(parse->lex)->line;
@@ -1240,21 +1240,13 @@ static expression_t __parser_table_generate_expression__(parser_t parse)
     list_init(members);
 
     while (tok->type != TOKEN_TYPE_END && tok->value != TOKEN_VALUE_RC) {
-        if (tok->value == TOKEN_VALUE_IDENTIFIER || tok->value == TOKEN_VALUE_LITERAL_STRING) {
-            elemname = cstring_dup(tok->token);
+        __parser_check_expression__(tok->filename, (name_expr = __parser_expression__(parse)));
 
-        } else {
-            elemname = NULL; /* disable warring */
-            error(tok->filename, tok->line, tok->column, "expected identifier or string");
-        }
-
-        __parser_expect_next__(parse, TOKEN_VALUE_COLON, "expected ':'");
-        
-        lexer_next(parse->lex);
+        __parser_expect__(parse, TOKEN_VALUE_COLON, "expected ':'");
 
         __parser_check_expression__(tok->filename, (value_expr = __parser_expression__(parse)));
 
-        pair = expression_new_table_pair(elemname, value_expr);
+        pair = expression_new_table_pair(name_expr, value_expr);
 
         list_push_back(members, pair->link);
 

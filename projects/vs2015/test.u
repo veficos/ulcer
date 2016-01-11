@@ -1,15 +1,4 @@
 
-f = function() {
-    var = "hello world";
-    return function() {
-        return var;
-    };
-}();
 
-print(f(), "\n");
-
-print(f);
-
-
-t = {"a":"shit"};
+t = {1+2+3+4+5 : "shit"};
 
