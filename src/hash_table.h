@@ -37,6 +37,9 @@ typedef struct hash_table_s* hash_table_t;
 #define hash_table_disable_rehash(ht, off)                                    \
     ((ht)->enable_rehash = (off))
 
+#define hash_table_size(ht)                                                   \
+    ((ht)->hb[0].used+(ht)->hb[1].used)
+
 hash_table_t hash_table_new(hlist_node_ops_t *ops);
 void hash_table_free(hash_table_t ht);
 void hash_table_clear(hash_table_t ht);

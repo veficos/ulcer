@@ -51,14 +51,6 @@ static void hlist_remove(hlist_node_t *node)
     }
 }
 
-static void hlist_replace(hlist_node_t *o, hlist_node_t *n)
-{
-    n->next = o->next;
-    n->pprev = o->pprev;
-    o->next->pprev = &n->next;
-    *(n->pprev) = n;
-}
-
 static void hlist_insert_front(hlist_node_t *next, hlist_node_t *node)
 {
     node->next = next;
@@ -76,6 +68,12 @@ static void hlist_insert_back(hlist_node_t *prev, hlist_node_t *node)
     if (node->next) {
         node->next->pprev = &node->next;
     }
+}
+
+static void hlist_replace(hlist_node_t *o, hlist_node_t *n)
+{
+    hlist_insert_front(o, n);
+    hlist_remove(o);
 }
 
 #define hlist_init(hlist)                                                     \

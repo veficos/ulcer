@@ -38,21 +38,84 @@ static int __table_key_compare__(const hlist_node_t *lhs, const hlist_node_t *rh
 {
     table_pair_t l = hlist_element(lhs, table_pair_t, link);
     table_pair_t r = hlist_element(rhs, table_pair_t, link);
-    return cstring_cmp(l->key, r->key);
+
+    if (l->key->type == r->key->type) {
+        switch (l->key->type) {
+        case VALUE_TYPE_NULL:
+            return 0;
+        case VALUE_TYPE_CHAR:
+            return l->key->u.char_value - r->key->u.char_value;
+        case VALUE_TYPE_BOOL:
+            return l->key->u.bool_value - r->key->u.bool_value;
+        case VALUE_TYPE_INT:
+            return l->key->u.int_value - r->key->u.int_value;
+        case VALUE_TYPE_LONG:
+            return l->key->u.long_value - r->key->u.long_value;
+        case VALUE_TYPE_FLOAT:
+            return (int)(l->key->u.float_value - r->key->u.float_value);
+        case VALUE_TYPE_DOUBLE:
+            return (int)(l->key->u.double_value - r->key->u.double_value);
+        case VALUE_TYPE_NATIVE_FUNCTION:
+            return (int)(l->key->u.object_value->u.function - r->key->u.object_value->u.function);
+        case VALUE_TYPE_FUNCTION:
+            return (int)(l->key->u.object_value->u.function - r->key->u.object_value->u.function);
+        case VALUE_TYPE_STRING:
+            return cstring_cmp(l->key->u.object_value->u.string, r->key->u.object_value->u.string);
+        case VALUE_TYPE_ARRAY:
+            return (int)(l->key->u.object_value->u.array - r->key->u.object_value->u.array);
+        case VALUE_TYPE_TABLE:
+            return (int)(l->key->u.object_value->u.table - r->key->u.object_value->u.table);
+        case VALUE_TYPE_POINTER:
+            return (int)((uintptr_t)l->key->u.pointer_value - (uintptr_t)r->key->u.pointer_value);
+        }
+    }
+
+    return l->key->type - r->key->type;
 }
 
 static unsigned long __table_key_hashfn__(const hlist_node_t *hnode)
 {
     table_pair_t pair = hlist_element(hnode, table_pair_t, link);
-    return murmur2_hash((unsigned char*)pair->key, cstring_length(pair->key));
+
+    switch (pair->key->type) {
+    case VALUE_TYPE_NULL:
+        return 2;
+    case VALUE_TYPE_CHAR:
+        return pair->key->u.char_value;
+    case VALUE_TYPE_BOOL:
+        return pair->key->u.bool_value;
+    case VALUE_TYPE_INT:
+        return golden_ratio_prime_hash_32(pair->key->u.int_value, 32);
+    case VALUE_TYPE_LONG:
+        return (unsigned long)golden_ratio_prime_hash_ptr((uintptr_t)pair->key->u.long_value);
+    case VALUE_TYPE_FLOAT:
+        return (unsigned long)golden_ratio_prime_hash_ptr((uintptr_t)pair->key->u.float_value);
+    case VALUE_TYPE_DOUBLE:
+        return (unsigned long)golden_ratio_prime_hash_ptr((uintptr_t)pair->key->u.double_value);
+    case VALUE_TYPE_NATIVE_FUNCTION:
+    case VALUE_TYPE_FUNCTION:
+        return (unsigned long)golden_ratio_prime_hash_ptr((uintptr_t)pair->key->u.object_value->u.function);
+    case VALUE_TYPE_STRING:
+        return (unsigned long)murmur2_hash((unsigned char*)pair->key->u.object_value->u.string, cstring_length(pair->key->u.object_value->u.string));
+    case VALUE_TYPE_ARRAY:
+        return (unsigned long)golden_ratio_prime_hash_ptr((uintptr_t)pair->key->u.object_value->u.array);
+    case VALUE_TYPE_TABLE:
+        return (unsigned long)golden_ratio_prime_hash_ptr((uintptr_t)pair->key->u.object_value->u.table);
+    case VALUE_TYPE_POINTER:
+        return (unsigned long)golden_ratio_prime_hash_ptr((uintptr_t)pair->key->u.pointer_value);
+    }
+
+    return 0ul;
 }
 
 static void __table_node_destructor__(hlist_node_t *node)
 {
     table_pair_t pair = hlist_element(node, table_pair_t, link);
 
-    cstring_free(pair->key);
+    value_free(pair->key);
+
     value_free(pair->value);
+
     mem_free(pair);
 }
 
@@ -87,7 +150,32 @@ void table_clear(table_t table)
     hash_table_clear(table->table);
 }
 
-void table_add_member(table_t table, cstring_t key, value_t value)
+void table_push_pair(table_t table, environment_t env)
+{
+    table_pair_t pair;
+    value_t k, v;
+
+    assert(!list_is_empty(env->stack));
+
+    v = list_element(list_rbegin(env->stack), value_t, link);
+
+    list_pop_back(env->stack);
+
+    assert(!list_is_empty(env->stack));
+
+    k = list_element(list_rbegin(env->stack), value_t, link);
+
+    list_pop_back(env->stack);
+
+    pair = (table_pair_t) mem_alloc(sizeof(struct table_pair_s));
+
+    pair->key = k;
+    pair->value = v;
+
+    hash_table_replace(table->table, &pair->link);
+}
+
+void table_add_member(table_t table, value_t key, value_t value)
 {
     table_pair_t pair = (table_pair_t) mem_alloc(sizeof(struct table_pair_s));
     
@@ -97,12 +185,12 @@ void table_add_member(table_t table, cstring_t key, value_t value)
     hash_table_replace(table->table, &pair->link);
 }
 
-value_t table_search_member(table_t table, cstring_t member_name)
+value_t table_search(table_t table, environment_t env)
 {
     struct table_pair_s pair;
     hlist_node_t* node;
 
-    pair.key = member_name;
+    pair.key = list_element(list_rbegin(env->stack), value_t, link);
 
     node = hash_table_search(table->table, &pair.link);
     if (!node) {
@@ -112,7 +200,22 @@ value_t table_search_member(table_t table, cstring_t member_name)
     return hlist_element(node, table_pair_t, link)->value;
 }
 
-value_t table_new_member(table_t table, cstring_t member_name)
+value_t table_search_by_value(table_t table, value_t key)
+{
+    struct table_pair_s pair;
+    hlist_node_t* node;
+
+    pair.key = key;
+
+    node = hash_table_search(table->table, &pair.link);
+    if (!node) {
+        return NULL;
+    }
+
+    return hlist_element(node, table_pair_t, link)->value;
+}
+
+value_t table_new_member(table_t table, value_t key)
 {
     table_pair_t pair;
     value_t value;
@@ -122,9 +225,9 @@ value_t table_new_member(table_t table, cstring_t member_name)
         return NULL;
     }
 
-    value = value_new(VALUE_TYPE_REFERENCE);
+    value = value_new(VALUE_TYPE_NULL);
 
-    pair->key   = cstring_dup(member_name);
+    pair->key   = key;
     pair->value = value;
 
     hash_table_replace(table->table, &pair->link);
@@ -173,9 +276,11 @@ void environment_add_module(environment_t env, module_t module)
         statement_t stmt = list_element(iter, statement_t, link);
         assert(stmt->type == STATEMENT_TYPE_EXPRESSION && stmt->u.expr->type == EXPRESSION_TYPE_FUNCTION);
         if (!cstring_is_empty(stmt->u.expr->u.function_expr->name)) {
-            value_t value         = value_new(VALUE_TYPE_FUNCTION);
-            value->u.object_value = heap_alloc_function(env, stmt->u.expr->u.function_expr);
-            table_add_member(env->global_table, cstring_dup(stmt->u.expr->u.function_expr->name), value);
+            environment_push_string(env, stmt->u.expr->u.function_expr->name);
+
+            environment_push_function(env, stmt->u.expr->u.function_expr);
+
+            table_push_pair(environment_get_global_table(env), env);
         }
     }
 
@@ -227,6 +332,17 @@ void environment_clear_stack(environment_t env)
         list_erase(env->stack, *iter);
         value_free(list_element(iter, value_t, link));
     }
+}
+
+void environment_pop_value(environment_t env)
+{
+    value_t value;
+
+    value = list_element(list_rbegin(env->stack), value_t, link);
+
+    list_pop_back(env->stack);
+
+    value_free(value);
 }
 
 void environment_push_value(environment_t env, value_t value)
@@ -297,6 +413,15 @@ void environment_push_string(environment_t env, cstring_t string_value)
     list_push_back(env->stack, value->link);
 }
 
+void environment_push_str(environment_t env, const char* str)
+{
+    value_t value = value_new(VALUE_TYPE_STRING);
+
+    value->u.object_value = heap_alloc_str(env, str);
+
+    list_push_back(env->stack, value->link);
+}
+
 void environment_push_null(environment_t env)
 {
     value_t value = value_new(VALUE_TYPE_NULL);
@@ -331,7 +456,7 @@ void environment_push_native_function(environment_t env, native_function_pt nati
     list_push_back(env->stack, value->link);
 }
 
-void environment_push_array_generate(environment_t env, list_t array_generate, bool toplevel)
+void environment_push_array_generate(environment_t env, list_t array_generate)
 {
     list_iter_t  iter;
     expression_t expr;
@@ -348,7 +473,7 @@ void environment_push_array_generate(environment_t env, list_t array_generate, b
     list_for_each(array_generate, iter) {
         expr = list_element(iter, expression_t, link);
 
-        evaluator_expression(env, expr, toplevel);
+        evaluator_expression(env, expr);
 
         elem = list_element(list_rbegin(env->stack), value_t, link);
 
@@ -360,23 +485,35 @@ void environment_push_array_generate(environment_t env, list_t array_generate, b
     }
 }
 
-void environment_push_table_generate(environment_t env, list_t table_generate, bool toplevel)
+void environment_push_table_generate(environment_t env, list_t table_generate)
 {
     list_iter_t     iter;
+    value_t         table_value;
     value_t         value;
-    value_t         elem;
-    value_t*        dst;
 
-    value = value_new(VALUE_TYPE_TABLE);
+    table_value = value_new(VALUE_TYPE_TABLE);
 
-    value->u.object_value = heap_alloc_table(env);
+    table_value->u.object_value = heap_alloc_table(env);
 
-    list_push_back(env->stack, value->link);
+    list_push_back(env->stack, table_value->link);
 
     list_for_each(table_generate, iter) {
-        expression_table_pair_t expr;
+        expression_table_pair_t pair;
 
-        expr = list_element(iter, expression_table_pair_t, link);       
+        pair = list_element(iter, expression_table_pair_t, link);
+
+        evaluator_expression(env, pair->member_name);
+
+        value = list_element(list_rbegin(env->stack), value_t, link);
+
+        if (value->type == VALUE_TYPE_NULL && pair->member_name->type == EXPRESSION_TYPE_IDENTIFIER) {
+            value->u.object_value = heap_alloc_string(env, pair->member_name->u.identifier_expr);
+            value->type = VALUE_TYPE_STRING;
+        }
+
+        evaluator_expression(env, pair->member_expr);
+
+        table_push_pair(table_value->u.object_value->u.table, env);
     }
 }
 

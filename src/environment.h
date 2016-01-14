@@ -57,6 +57,7 @@ struct object_s {
 
 enum value_type_e {
     VALUE_TYPE_NIL,
+    VALUE_TYPE_NULL,
 
     VALUE_TYPE_CHAR,
     VALUE_TYPE_BOOL,
@@ -71,8 +72,6 @@ enum value_type_e {
     VALUE_TYPE_TABLE,
 
     VALUE_TYPE_POINTER,
-    VALUE_TYPE_REFERENCE,
-    VALUE_TYPE_NULL,
 };
 
 struct value_s {
@@ -97,7 +96,6 @@ value_t value_dup(const value_t src);
 void    value_free(value_t value);
 
 struct table_pair_s {
-    //cstring_t    key;
     value_t      key;
     value_t      value;
     hlist_node_t link;
@@ -109,9 +107,11 @@ struct table_s {
 
 table_t table_new(void);
 void    table_free(table_t table);
-value_t table_search_member(table_t table, cstring_t member_name);
-value_t table_new_member(table_t table, cstring_t member_name);
-void    table_add_member(table_t table, cstring_t key, value_t value);
+value_t table_search(table_t table, environment_t env);
+value_t table_search_by_value(table_t table, value_t key);
+value_t table_new_member(table_t table, value_t key);
+void    table_add_member(table_t table, value_t key, value_t value);
+void    table_push_pair(table_t table, environment_t env);
 
 typedef struct heap_s* heap_t;
 
@@ -141,6 +141,7 @@ void          environment_pop_local_context(environment_t env);
 
 /* stack op */
 void          environment_clear_stack(environment_t env);
+void          environment_pop_value(environment_t env);
 void          environment_push_value(environment_t env, value_t value);
 void          environment_push_char(environment_t env, char char_value);
 void          environment_push_bool(environment_t env, bool bool_value);
@@ -148,12 +149,13 @@ void          environment_push_int(environment_t env, int int_value);
 void          environment_push_long(environment_t env, long long_value);
 void          environment_push_float(environment_t env, float float_value);
 void          environment_push_double(environment_t env, double double_value);
+void          environment_push_str(environment_t env, const char* str);
 void          environment_push_string(environment_t env, cstring_t string_value);
 void          environment_push_null(environment_t env);
 void          environment_push_function(environment_t env, expression_function_t function);
 void          environment_push_native_function(environment_t env, native_function_pt native_function);
-void          environment_push_array_generate(environment_t env, list_t array_generate, bool toplevel);
-void          environment_push_table_generate(environment_t env, list_t table_generate, bool toplevel);
+void          environment_push_array_generate(environment_t env, list_t array_generate);
+void          environment_push_table_generate(environment_t env, list_t table_generate);
 
 /* function stack */
 void          environment_push_value_to_function_stack(environment_t env, value_t v);

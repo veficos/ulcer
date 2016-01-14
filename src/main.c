@@ -66,6 +66,34 @@ static void print_value(value_t value)
         }
         break;
 
+    case VALUE_TYPE_TABLE:
+        {
+            hash_table_iter_t hiter;
+            table_pair_t pair;
+            int index;
+            int last;
+
+            index = 0;
+            last = hash_table_size(value->u.object_value->u.table->table) - 1;
+
+            printf("{");
+            hash_table_for_each(value->u.object_value->u.table->table, hiter) {
+                pair = hash_table_iter_element(hiter, table_pair_t, link);
+
+                print_value(pair->key);
+
+                printf(":");
+
+                print_value(pair->value);
+
+                if (last != index++) {
+                    printf(", ");
+                }
+            }
+            printf("}");
+        }
+        break;
+
     case VALUE_TYPE_FUNCTION:
         printf("function");
         break;
@@ -94,17 +122,17 @@ static void native_print(environment_t env, unsigned int argc)
 
 static void setup_stdlib(environment_t env)
 {
-    value_t value;
+    environment_push_str(env, "print");
+    
+    environment_push_native_function(env, native_print);
 
-    value = value_new(VALUE_TYPE_NATIVE_FUNCTION);
-    value->u.object_value = heap_alloc_native_function(env, native_print);
+    table_push_pair(environment_get_global_table(env), env);
 
-    table_add_member(environment_get_global_table(env), cstring_new("print"), value);
+    environment_push_str(env, "shit");
 
-    value = value_new(VALUE_TYPE_NATIVE_FUNCTION);
-    value->u.object_value = heap_alloc_native_function(env, native_print);
+    environment_push_native_function(env, native_print);
 
-    table_add_member(environment_get_global_table(env), cstring_new("shit"), value);
+    table_push_pair(environment_get_global_table(env), env);
 }
 
 int main(int argc, char** args)

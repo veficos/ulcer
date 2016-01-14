@@ -65,6 +65,15 @@ void heap_gc(environment_t env)
     __heap_sweep_objects__(env);
 }
 
+object_t heap_alloc_str(environment_t env, const char* str)
+{
+    object_t object = __heap_alloc_object__(env, OBJECT_TYPE_STRING);
+
+    object->u.string = cstring_new(str);
+
+    return object;
+}
+
 object_t heap_alloc_string(environment_t env, cstring_t cstr)
 {
     object_t object = __heap_alloc_object__(env, OBJECT_TYPE_STRING);
@@ -180,6 +189,11 @@ static void __heap_mark_objects__(environment_t env)
         iter = hash_table_iter_new(env->global_table->table);
         hash_table_for_each(env->global_table->table, iter) {
             variable = hash_table_iter_element(iter, table_pair_t, link);
+
+            if (__heap_value_is_object__(variable->key)) {
+                __heap_mark_object__(variable->key->u.object_value);
+            }
+
             if (__heap_value_is_object__(variable->value)) {
                 __heap_mark_object__(variable->value->u.object_value);
             }
@@ -216,6 +230,11 @@ static void __heap_mark_objects__(environment_t env)
             hiter = hash_table_iter_new(context->object->u.table->table);
             hash_table_for_each(context->object->u.table->table, hiter) {
                 variable = hash_table_iter_element(hiter, table_pair_t, link);
+
+                if (__heap_value_is_object__(variable->key)) {
+                    __heap_mark_object__(variable->key->u.object_value);
+                }
+
                 if (__heap_value_is_object__(variable->value)) {
                     __heap_mark_object__(variable->value->u.object_value);
                 }
@@ -297,7 +316,6 @@ static void __heap_mark_object__(object_t obj)
     value_t *base;
     int index;
     list_iter_t iter;
-    object_t object;
     table_pair_t variable;
     hash_table_iter_t hiter;
 
@@ -305,16 +323,23 @@ static void __heap_mark_object__(object_t obj)
         return ;
     }
 
+    obj->marked = true;
+
     switch (obj->type) {
     case OBJECT_TYPE_FUNCTION:
         list_for_each(obj->u.function->scopes, iter) {
-            object = list_element(iter, object_t, link_scope);
+            object_t object = list_element(iter, object_t, link_scope);
 
             __heap_mark_object__(object);
             
             hiter = hash_table_iter_new(object->u.table->table);
             hash_table_for_each(object->u.table->table, hiter) {
                 variable = hash_table_iter_element(hiter, table_pair_t, link);
+
+                if (__heap_value_is_object__(variable->key)) {
+                    __heap_mark_object__(variable->key->u.object_value);
+                }
+
                 if (__heap_value_is_object__(variable->value)) {
                     __heap_mark_object__(variable->value->u.object_value);
                 }
@@ -333,11 +358,23 @@ static void __heap_mark_object__(object_t obj)
         break;
 
     case OBJECT_TYPE_TABLE:
+        hiter = hash_table_iter_new(obj->u.table->table);
+        hash_table_for_each(obj->u.table->table, hiter) {
+            variable = hash_table_iter_element(hiter, table_pair_t, link);
+
+            if (__heap_value_is_object__(variable->key)) {
+                __heap_mark_object__(variable->key->u.object_value);
+            }
+
+            if (__heap_value_is_object__(variable->value)) {
+                __heap_mark_object__(variable->value->u.object_value);
+            }
+        }
+
+        hash_table_iter_free(hiter);
         break;
 
     default:
         break;
     }
-
-    obj->marked = true;
 }

@@ -13,12 +13,12 @@ struct executor_s {
     environment_t env;
 };
 
-static executor_result_t __executor_if_statement__(environment_t env, statement_t stmt, bool toplevel);
-static executor_result_t __executor_elif_statement__(environment_t env, statement_t stmt, bool toplevel);
-static executor_result_t __executor_switch_statement__(environment_t env, statement_t stmt, bool toplevel);
-static executor_result_t __executor_for_statement__(environment_t env, statement_t stmt, bool toplevel);
-static executor_result_t __executor_while_statement__(environment_t env, statement_t stmt, bool toplevel);
-static executor_result_t __executor_block_statement__(environment_t env, list_t block, bool toplevel);
+static executor_result_t __executor_if_statement__(environment_t env, statement_t stmt);
+static executor_result_t __executor_elif_statement__(environment_t env, statement_t stmt);
+static executor_result_t __executor_switch_statement__(environment_t env, statement_t stmt);
+static executor_result_t __executor_for_statement__(environment_t env, statement_t stmt);
+static executor_result_t __executor_while_statement__(environment_t env, statement_t stmt);
+static executor_result_t __executor_block_statement__(environment_t env, list_t block);
 
 executor_t executor_new(environment_t env)
 {
@@ -52,7 +52,7 @@ void executor_run(executor_t exec)
 
     list_for_each(stmts->stmts, iter) {
         stmt = list_element(iter, statement_t, link);
-        switch (executor_statement(env, stmt, true)) {
+        switch (executor_statement(env, stmt)) {
         case EXECUTOR_RESULT_BREAK:
             runtime_error("(%d, %d): %s", stmt->line, stmt->column, "break outside loop");
             break;
@@ -68,40 +68,37 @@ void executor_run(executor_t exec)
     }
 }
 
-executor_result_t executor_statement(environment_t env, statement_t stmt, bool toplevel)
+executor_result_t executor_statement(environment_t env, statement_t stmt)
 {
-    value_t value;
     executor_result_t result;
 
     switch (stmt->type) {
     case STATEMENT_TYPE_EXPRESSION:
-        evaluator_expression(env, stmt->u.expr, toplevel);
-        value = list_element(list_rbegin(env->stack), value_t, link);
-        list_pop_back(env->stack);
-        value_free(value);
+        evaluator_expression(env, stmt->u.expr);
+        environment_pop_value(env);
         return EXECUTOR_RESULT_NORMAL;
 
     case STATEMENT_TYPE_IF:
         environment_push_local_context(env);
-        result = __executor_if_statement__(env, stmt, toplevel);
+        result = __executor_if_statement__(env, stmt);
         environment_pop_local_context(env);
         return result;
 
     case STATEMENT_TYPE_SWITCH:
         environment_push_local_context(env);
-        result = __executor_switch_statement__(env, stmt, toplevel);
+        result = __executor_switch_statement__(env, stmt);
         environment_pop_local_context(env);
         return result;
 
     case STATEMENT_TYPE_WHILE:
         environment_push_local_context(env);
-        result = __executor_while_statement__(env, stmt, toplevel);
+        result = __executor_while_statement__(env, stmt);
         environment_pop_local_context(env);
         return result;
 
     case STATEMENT_TYPE_FOR:
         environment_push_local_context(env);
-        result = __executor_for_statement__(env, stmt, toplevel);
+        result = __executor_for_statement__(env, stmt);
         environment_pop_local_context(env);
         return result;
 
@@ -113,7 +110,7 @@ executor_result_t executor_statement(environment_t env, statement_t stmt, bool t
 
     case STATEMENT_TYPE_RETURN:
         if (stmt->u.return_expr) {
-            evaluator_expression(env, stmt->u.return_expr, false);
+            evaluator_expression(env, stmt->u.return_expr);
         } else {
             environment_push_null(env);
         }
@@ -126,7 +123,7 @@ executor_result_t executor_statement(environment_t env, statement_t stmt, bool t
     return EXECUTOR_RESULT_NORMAL;
 }
 
-static executor_result_t __executor_block_statement__(environment_t env, list_t block, bool toplevel)
+static executor_result_t __executor_block_statement__(environment_t env, list_t block)
 {
     list_iter_t iter;
     statement_t stmt;
@@ -135,7 +132,7 @@ static executor_result_t __executor_block_statement__(environment_t env, list_t 
     result = EXECUTOR_RESULT_NORMAL;
     list_for_each(block, iter) {
         stmt = list_element(iter, statement_t, link);
-        result = executor_statement(env, stmt, toplevel);
+        result = executor_statement(env, stmt);
         if (result != EXECUTOR_RESULT_NORMAL) {
             break;
         }
@@ -144,7 +141,7 @@ static executor_result_t __executor_block_statement__(environment_t env, list_t 
     return result;
 }
 
-static executor_result_t __executor_if_statement__(environment_t env, statement_t stmt, bool toplevel)
+static executor_result_t __executor_if_statement__(environment_t env, statement_t stmt)
 {
     value_t condition_value;
     statement_if_t stmt_if;
@@ -152,7 +149,7 @@ static executor_result_t __executor_if_statement__(environment_t env, statement_
 
     stmt_if = stmt->u.if_stmt;
 
-    evaluator_expression(env, stmt_if->condition, toplevel);
+    evaluator_expression(env, stmt_if->condition);
 
     condition_value = list_element(list_rbegin(env->stack), value_t, link);
 
@@ -166,16 +163,16 @@ static executor_result_t __executor_if_statement__(environment_t env, statement_
     }
 
     if (condition_value->u.bool_value) {
-        result = __executor_block_statement__(env, stmt_if->if_block, toplevel);
+        result = __executor_block_statement__(env, stmt_if->if_block);
     } else {
-        result = __executor_elif_statement__(env, stmt, toplevel);
+        result = __executor_elif_statement__(env, stmt);
     }
 
     value_free(condition_value);
     return result;
 }
 
-static executor_result_t __executor_elif_statement__(environment_t env, statement_t stmt, bool toplevel)
+static executor_result_t __executor_elif_statement__(environment_t env, statement_t stmt)
 {
     value_t condition_value;
     bool condition;
@@ -188,7 +185,7 @@ static executor_result_t __executor_elif_statement__(environment_t env, statemen
     list_for_each(stmt_if->elifs, iter) {
         stmt_elif = list_element(iter, statement_elif_t, link);
 
-        evaluator_expression(env, stmt_elif->condition, toplevel);
+        evaluator_expression(env, stmt_elif->condition);
 
         condition_value = list_element(list_rbegin(env->stack), value_t, link);
 
@@ -206,18 +203,18 @@ static executor_result_t __executor_elif_statement__(environment_t env, statemen
         value_free(condition_value);
 
         if (condition) {
-            return __executor_block_statement__(env, stmt_elif->block, toplevel);
+            return __executor_block_statement__(env, stmt_elif->block);
         }
     }
 
     if (!list_is_empty(stmt_if->else_block)) {
-        return __executor_block_statement__(env, stmt_if->else_block, toplevel);
+        return __executor_block_statement__(env, stmt_if->else_block);
     }
 
     return EXECUTOR_RESULT_NORMAL;
 }
 
-static executor_result_t __executor_switch_statement__(environment_t env, statement_t stmt, bool toplevel)
+static executor_result_t __executor_switch_statement__(environment_t env, statement_t stmt)
 {
     bool compare_result;
     executor_result_t result;
@@ -230,14 +227,14 @@ static executor_result_t __executor_switch_statement__(environment_t env, statem
 
     stmt_switch = stmt->u.switch_stmt;
 
-    evaluator_expression(env, stmt_switch->expr, toplevel);
+    evaluator_expression(env, stmt_switch->expr);
 
     lvalue = list_element(list_rbegin(env->stack), value_t, link);
 
     list_for_each(stmt_switch->cases, iter) {
         stmt_case = list_element(iter, statement_switch_case_t, link);
 
-        evaluator_expression(env, stmt_case->case_expr, toplevel);
+        evaluator_expression(env, stmt_case->case_expr);
 
         rvalue = list_element(list_rbegin(env->stack), value_t, link);
 
@@ -258,7 +255,7 @@ static executor_result_t __executor_switch_statement__(environment_t env, statem
 
             value_free(lvalue);
 
-            result = __executor_block_statement__(env, stmt_case->block, toplevel);
+            result = __executor_block_statement__(env, stmt_case->block);
             if (result == EXECUTOR_RESULT_BREAK) {
                 result = EXECUTOR_RESULT_NORMAL;
             }
@@ -270,7 +267,7 @@ static executor_result_t __executor_switch_statement__(environment_t env, statem
     list_pop_back(env->stack);
     value_free(lvalue);
 
-    result = __executor_block_statement__(env, stmt_switch->default_block, toplevel);
+    result = __executor_block_statement__(env, stmt_switch->default_block);
     if (result == EXECUTOR_RESULT_BREAK) {
         result = EXECUTOR_RESULT_NORMAL;
     }
@@ -278,7 +275,7 @@ static executor_result_t __executor_switch_statement__(environment_t env, statem
     return result;
 }
 
-static executor_result_t __executor_while_statement__(environment_t env, statement_t stmt, bool toplevel)
+static executor_result_t __executor_while_statement__(environment_t env, statement_t stmt)
 {
     bool condition;
     value_t condition_value;
@@ -288,7 +285,7 @@ static executor_result_t __executor_while_statement__(environment_t env, stateme
     stmt_while = stmt->u.while_stmt;
 
     while (true) {
-        evaluator_expression(env, stmt_while->condition, toplevel);
+        evaluator_expression(env, stmt_while->condition);
         condition_value = list_element(list_rbegin(env->stack), value_t, link);
         list_pop_back(env->stack);
 
@@ -307,7 +304,7 @@ static executor_result_t __executor_while_statement__(environment_t env, stateme
             break;
         }
 
-        result = __executor_block_statement__(env, stmt_while->block, toplevel);
+        result = __executor_block_statement__(env, stmt_while->block);
         if (result == EXECUTOR_RESULT_RETURN) {
             break;
         } else if (result == EXECUTOR_RESULT_BREAK) {
@@ -319,7 +316,7 @@ static executor_result_t __executor_while_statement__(environment_t env, stateme
     return EXECUTOR_RESULT_NORMAL;
 }
 
-static executor_result_t __executor_for_statement__(environment_t env, statement_t stmt, bool toplevel)
+static executor_result_t __executor_for_statement__(environment_t env, statement_t stmt)
 {
     value_t value;
     bool condition;
@@ -329,7 +326,7 @@ static executor_result_t __executor_for_statement__(environment_t env, statement
     stmt_for = stmt->u.for_stmt;
 
     if (stmt_for->init) {
-        evaluator_expression(env, stmt_for->init, toplevel);
+        evaluator_expression(env, stmt_for->init);
         value = list_element(list_rbegin(env->stack), value_t, link);
         list_pop_back(env->stack);
         value_free(value);
@@ -337,7 +334,7 @@ static executor_result_t __executor_for_statement__(environment_t env, statement
 
     while (true) {
         if (stmt_for->condition) {
-            evaluator_expression(env, stmt_for->condition, toplevel);
+            evaluator_expression(env, stmt_for->condition);
             value = list_element(list_rbegin(env->stack), value_t, link);
             list_pop_back(env->stack);
 
@@ -357,7 +354,7 @@ static executor_result_t __executor_for_statement__(environment_t env, statement
             }
         }
 
-        result = __executor_block_statement__(env, stmt_for->block, toplevel);
+        result = __executor_block_statement__(env, stmt_for->block);
         if (result == EXECUTOR_RESULT_RETURN) {
             break;
         } else if (result == EXECUTOR_RESULT_BREAK) {
@@ -366,7 +363,7 @@ static executor_result_t __executor_for_statement__(environment_t env, statement
         }
 
         if (stmt_for->post) {
-            evaluator_expression(env, stmt_for->post, toplevel);
+            evaluator_expression(env, stmt_for->post);
             
             value = list_element(list_rbegin(env->stack), value_t, link);
             
