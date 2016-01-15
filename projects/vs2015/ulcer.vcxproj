@@ -34,6 +34,7 @@
     <ClCompile Include="..\..\src\hash_table.c" />
     <ClCompile Include="..\..\src\heap.c" />
     <ClCompile Include="..\..\src\lexer.c" />
+    <ClCompile Include="..\..\src\libsdl.c" />
     <ClCompile Include="..\..\src\list.c" />
     <ClCompile Include="..\..\src\main.c" />
     <ClCompile Include="..\..\src\module.c" />
@@ -57,6 +58,7 @@
     <ClInclude Include="..\..\src\heap.h" />
     <ClInclude Include="..\..\src\hlist.h" />
     <ClInclude Include="..\..\src\lexer.h" />
+    <ClInclude Include="..\..\src\libsdl.h" />
     <ClInclude Include="..\..\src\list.h" />
     <ClInclude Include="..\..\src\module.h" />
     <ClInclude Include="..\..\src\parser.h" />

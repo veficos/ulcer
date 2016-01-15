@@ -141,6 +141,7 @@ void          environment_pop_local_context(environment_t env);
 
 /* stack op */
 void          environment_clear_stack(environment_t env);
+void          environment_xchg_stack(environment_t env);
 void          environment_pop_value(environment_t env);
 void          environment_push_value(environment_t env, value_t value);
 void          environment_push_char(environment_t env, char char_value);

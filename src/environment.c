@@ -334,6 +334,26 @@ void environment_clear_stack(environment_t env)
     }
 }
 
+void environment_xchg_stack(environment_t env)
+{
+    value_t v1, v2;
+    
+    assert(!list_is_empty(env->stack));
+
+    v1 = list_element(list_rbegin(env->stack), value_t, link);
+
+    list_pop_back(env->stack);
+
+    assert(!list_is_empty(env->stack));
+
+    v2 = list_element(list_rbegin(env->stack), value_t, link);
+
+    list_pop_back(env->stack);
+
+    list_push_back(env->stack, v1->link);
+    list_push_back(env->stack, v2->link);
+}
+
 void environment_pop_value(environment_t env)
 {
     value_t value;

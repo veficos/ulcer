@@ -1,13 +1,21 @@
 
 
-t = {1+2+3+4:"10"};
+{
+    f : function() {print("print function\n");},
+    a : {}
+}["f"]();
 
-t = {
-        hello: function(){print("function\n");}, 
-        s: t, 
-        true: "true"
-};
 
-t["hello"]();
+/*
+f = function() {
+    return {
+        f : function() {
+            return function() {
+                print("hello world\n", this, "\n");
+            };
+        }
+    };
+}().f();
 
-print(t[true], "\n");
+f();
+*/

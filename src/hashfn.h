@@ -42,9 +42,9 @@ static uintptr_t golden_ratio_prime_hash_ptr(uintptr_t key)
 {
     switch (sizeof(void*)) {
     case 4:
-        return golden_ratio_prime_hash_32((uint32_t)key, 32);
+        return (uintptr_t) golden_ratio_prime_hash_32((uint32_t)key, 32);
     case 8:
-        return golden_ratio_prime_hash_64((uint64_t)key, 64);
+        return (uintptr_t) golden_ratio_prime_hash_64((uint64_t)key, 64);
     }
     return 0;
 }

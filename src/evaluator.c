@@ -53,6 +53,8 @@ static void         __evaluator_string_binary_expression__(environment_t env, lo
 static void         __evaluator_null_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right);
 static void         __evaluator_logic_binary_expression__(environment_t env, expression_type_t type, expression_t left_expr, expression_t right_expr);
 static value_t      __evaluator_index_expression__(environment_t env, expression_t expr);
+static void         __evaluator_array_push__(environment_t env, expression_t expr);
+static value_t      __evaluator_table_dot_member__(environment_t env, expression_t expr);
 
 void evaluator_expression(environment_t env, expression_t expr)
 {
@@ -165,16 +167,28 @@ void evaluator_expression(environment_t env, expression_t expr)
         break;
 
     case EXPRESSION_TYPE_ARRAY_PUSH:
+        __evaluator_array_push__(env, expr);
+        break;
+
     case EXPRESSION_TYPE_ARRAY_POP:
+        break;
+
     case EXPRESSION_TYPE_TABLE_DOT_MEMBER:
+        value = __evaluator_table_dot_member__(env, expr);
+        if (value) {
+            list_push_back(env->stack, value_dup(value)->link);
+        }
+        break;
+
     case EXPRESSION_TYPE_INDEX:
         value = __evaluator_get_lvalue__(env, expr);
         if (value) {
             list_push_back(env->stack, value_dup(value)->link);
         }
         break;
+
     default:
-       break;
+       assert(false);
     }
 }
 
@@ -297,7 +311,7 @@ static value_t __evaluator_search_variable__(environment_t env, expression_t exp
         return value;
 
     default:
-        return NULL;
+        assert(false);
     }
 
     return NULL;
@@ -334,62 +348,193 @@ static value_t __evaluator_get_variable_lvalue__(environment_t env, cstring_t id
 static value_t __evaluator_index_expression__(environment_t env, expression_t expr)
 {
     value_t value = NULL;
+    value_t elem = NULL;
     value_t index_value = NULL;
 
     evaluator_expression(env, expr->u.index_expr->dict);
 
     value = list_element(list_rbegin(env->stack), value_t, link);
 
-    list_pop_back(env->stack);
-
     evaluator_expression(env, expr->u.index_expr->index);
 
     index_value = list_element(list_rbegin(env->stack), value_t, link);
 
-    list_pop_back(env->stack);
-
     switch (value->type) {
     case VALUE_TYPE_ARRAY:
-        value = *(value_t*)array_index(value->u.object_value->u.array, index_value->u.int_value);
-        break;
-    case VALUE_TYPE_TABLE:
-        value = table_search_by_value(value->u.object_value->u.table, index_value);
-        if (value) {
-            if (value->type == VALUE_TYPE_FUNCTION || value->type == VALUE_TYPE_NATIVE_FUNCTION) {
-                
-            }
-        } else {
-            environment_push_null(env);
-            value = list_element(list_rbegin(env->stack), value_t, link);
+        if (index_value->type != VALUE_TYPE_INT) {
+            runtime_error("array indices must be integers");
         }
 
+        if (index_value->u.int_value >= 0 && index_value->u.int_value < (int)array_length(value->u.object_value->u.array)) {
+            elem = *(value_t*)array_index(value->u.object_value->u.array, index_value->u.int_value);
+        } else {
+            environment_push_null(env);
+            elem = list_element(list_rbegin(env->stack), value_t, link);
+            list_pop_back(env->stack);
+            if (index_value->u.int_value == (int)array_length(value->u.object_value->u.array)) {
+                value_t *ptr = (value_t*)array_push(value->u.object_value->u.array);
+                *ptr = elem;
+            }
+        }
         break;
+
+    case VALUE_TYPE_TABLE:
+        elem = table_search_by_value(value->u.object_value->u.table, index_value);
+        if (elem) {
+            if (elem->type == VALUE_TYPE_FUNCTION || elem->type == VALUE_TYPE_NATIVE_FUNCTION) {
+                local_context_t context;
+
+                if (list_is_empty(elem->u.object_value->u.function->scopes)) {
+                    environment_push_local_context(env);
+
+                    context = list_element(list_rbegin(env->local_context_stack), local_context_t, link);
+
+                    list_push_back(elem->u.object_value->u.function->scopes, context->object->link_scope);
+
+                    environment_push_str(env, "this");
+
+                    environment_xchg_stack(env);
+                    
+                    table_push_pair(context->object->u.table, env);
+
+                    environment_pop_local_context(env);
+
+                } else {
+                    object_t object = list_element(list_rbegin(elem->u.object_value->u.function->scopes), object_t, link_scope);
+
+                    environment_push_str(env, "this");
+
+                    environment_xchg_stack(env);
+
+                    table_push_pair(object->u.table, env);
+                }
+            }
+           
+            environment_pop_value(env);
+            return elem;
+
+        } else {
+            environment_push_null(env);
+            elem = list_element(list_rbegin(env->stack), value_t, link);
+            table_add_member(value->u.object_value->u.table, index_value, elem);
+            list_pop_back(env->stack);
+        }
+        break;
+
     default:
-        environment_push_null(env);
-        value = list_element(list_rbegin(env->stack), value_t, link);
+        runtime_error("'%s' is not array/table", get_value_type_string(value->type));
         break;
     }
 
-    return value;
+    list_pop_back(env->stack);
+    list_pop_back(env->stack);
+
+    assert(elem != NULL);
+    return elem;
+}
+
+static void __evaluator_array_push__(environment_t env, expression_t expr)
+{
+    value_t value = NULL;
+    value_t elem = NULL;
+    value_t index_value = NULL;
+
+    evaluator_expression(env, expr->u.array_push_expr->array_expr);
+
+    value = list_element(list_rbegin(env->stack), value_t, link);
+
+    evaluator_expression(env, expr->u.index_expr->index);
+
+    index_value = list_element(list_rbegin(env->stack), value_t, link);
+}
+
+static value_t __evaluator_table_dot_member__(environment_t env, expression_t expr)
+{
+    value_t table_value;
+    value_t member_name_value;
+    value_t elem;
+
+    environment_push_string(env, expr->u.table_dot_member_expr->member_name);
+
+    member_name_value = list_element(list_rbegin(env->stack), value_t, link);
+
+    evaluator_expression(env, expr->u.table_dot_member_expr->table_expr);
+
+    table_value = list_element(list_rbegin(env->stack), value_t, link);
+
+    if (table_value->type != VALUE_TYPE_TABLE) {
+        runtime_error("(%d, %d) '%s' object has no member\n",
+                      expr->line,
+                      expr->column,
+                      get_value_type_string(table_value->type));
+    }
+
+    elem = table_search_by_value(table_value->u.object_value->u.table, member_name_value);
+    if (elem) {
+        if (elem->type == VALUE_TYPE_FUNCTION || elem->type == VALUE_TYPE_NATIVE_FUNCTION) {
+            local_context_t context;
+
+            if (list_is_empty(elem->u.object_value->u.function->scopes)) {
+                environment_push_local_context(env);
+
+                context = list_element(list_rbegin(env->local_context_stack), local_context_t, link);
+
+                list_push_back(elem->u.object_value->u.function->scopes, context->object->link_scope);
+
+                environment_push_str(env, "this");
+
+                environment_xchg_stack(env);
+                    
+                table_push_pair(context->object->u.table, env);
+
+                environment_pop_local_context(env);
+
+            } else {
+                object_t object = list_element(list_rbegin(elem->u.object_value->u.function->scopes), object_t, link_scope);
+
+                environment_push_str(env, "this");
+
+                environment_xchg_stack(env);
+
+                table_push_pair(object->u.table, env);
+            }
+        }
+
+        environment_pop_value(env);
+
+    } else {
+        environment_push_null(env);
+        elem = list_element(list_rbegin(env->stack), value_t, link);
+        table_add_member(table_value->u.object_value->u.table, member_name_value, elem);
+        list_pop_back(env->stack);
+        list_pop_back(env->stack);
+        environment_pop_value(env);
+    }
+
+    return elem;
 }
 
 static value_t __evaluator_get_lvalue__(environment_t env, expression_t expr)
 {
-    value_t value;
+    value_t value = NULL;
  
     switch (expr->type) {
     case EXPRESSION_TYPE_IDENTIFIER:
         value = __evaluator_get_variable_lvalue__(env, expr->u.identifier_expr);
         break;
+
     case EXPRESSION_TYPE_INDEX:
         value = __evaluator_index_expression__(env, expr);
         break;
-    case EXPRESSION_TYPE_TABLE_DOT_MEMBER:
-        
-    default:
-        value = NULL;
-    }
 
+    case EXPRESSION_TYPE_TABLE_DOT_MEMBER:
+        value = __evaluator_table_dot_member__(env, expr);
+        break;
+
+    default:
+        assert(false);
+    }
+    
     return value;
 }
 
@@ -1582,6 +1727,8 @@ const char* get_value_type_string(value_type_t type)
         return "function";
     case VALUE_TYPE_NULL:
         return "null";
+    case VALUE_TYPE_ARRAY:
+        return "array";
     default:
         return "unknown";
     }

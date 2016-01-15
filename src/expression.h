@@ -137,7 +137,7 @@ struct expression_table_pair_s {
 };
 
 struct expression_table_dot_member_s {
-    expression_t table;
+    expression_t table_expr;
     cstring_t    member_name;
 };
 

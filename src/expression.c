@@ -363,7 +363,7 @@ expression_t expression_new_table_dot_member(long line, long column, expression_
     }
 
     expr->u.table_dot_member_expr              = dot_member;
-    expr->u.table_dot_member_expr->table       = table;
+    expr->u.table_dot_member_expr->table_expr       = table;
     expr->u.table_dot_member_expr->member_name = member_name;
 
     return expr;
@@ -507,7 +507,7 @@ void expression_free(expression_t expr)
         break;
 
     case EXPRESSION_TYPE_TABLE_DOT_MEMBER:
-        expression_free(expr->u.table_dot_member_expr->table);
+        expression_free(expr->u.table_dot_member_expr->table_expr);
         cstring_free(expr->u.table_dot_member_expr->member_name);
         mem_free(expr->u.table_dot_member_expr);
         break;
