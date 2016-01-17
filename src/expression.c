@@ -506,6 +506,12 @@ void expression_free(expression_t expr)
         mem_free(expr->u.array_push_expr);
         break;
 
+    case EXPRESSION_TYPE_ARRAY_POP:
+        expression_free(expr->u.array_pop_expr->array_expr);
+        expression_free(expr->u.array_pop_expr->lvalue_expr);
+        mem_free(expr->u.array_pop_expr);
+        break;
+
     case EXPRESSION_TYPE_TABLE_DOT_MEMBER:
         expression_free(expr->u.table_dot_member_expr->table_expr);
         cstring_free(expr->u.table_dot_member_expr->member_name);

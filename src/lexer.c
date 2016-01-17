@@ -26,12 +26,13 @@ struct keyword_s {
 
 struct keyword_s keywords[] = {
     { "require",        TOKEN_VALUE_REQUIRE     },
-    { "function",       TOKEN_VALUE_FUNCTION    } ,
+    { "function",       TOKEN_VALUE_FUNCTION    },
     { "if",             TOKEN_VALUE_IF          },
     { "else",           TOKEN_VALUE_ELSE        },
     { "elif",           TOKEN_VALUE_ELIF        },
     { "while",          TOKEN_VALUE_WHILE       },
     { "for",            TOKEN_VALUE_FOR         },
+    { "foreach",        TOKEN_VALUE_FOREACH     },
     { "switch",         TOKEN_VALUE_SWITCH      },
     { "case",           TOKEN_VALUE_CASE        },
     { "default",        TOKEN_VALUE_DEFAULT     },

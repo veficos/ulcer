@@ -54,6 +54,7 @@ static void         __evaluator_null_binary_expression__(environment_t env, long
 static void         __evaluator_logic_binary_expression__(environment_t env, expression_type_t type, expression_t left_expr, expression_t right_expr);
 static value_t      __evaluator_index_expression__(environment_t env, expression_t expr);
 static void         __evaluator_array_push__(environment_t env, expression_t expr);
+static void         __evaluator_array_pop__(environment_t env, expression_t expr);
 static value_t      __evaluator_table_dot_member__(environment_t env, expression_t expr);
 
 void evaluator_expression(environment_t env, expression_t expr)
@@ -171,6 +172,7 @@ void evaluator_expression(environment_t env, expression_t expr)
         break;
 
     case EXPRESSION_TYPE_ARRAY_POP:
+        __evaluator_array_pop__(env, expr);
         break;
 
     case EXPRESSION_TYPE_TABLE_DOT_MEMBER:
@@ -190,6 +192,11 @@ void evaluator_expression(environment_t env, expression_t expr)
     default:
        assert(false);
     }
+}
+
+value_t evaluator_get_lvalue(environment_t env, expression_t expr)
+{
+    return __evaluator_get_lvalue__(env, expr);
 }
 
 void evaluator_binary_value(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right)
@@ -362,7 +369,9 @@ static value_t __evaluator_index_expression__(environment_t env, expression_t ex
     switch (value->type) {
     case VALUE_TYPE_ARRAY:
         if (index_value->type != VALUE_TYPE_INT) {
-            runtime_error("array indices must be integers");
+            runtime_error("(%d, %d): array indices must be integers", 
+                          expr->line, 
+                          expr->column);
         }
 
         if (index_value->u.int_value >= 0 && index_value->u.int_value < (int)array_length(value->u.object_value->u.array)) {
@@ -408,26 +417,33 @@ static value_t __evaluator_index_expression__(environment_t env, expression_t ex
 
                     table_push_pair(object->u.table, env);
                 }
+
+            } else {
+                environment_pop_value(env);
             }
-           
+
             environment_pop_value(env);
             return elem;
 
         } else {
             environment_push_null(env);
             elem = list_element(list_rbegin(env->stack), value_t, link);
-            table_add_member(value->u.object_value->u.table, index_value, elem);
-            list_pop_back(env->stack);
+            table_push_pair(value->u.object_value->u.table, env);
+            environment_pop_value(env);
+            return elem;
         }
         break;
 
     default:
-        runtime_error("'%s' is not array/table", get_value_type_string(value->type));
+        runtime_error("(%d, %d): '%s' is not array/table", 
+                      expr->line,
+                      expr->column,
+                      get_value_type_string(value->type));
         break;
     }
 
-    list_pop_back(env->stack);
-    list_pop_back(env->stack);
+    environment_pop_value(env);
+    environment_pop_value(env);
 
     assert(elem != NULL);
     return elem;
@@ -435,17 +451,83 @@ static value_t __evaluator_index_expression__(environment_t env, expression_t ex
 
 static void __evaluator_array_push__(environment_t env, expression_t expr)
 {
-    value_t value = NULL;
-    value_t elem = NULL;
-    value_t index_value = NULL;
+    value_t array_value = NULL;
+    value_t elem_value = NULL;
+    value_t *elem = NULL;
 
     evaluator_expression(env, expr->u.array_push_expr->array_expr);
 
-    value = list_element(list_rbegin(env->stack), value_t, link);
+    array_value = list_element(list_rbegin(env->stack), value_t, link);
 
-    evaluator_expression(env, expr->u.index_expr->index);
+    if (array_value->type != VALUE_TYPE_ARRAY) {
+        runtime_error("(%d, %d): '%s' is not array",
+                      expr->line,
+                      expr->column,
+                      get_value_type_string(array_value->type));
+    }
 
-    index_value = list_element(list_rbegin(env->stack), value_t, link);
+    evaluator_expression(env, expr->u.array_push_expr->elem_expr);
+
+    elem_value = list_element(list_rbegin(env->stack), value_t, link);
+
+    elem = (value_t *) array_push(array_value->u.object_value->u.array);
+
+    *elem = elem_value;
+
+    list_pop_back(env->stack);
+}
+
+static void __evaluator_array_pop__(environment_t env, expression_t expr)
+{
+    value_t array_value = NULL;
+    value_t variable_value = NULL;
+    value_t elem_value = NULL;
+    value_t *elems = NULL;
+
+    evaluator_expression(env, expr->u.array_push_expr->array_expr);
+
+    array_value = list_element(list_rbegin(env->stack), value_t, link);
+
+    if (array_value->type != VALUE_TYPE_ARRAY) {
+        runtime_error("(%d, %d): '%s' is not array",
+                      expr->line,
+                      expr->column,
+                      get_value_type_string(array_value->type));
+    }
+
+
+    if (array_length(array_value->u.object_value->u.array) == 0) {
+        list_pop_back(env->stack);
+
+        value_free(array_value);
+
+        environment_push_null(env);
+
+        return;
+
+    } else {
+        elems = array_base(array_value->u.object_value->u.array, value_t*);
+
+        environment_push_value(env, elems[array_length(array_value->u.object_value->u.array) - 1]);
+
+        array_pop(array_value->u.object_value->u.array);
+    }
+
+    variable_value = __evaluator_get_lvalue__(env, expr->u.array_pop_expr->lvalue_expr);
+
+    elem_value = list_element(list_rbegin(env->stack), value_t, link);
+
+    list_pop_back(env->stack);
+
+    *variable_value = *elem_value;
+  
+    value_free(elem_value);
+
+    list_pop_back(env->stack);
+
+    value_free(array_value);
+
+    environment_push_value(env, value_dup(variable_value));
 }
 
 static value_t __evaluator_table_dot_member__(environment_t env, expression_t expr)
@@ -498,16 +580,21 @@ static value_t __evaluator_table_dot_member__(environment_t env, expression_t ex
 
                 table_push_pair(object->u.table, env);
             }
+        } else {
+            environment_pop_value(env);
         }
-
+        
         environment_pop_value(env);
 
     } else {
+        environment_xchg_stack(env);
+
         environment_push_null(env);
+
         elem = list_element(list_rbegin(env->stack), value_t, link);
-        table_add_member(table_value->u.object_value->u.table, member_name_value, elem);
-        list_pop_back(env->stack);
-        list_pop_back(env->stack);
+        
+        table_push_pair(table_value->u.object_value->u.table, env);
+
         environment_pop_value(env);
     }
 
@@ -618,19 +705,34 @@ static void __evaluator_native_function_call_expression__(environment_t env, val
 {
     list_iter_t iter;
     expression_t expr;
-    unsigned int argc;
     native_function_pt native_function;
+    value_t  elem = NULL;
+    value_t* v = NULL;
+    value_t  array = NULL;
 
     native_function = function_value->u.object_value->u.function->f.native_function;
 
-    argc = 0;
+    array = value_new(VALUE_TYPE_ARRAY);
+
+    array->u.object_value = heap_alloc_array(env);
+
+    environment_push_value(env, array);
+
     list_for_each(args, iter) {
         expr = list_element(iter, expression_t, link);
-        evaluator_expression(env, expr);
-        argc++;
-    }
 
-    native_function(env, argc);
+        evaluator_expression(env, expr);
+
+        elem = list_element(list_rbegin(env->stack), value_t, link);
+
+        list_pop_back(env->stack);
+
+        v = (value_t*) array_push(array->u.object_value->u.array);
+
+        *v = elem;
+    }
+   
+    native_function(env, (unsigned int) array_length(array->u.object_value->u.array));
 }
 
 static void __evaluator_assign_expression__(environment_t env, expression_type_t type, expression_t lvalue_expr, expression_t rvalue_expr)

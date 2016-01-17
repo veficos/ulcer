@@ -1,11 +1,5 @@
 
 
-{
-    f : function() {print("print function\n");},
-    a : {}
-}["f"]();
-
-
 /*
 f = function() {
     return {
@@ -19,3 +13,42 @@ f = function() {
 
 f();
 */
+/*
+t = {"abd": "helloworld"};
+t["abc"] = function(){};
+print(t["abc"],t.abc);
+
+
+function fuck(a,b,c,d) {
+    print(a,b,c,d);
+}
+
+fuck(1,2,3,4);
+*/
+/*
+a = [];
+
+a <- 1024;
+a <- "helloworld";
+
+print(a, "\n");
+
+a -> str;
+
+print(str, "\n");
+*/
+
+a = function() {
+    this = "helloworld";
+    return function() {
+        print(this, "\n");
+    };
+};
+
+
+foreach(k, v : function(){ return {"abd": "helloworld", 1:2, 3:4};}() ) {
+    print(k, ":", v, "\n");
+}
+
+
+a()();

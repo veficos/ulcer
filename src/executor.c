@@ -17,6 +17,7 @@ static executor_result_t __executor_if_statement__(environment_t env, statement_
 static executor_result_t __executor_elif_statement__(environment_t env, statement_t stmt);
 static executor_result_t __executor_switch_statement__(environment_t env, statement_t stmt);
 static executor_result_t __executor_for_statement__(environment_t env, statement_t stmt);
+static executor_result_t __executor_foreach_statement__(environment_t env, statement_t stmt);
 static executor_result_t __executor_while_statement__(environment_t env, statement_t stmt);
 static executor_result_t __executor_block_statement__(environment_t env, list_t block);
 
@@ -99,6 +100,12 @@ executor_result_t executor_statement(environment_t env, statement_t stmt)
     case STATEMENT_TYPE_FOR:
         environment_push_local_context(env);
         result = __executor_for_statement__(env, stmt);
+        environment_pop_local_context(env);
+        return result;
+    
+    case STATEMENT_TYPE_FOREACH:
+        environment_push_local_context(env);
+        result = __executor_foreach_statement__(env, stmt);
         environment_pop_local_context(env);
         return result;
 
@@ -373,5 +380,75 @@ static executor_result_t __executor_for_statement__(environment_t env, statement
         }
     }
 
+    return result;
+}
+
+static executor_result_t __executor_foreach_statement__(environment_t env, statement_t stmt)
+{
+    executor_result_t result = EXECUTOR_RESULT_NORMAL;
+    value_t key_value = NULL;
+    value_t value_value = NULL;
+    value_t at = NULL;
+    statement_foreach_t stmt_foreach;
+    
+    stmt_foreach = stmt->u.foreach_stmt;
+
+    key_value = evaluator_get_lvalue(env, stmt_foreach->key);
+
+    value_value = evaluator_get_lvalue(env, stmt_foreach->value);
+
+    evaluator_expression(env, stmt_foreach->at);
+
+    at = list_element(list_rbegin(env->stack), value_t, link);
+
+    if (at->type == VALUE_TYPE_ARRAY) {
+        value_t* values;
+        int index;
+        
+        key_value->type = VALUE_TYPE_INT;
+        
+        array_for_each(at->u.object_value->u.array, values, index) {
+            key_value->u.int_value = index;
+            *value_value = *(values[index]);
+
+            result = __executor_block_statement__(env, stmt_foreach->block);
+            if (result == EXECUTOR_RESULT_RETURN) {
+                break;
+            } else if (result == EXECUTOR_RESULT_BREAK) {
+                result = EXECUTOR_RESULT_NORMAL;
+                break;
+            }
+        }
+
+    } else if (at->type == VALUE_TYPE_TABLE) {
+        hash_table_iter_t hiter;
+        table_pair_t variable;
+
+        hiter = hash_table_iter_new(at->u.object_value->u.table->table);
+        hash_table_for_each(at->u.object_value->u.table->table, hiter) {
+            variable = hash_table_iter_element(hiter, table_pair_t, link);
+
+            *key_value = *variable->key;
+            *value_value = *variable->value;
+
+            result = __executor_block_statement__(env, stmt_foreach->block);
+            if (result == EXECUTOR_RESULT_RETURN) {
+                break;
+            } else if (result == EXECUTOR_RESULT_BREAK) {
+                result = EXECUTOR_RESULT_NORMAL;
+                break;
+            }
+        }
+
+        hash_table_iter_free(hiter);
+
+    } else {
+        runtime_error("(%d, %d): '%s' is not array/table",
+                        stmt->line,
+                        stmt->column,
+                        get_value_type_string(at->type));
+    }
+
+    environment_pop_value(env);
     return result;
 }

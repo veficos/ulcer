@@ -293,7 +293,6 @@ static void __heap_dispose_object__(object_t obj)
         break;
 
     case OBJECT_TYPE_FUNCTION:
-      
 
     case OBJECT_TYPE_NATIVE_FUNCTION:
         mem_free(obj->u.function);

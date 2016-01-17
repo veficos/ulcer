@@ -22,6 +22,7 @@ static list_t       __parser_else_statement__(parser_t parse);
 static statement_t  __parser_switch_statement__(parser_t parse);
 static statement_t  __parser_while_statement__(parser_t parse);
 static statement_t  __parser_for_statement__(parser_t parse);
+static statement_t  __parser_foreach_statement__(parser_t parse);
 static expression_t __parser_expression__(parser_t parse);
 static bool         __parser_check_expression__(cstring_t filename, expression_t expr);
 static void         __parser_without_function_expression__(cstring_t filename, expression_t expr);
@@ -179,6 +180,10 @@ static statement_t __parser_statement__(parser_t parse)
         stmt = __parser_for_statement__(parse);
         break;
 
+    case TOKEN_VALUE_FOREACH:
+        stmt = __parser_foreach_statement__(parse);
+        break;
+
     case TOKEN_VALUE_RETURN:
         if (lexer_next(parse->lex)->value != TOKEN_VALUE_SEMICOLON) {
             __parser_check_expression__(tok->filename, (expr = __parser_expression__(parse)));
@@ -323,7 +328,9 @@ static statement_t __parser_switch_statement__(parser_t parse)
 
     switch_expr = __parser_expression__(parse);
 
-    __parser_without_function_expression__(tok->filename, switch_expr);
+    if (!__parser_check_lvalue_expression__(switch_expr)) {
+        error(tok->filename, line, column, "expected lvalue expression");
+    }
 
     __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
 
@@ -340,7 +347,9 @@ static statement_t __parser_switch_statement__(parser_t parse)
 
             case_expr = __parser_expression__(parse);
 
-            __parser_without_function_expression__(tok->filename, case_expr);
+            if (__parser_check_lvalue_expression__(case_expr)) {
+                error(tok->filename, case_expr->line, case_expr->column, "expected const expression");
+            }
 
             __parser_expect__(parse, TOKEN_VALUE_COLON, "expected ':'");
 
@@ -448,6 +457,56 @@ static statement_t __parser_for_statement__(parser_t parse)
 
     assert((for_stmt = statement_new_for(line, column, init, condition, post, block)) != NULL);
     return for_stmt;
+}
+
+static statement_t __parser_foreach_statement__(parser_t parse)
+{
+    long         line;
+    long         column;
+    token_t      tok;
+    statement_t  foreach_stmt;
+    expression_t key;
+    expression_t value;
+    expression_t at;
+    list_t       block;
+
+    foreach_stmt= NULL;
+    key         = NULL;
+    value       = NULL;
+    at          = NULL;
+    tok         = lexer_peek(parse->lex);
+    line        = tok->line;
+    column      = tok->column;
+
+    list_init(block);
+
+    lexer_next(parse->lex);
+   
+    __parser_expect__(parse, TOKEN_VALUE_LP, "expected '(' at for");
+  
+    key = __parser_expression__(parse);
+    if (!__parser_check_lvalue_expression__(key)) {
+        error(tok->filename, line, column, "expected lvalue expression");
+    }
+
+    __parser_expect__(parse, TOKEN_VALUE_COMMA, "expected ','");
+  
+    value = __parser_expression__(parse);
+    if (!__parser_check_lvalue_expression__(value)) {
+        error(tok->filename, line, column, "expected lvalue expression");
+    }
+
+    __parser_expect__(parse, TOKEN_VALUE_COLON, "expected ':'");
+
+    at = __parser_expression__(parse);
+    __parser_without_function_expression__(tok->filename, at);
+
+    __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
+
+    block = __parser_block__(parse);
+
+    assert((foreach_stmt = statement_new_foreach(line, column, key, value, at, block)) != NULL);
+    return foreach_stmt;
 }
 
 static expression_t __parser_expression__(parser_t parse)
@@ -1018,6 +1077,7 @@ static expression_t __parser_postfix_expression__(parser_t parse)
     tok  = lexer_peek(parse->lex);
     while (tok->value == TOKEN_VALUE_LB         ||
            tok->value == TOKEN_VALUE_ARRAY_PUSH ||
+           tok->value == TOKEN_VALUE_ARRAY_POP  ||
            tok->value == TOKEN_VALUE_DOT        ||
            tok->value == TOKEN_VALUE_LP         ||
            tok->value == TOKEN_VALUE_INC        ||

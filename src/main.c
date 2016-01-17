@@ -106,17 +106,17 @@ static void print_value(value_t value)
 
 static void native_print(environment_t env, unsigned int argc)
 {
-    value_t value;
-    list_iter_t iter;
-    int i = 0;
-
-    list_for_each(env->stack, iter) {        
-        value = list_element(iter, value_t, link);
-        print_value(value);
-    }
+    value_t  value;
+    value_t* values;
+    int i;
     
-    environment_clear_stack(env);
+    value = list_element(list_rbegin(env->stack), value_t, link);
 
+    array_for_each(value->u.object_value->u.array, values, i) {
+        print_value(values[i]);
+    }
+
+    environment_pop_value(env);
     environment_push_null(env);
 }
 

@@ -19,6 +19,7 @@ typedef struct statement_switch_s*      statement_switch_t;
 typedef struct statement_switch_case_s* statement_switch_case_t;
 typedef struct statement_while_s*       statement_while_t;
 typedef struct statement_for_s*         statement_for_t;
+typedef struct statement_foreach_s*     statement_foreach_t;
 
 enum statement_type_e {
     STATEMENT_TYPE_REQUIRE,
@@ -27,6 +28,7 @@ enum statement_type_e {
     STATEMENT_TYPE_SWITCH,
     STATEMENT_TYPE_WHILE,
     STATEMENT_TYPE_FOR,
+    STATEMENT_TYPE_FOREACH,
     STATEMENT_TYPE_CONTINUE,
     STATEMENT_TYPE_BREAK,
     STATEMENT_TYPE_RETURN,
@@ -69,19 +71,27 @@ struct statement_for_s {
     list_t       block;
 };
 
+struct statement_foreach_s {
+    expression_t key;
+    expression_t value;
+    expression_t at;
+    list_t       block;
+};
+
 struct statement_s {
     statement_type_t type;
     long             line;
     long             column;
 
     union {
-        cstring_t          package_name;
-        expression_t       expr;
-        expression_t       return_expr;
-        statement_if_t     if_stmt;
-        statement_switch_t switch_stmt;
-        statement_while_t  while_stmt;
-        statement_for_t    for_stmt;
+        cstring_t           package_name;
+        expression_t        expr;
+        expression_t        return_expr;
+        statement_if_t      if_stmt;
+        statement_switch_t  switch_stmt;
+        statement_while_t   while_stmt;
+        statement_for_t     for_stmt;
+        statement_foreach_t foreach_stmt;
     }u;
 
     list_node_t  link;
@@ -98,6 +108,7 @@ statement_t statement_new_if(long line, long column, expression_t condition, lis
 statement_t statement_new_switch(long line, long column, expression_t switch_expr, list_t cases, list_t default_block);
 statement_t statement_new_while(long line, long column, expression_t condition, list_t block);
 statement_t statement_new_for(long line, long column, expression_t init, expression_t condition, expression_t post, list_t block);
+statement_t statement_new_foreach(long line, long column, expression_t key, expression_t value, expression_t at, list_t block);
 statement_t statement_new_continue(long line, long column);
 statement_t statement_new_break(long line, long column);
 statement_t statement_new_return(long line, long column, expression_t return_expr);

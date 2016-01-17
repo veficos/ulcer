@@ -89,6 +89,7 @@ typedef enum token_value_e {
     TOKEN_VALUE_ELIF,               /* elif */
     TOKEN_VALUE_WHILE,              /* while */
     TOKEN_VALUE_FOR,                /* for */
+    TOKEN_VALUE_FOREACH,            /* foreach */
     TOKEN_VALUE_SWITCH,             /* switch */
     TOKEN_VALUE_CASE,               /* case */
     TOKEN_VALUE_DEFAULT,            /* default */

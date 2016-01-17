@@ -164,6 +164,27 @@ statement_t statement_new_for(long line, long column, expression_t init, express
     return stmt;
 }
 
+statement_t statement_new_foreach(long line, long column, expression_t key, expression_t value, expression_t at, list_t block)
+{
+    statement_t stmt;
+    statement_foreach_t foreach_stmt;
+
+    stmt = __statement_new__(STATEMENT_TYPE_FOREACH, line, column);
+
+    foreach_stmt = (statement_foreach_t)mem_alloc(sizeof(struct statement_foreach_s));
+    if (!foreach_stmt) {
+        return NULL;
+    }
+
+    stmt->u.foreach_stmt = foreach_stmt;
+    stmt->u.foreach_stmt->key = key;
+    stmt->u.foreach_stmt->value = value;
+    stmt->u.foreach_stmt->at = at;
+    stmt->u.foreach_stmt->block = block;
+
+    return stmt;
+}
+
 statement_t statement_new_continue(long line, long column)
 {
     statement_t stmt = __statement_new__(STATEMENT_TYPE_CONTINUE, line, column);
@@ -264,6 +285,19 @@ void statement_free(statement_t stmt)
         }
 
         mem_free(stmt->u.for_stmt);
+        break;
+
+    case STATEMENT_TYPE_FOREACH:
+        expression_free(stmt->u.foreach_stmt->key);
+        expression_free(stmt->u.foreach_stmt->value);
+        expression_free(stmt->u.foreach_stmt->at);
+
+        list_safe_for_each(stmt->u.foreach_stmt->block, iter, next_iter) {
+            list_erase(stmt->u.foreach_stmt->block, *iter);
+            statement_free(list_element(iter, statement_t, link));
+        }
+
+        mem_free(stmt->u.foreach_stmt);
         break;
 
     case STATEMENT_TYPE_CONTINUE:
