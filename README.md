@@ -1,19 +1,8 @@
 
+## Introduction
 
-## 例子
+Please see [中文文档]()
 
-```
-f = function() {
-    str = "hello world";
-    return function() {
-        return str;
-    };
-}();
+## License 
 
-print(f(), "\n");
-
-```
-
-`run$ ulcer test.ul`
-
-`output$ hello world`
+[Apache License Version 2.0]()
