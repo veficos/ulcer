@@ -1,7 +1,7 @@
 
 ## Introduction
 
-Please see [中文文档](https://github.com/veficos/ulcer/blob/master/README_cn.md)
+Please see [中文介绍](https://github.com/veficos/ulcer/blob/master/README_cn.md)
 
 ## License 
 

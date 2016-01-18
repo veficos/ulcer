@@ -1852,6 +1852,8 @@ const char* get_value_type_string(value_type_t type)
         return "null";
     case VALUE_TYPE_ARRAY:
         return "array";
+    case VALUE_TYPE_POINTER:
+        return "pointer";
     default:
         return "unknown";
     }

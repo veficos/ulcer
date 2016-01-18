@@ -11,4 +11,7 @@ window = sdl.create_window("helloworld",
 
 sdl.delay(1000);
 
+sdl.destroy_window(window);
+
 sdl.quit();
+

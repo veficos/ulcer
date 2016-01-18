@@ -51,6 +51,27 @@ leave:
     environment_push_null(env);
 }
 
+static void native_sdl_destroy_window(environment_t env, unsigned int argc)
+{
+    value_t  value;
+    value_t* values;
+
+    value = list_element(list_rbegin(env->stack), value_t, link);
+
+    values = array_base(value->u.object_value->u.array, value_t*);
+
+    environment_pop_value(env);
+
+    if (argc < 1) {
+        goto leave;
+    }
+
+    SDL_DestroyWindow((SDL_Window*)values[0]->u.pointer_value);
+
+leave:
+    environment_push_null(env);
+}
+
 static void native_sdl_delay(environment_t env, unsigned int argc)
 {
     value_t  value;
@@ -76,17 +97,33 @@ leave:
 
 static void import_libsdl_const(environment_t env, table_t table)
 {
-    environment_push_str(env, "SDL_WINDOWPOS_UNDEFINED");
-    environment_push_int(env, SDL_WINDOWPOS_UNDEFINED);
-    table_push_pair(table, env);
+    struct pair_s {
+        char* name;
+        int i;
+    };
 
-    environment_push_str(env, "SDL_WINDOW_SHOWN");
-    environment_push_int(env, SDL_WINDOW_SHOWN);
-    table_push_pair(table, env);
+    int i;
+
+    struct pair_s pairs[] = {
+        { "SDL_WINDOWPOS_UNDEFINED",        SDL_WINDOWPOS_UNDEFINED },
+        { "SDL_WINDOW_SHOWN",               SDL_WINDOW_SHOWN },
+    };
+
+    for (i = 0; i < sizeof(pairs) / sizeof(struct pair_s); i++) {
+        environment_push_str(env, pairs[i].name);
+        environment_push_int(env, pairs[i].i);
+        table_push_pair(table, env);
+    }
 }
 
 void import_libsdl_library(environment_t env)
 {
+    struct pair_s {
+        char* name;
+        native_function_pt func;
+    };
+
+    int i;
     value_t sdl_table;
 
     environment_push_str(env, "sdl");
@@ -99,19 +136,17 @@ void import_libsdl_library(environment_t env)
 
     import_libsdl_const(env, sdl_table->u.object_value->u.table);
 
-    environment_push_str(env, "init");
-    environment_push_native_function(env, native_sdl_init);
-    table_push_pair(sdl_table->u.object_value->u.table, env);
+    struct pair_s pairs[] = {
+        { "init",               native_sdl_init },
+        { "quit",               native_sdl_quit },
+        { "create_window",      native_sdl_create_window },
+        { "destroy_window",     native_sdl_destroy_window },
+        { "delay",              native_sdl_delay },
+    };
 
-    environment_push_str(env, "quit");
-    environment_push_native_function(env, native_sdl_quit);
-    table_push_pair(sdl_table->u.object_value->u.table, env);
-
-    environment_push_str(env, "create_window");
-    environment_push_native_function(env, native_sdl_create_window);
-    table_push_pair(sdl_table->u.object_value->u.table, env);
-
-    environment_push_str(env, "delay");
-    environment_push_native_function(env, native_sdl_delay);
-    table_push_pair(sdl_table->u.object_value->u.table, env);
+    for (i = 0; i < sizeof(pairs) / sizeof(struct pair_s); i++) {
+        environment_push_str(env, pairs[i].name);
+        environment_push_native_function(env, pairs[i].func);
+        table_push_pair(sdl_table->u.object_value->u.table, env);
+    }
 }
