@@ -112,11 +112,11 @@ function fibonacci(n) {
 
 ```
 // main.ul
-import "fibonacci"
+require "fibonacci"
 print(fibonacci(10), "\n");
 ```
 
-`import`关键字只是简单地将`fibonacci`这个包作为源文件运行，然后将`fibonacci`运行结果保存到`main`的上下文当中。
+`require`关键字只是简单地将`fibonacci`这个包作为源文件运行，然后将`fibonacci`运行结果保存到`main`的上下文当中。
 
 ## 原型链
 
