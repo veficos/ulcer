@@ -1,8 +1,8 @@
 
 ## Introduction
 
-Please see [中文文档]()
+Please see [中文文档](https://github.com/veficos/ulcer/blob/master/README_cn.md)
 
 ## License 
 
-[Apache License Version 2.0]()
+[Apache License Version 2.0](https://github.com/veficos/ulcer/blob/master/LICENSE.txt)
