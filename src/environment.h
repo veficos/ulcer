@@ -21,6 +21,7 @@ typedef struct value_s*         value_t;
 typedef struct table_pair_s*    table_pair_t;
 typedef struct table_s*         table_t;
 typedef struct local_context_s* local_context_t;
+typedef struct package_s*       package_t;
 
 enum object_type_e {
     OBJECT_TYPE_STRING,
@@ -120,18 +121,23 @@ struct local_context_s {
     list_node_t link;
 };
 
+struct package_s {
+    cstring_t name;
+    hlist_node_t link;
+};
+
 struct environment_s {
     stack_t statement_stack;
     list_t  local_context_stack;
     list_t  stack;
     heap_t  heap;
     table_t global_table;
-    list_t  function_stack;
+    hash_table_t packages;
+    list_t  modules;
 };
 
 environment_t environment_new(void);
 void          environment_free(environment_t env);
-void          environment_add_module(environment_t env, module_t module);
 table_t       environment_get_global_table(environment_t env);
 
 /* local context */
@@ -143,6 +149,7 @@ void          environment_pop_local_context(environment_t env);
 void          environment_clear_stack(environment_t env);
 void          environment_xchg_stack(environment_t env);
 void          environment_pop_value(environment_t env);
+void          environment_push_pointer(environment_t env, void *pointer);
 void          environment_push_value(environment_t env, value_t value);
 void          environment_push_char(environment_t env, char char_value);
 void          environment_push_bool(environment_t env, bool bool_value);
@@ -156,10 +163,14 @@ void          environment_push_null(environment_t env);
 void          environment_push_function(environment_t env, expression_function_t function);
 void          environment_push_native_function(environment_t env, native_function_pt native_function);
 void          environment_push_array_generate(environment_t env, list_t array_generate);
+void          environment_push_array(environment_t env);
 void          environment_push_table_generate(environment_t env, list_t table_generate);
+void          environment_push_table(environment_t env);
 
-/* function stack */
-void          environment_push_value_to_function_stack(environment_t env, value_t v);
-void          environment_pop_value_from_function_stack(environment_t env);
+/* module */
+
+void          environment_add_module(environment_t env, module_t module);
+bool          environment_has_package(environment_t env, cstring_t name);
+void          environment_add_package(environment_t env, cstring_t name);
 
 #endif

@@ -1,0 +1,14 @@
+
+
+sdl.init();
+
+window = sdl.create_window("helloworld", 
+                           sdl.SDL_WINDOWPOS_UNDEFINED, 
+                           sdl.SDL_WINDOWPOS_UNDEFINED, 
+                           640,
+                           480, 
+                           sdl.SDL_WINDOW_SHOWN);
+
+sdl.delay(1000);
+
+sdl.quit();

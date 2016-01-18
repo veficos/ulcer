@@ -140,6 +140,8 @@ object_t heap_alloc_native_function(environment_t env, native_function_pt native
 
     object->u.function->f.native_function = native_function;
 
+    list_init(object->u.function->scopes);
+
     return object;
 }
 
@@ -241,18 +243,6 @@ static void __heap_mark_objects__(environment_t env)
             }
 
             hash_table_iter_free(hiter);
-        }
-    }
-
-    {
-        list_iter_t iter;
-        value_t value;
-
-        list_for_each(env->function_stack, iter) {
-            value = list_element(iter, value_t, link);
-            if (__heap_value_is_object__(value)) {
-                __heap_mark_object__(value->u.object_value);
-            }
         }
     }
 }

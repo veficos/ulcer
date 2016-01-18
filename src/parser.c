@@ -61,7 +61,6 @@ parser_t parser_new(lexer_t lex)
 
 void parser_free(parser_t parse)
 {
-    module_free(parse->module);
     mem_free(parse);
 }
 

@@ -119,7 +119,7 @@ static void __table_node_destructor__(hlist_node_t *node)
     mem_free(pair);
 }
 
-static hlist_node_ops_t table_hash_operators = {
+static hlist_node_ops_t __table_hash_operators__ = {
     NULL,
     &__table_node_destructor__,
     &__table_key_hashfn__,
@@ -134,7 +134,7 @@ table_t table_new(void)
         return NULL;
     }
 
-    table->table = hash_table_new(&table_hash_operators);
+    table->table = hash_table_new(&__table_hash_operators__);
 
     return table;
 }
@@ -235,15 +235,46 @@ value_t table_new_member(table_t table, value_t key)
     return value;
 }
 
+static int __environment_package_key_compare__(const hlist_node_t *lhs, const hlist_node_t *rhs)
+{
+    package_t l = hlist_element(lhs, package_t, link);
+    package_t r = hlist_element(rhs, package_t, link);
+    return cstring_cmp(l->name, r->name);
+}
+
+static unsigned long __environment_package_key_hashfn__(const hlist_node_t *hnode)
+{
+    package_t package = hlist_element(hnode, package_t, link);
+    return (unsigned long)murmur2_hash((unsigned char*)package->name, cstring_length(package->name));
+}
+
+static void __environment_package_node_destructor__(hlist_node_t *node)
+{
+    package_t package = hlist_element(node, package_t, link);
+
+    cstring_free(package->name);
+
+    mem_free(package);
+}
+
+static hlist_node_ops_t __environment_package_operators__ = {
+    NULL,
+    &__environment_package_node_destructor__,
+    &__environment_package_key_hashfn__,
+    &__environment_package_key_compare__,
+    NULL,
+};
+
 environment_t environment_new(void)
 {
     environment_t env = (environment_t) mem_alloc(sizeof(struct environment_s));
 
     env->global_table = table_new();
     env->heap         = heap_new();
-    
-    list_init(env->function_stack);
+    env->packages      = hash_table_new(&__environment_package_operators__);
+
     list_init(env->stack);
+    list_init(env->modules);
     list_init(env->local_context_stack);
 
     stack_init(env->statement_stack);
@@ -253,9 +284,9 @@ environment_t environment_new(void)
 
 void environment_free(environment_t env)
 {
-    table_clear(env->global_table);
+    list_iter_t iter, next_iter;
 
-    list_init(env->function_stack);
+    table_clear(env->global_table);
 
     list_init(env->local_context_stack);
 
@@ -264,6 +295,13 @@ void environment_free(environment_t env)
     table_free(env->global_table);
 
     heap_free(env->heap);
+    
+    hash_table_free(env->packages);
+
+    list_safe_for_each(env->modules, iter, next_iter) {
+        list_erase(env->modules, *iter);
+        module_free(list_element(iter, module_t, link));
+    }
 
     mem_free(env);
 }
@@ -285,6 +323,34 @@ void environment_add_module(environment_t env, module_t module)
     }
 
     stack_push(env->statement_stack, module->statements->link);
+
+    list_push_back(env->modules, module->link);
+}
+
+bool environment_has_package(environment_t env, cstring_t name)
+{
+    struct package_s package;
+    hlist_node_t* node;
+
+    package.name = name;
+
+    node = hash_table_search(env->packages, &package.link);
+    if (!node) {
+        return false;
+    }
+
+    return true;
+}
+
+void environment_add_package(environment_t env, cstring_t name)
+{
+    package_t package;
+
+    package = (package_t) mem_alloc(sizeof(struct package_s));
+
+    package->name = name;
+
+    hash_table_replace(env->packages, &package->link);
 }
 
 table_t environment_get_global_table(environment_t env)
@@ -363,6 +429,15 @@ void environment_pop_value(environment_t env)
     list_pop_back(env->stack);
 
     value_free(value);
+}
+
+void environment_push_pointer(environment_t env, void *pointer)
+{
+    value_t value = value_new(VALUE_TYPE_POINTER);
+
+    value->u.pointer_value = pointer;
+
+    list_push_back(env->stack, value->link);
 }
 
 void environment_push_value(environment_t env, value_t value)
@@ -505,6 +580,17 @@ void environment_push_array_generate(environment_t env, list_t array_generate)
     }
 }
 
+void environment_push_array(environment_t env)
+{
+    value_t array_value;
+
+    array_value = value_new(VALUE_TYPE_ARRAY);
+
+    array_value->u.object_value = heap_alloc_array(env);
+
+    list_push_back(env->stack, array_value->link);
+}
+
 void environment_push_table_generate(environment_t env, list_t table_generate)
 {
     list_iter_t     iter;
@@ -537,15 +623,13 @@ void environment_push_table_generate(environment_t env, list_t table_generate)
     }
 }
 
-void environment_push_value_to_function_stack(environment_t env, value_t v)
+void environment_push_table(environment_t env)
 {
-    list_push_back(env->function_stack, v->link);
-}
+    value_t table_value;
+   
+    table_value = value_new(VALUE_TYPE_TABLE);
 
-void environment_pop_value_from_function_stack(environment_t env)
-{
-    if (list_is_empty(env->function_stack)) {
-        return;
-    }
-    list_pop_back(env->function_stack);
+    table_value->u.object_value = heap_alloc_table(env);
+
+    list_push_back(env->stack, table_value->link);
 }

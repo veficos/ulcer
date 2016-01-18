@@ -25,9 +25,19 @@
 #   include <stdint.h>
 #   include <limits.h>
 #else
+
+#ifndef bool
 #   define bool           unsigned char
+#endif
+
+#ifndef false
 #   define false          (0)
+#endif
+
+#ifndef true
 #   define true           (!(false))
+#endif
+
    typedef unsigned char        uint8_t;
    typedef char                 int8_t;
    typedef unsigned short       uint16_t;

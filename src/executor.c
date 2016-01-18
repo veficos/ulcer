@@ -6,6 +6,9 @@
 #include "evaluator.h"
 #include "error.h"
 #include "alloc.h"
+#include "parser.h"
+#include "lexer.h"
+#include "source_code.h"
 
 #include <assert.h>
 
@@ -13,6 +16,7 @@ struct executor_s {
     environment_t env;
 };
 
+static executor_result_t __executor_require_statement__(environment_t env, statement_t stmt);
 static executor_result_t __executor_if_statement__(environment_t env, statement_t stmt);
 static executor_result_t __executor_elif_statement__(environment_t env, statement_t stmt);
 static executor_result_t __executor_switch_statement__(environment_t env, statement_t stmt);
@@ -74,6 +78,9 @@ executor_result_t executor_statement(environment_t env, statement_t stmt)
     executor_result_t result;
 
     switch (stmt->type) {
+    case STATEMENT_TYPE_REQUIRE:
+        return __executor_require_statement__(env, stmt);
+
     case STATEMENT_TYPE_EXPRESSION:
         evaluator_expression(env, stmt->u.expr);
         environment_pop_value(env);
@@ -127,6 +134,52 @@ executor_result_t executor_statement(environment_t env, statement_t stmt)
         return EXECUTOR_RESULT_NORMAL;
     }
 
+    return EXECUTOR_RESULT_NORMAL;
+}
+
+static executor_result_t __executor_require_statement__(environment_t env, statement_t stmt)
+{
+    source_code_t sc;
+    lexer_t       lex;
+    parser_t      parse;
+    module_t      module;
+    executor_t    executor;
+    cstring_t     package;
+
+    package = cstring_dup(stmt->u.package_name);
+
+    if (environment_has_package(env, package)) {
+        goto leave;
+    }
+
+    package = cstring_catstr(package, ".ul");
+
+    sc = source_code_new(package, SOURCE_CODE_TYPE_FILE);
+    if (sc == NULL) {
+        goto leave;
+    }
+
+    lex = lexer_new(sc);
+
+    parse = parser_new(lex);
+
+    module = parser_generate_module(parse);
+
+    environment_add_module(env, module);
+
+    executor_run((executor = executor_new(env)));
+    
+    executor_free(executor);
+
+    parser_free(parse);
+
+    lexer_free(lex);
+
+    source_code_free(sc);
+
+    environment_add_package(env, cstring_dup(stmt->u.package_name));
+leave:
+    cstring_free(package);
     return EXECUTOR_RESULT_NORMAL;
 }
 

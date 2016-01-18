@@ -632,7 +632,7 @@ static void __evaluator_call_expression__(environment_t env, expression_t call_e
     function_value = __evaluator_search_function__(env, call_expr->u.call_expr->function_expr);
 
     if (function_value) {
-        environment_push_value_to_function_stack(env, function_value);
+        environment_push_value(env, function_value);
 
         switch (function_value->type) {
         case VALUE_TYPE_FUNCTION:
@@ -651,15 +651,15 @@ static void __evaluator_call_expression__(environment_t env, expression_t call_e
             break;
         }
 
-        environment_pop_value_from_function_stack(env);
-
-        value_free(function_value);
+        environment_xchg_stack(env);
+        environment_pop_value(env);
     }
 }
 
 static void __evaluator_function_call_expression__(environment_t env, value_t function_value, list_t args)
 {
     list_iter_t iter;
+    list_iter_t args_iter;
     statement_t stmt;
     object_t object;
     executor_result_t result;
@@ -669,6 +669,27 @@ static void __evaluator_function_call_expression__(environment_t env, value_t fu
     environment_push_local_context(env);
 
     function = function_value->u.object_value->u.function->f.function_expr;
+
+    args_iter = list_begin(args);
+
+    list_for_each(function->parameters, iter) {
+        expression_function_parameter_t parameter;
+
+        parameter = list_element(iter, expression_function_parameter_t, link);
+
+        environment_push_string(env, parameter->name);
+
+        if (args_iter == NULL) {
+            environment_push_null(env);
+
+        } else {
+            expression_t expr = list_element(args_iter, expression_t, link);
+            evaluator_expression(env, expr);
+            args_iter = list_next(args, args_iter);
+        }
+
+        table_push_pair(list_element(list_rbegin(env->local_context_stack), local_context_t, link)->object->u.table, env);
+    }
 
     list_for_each(function_value->u.object_value->u.function->scopes, iter) {
         object = list_element(iter, object_t, link_scope);

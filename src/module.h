@@ -19,6 +19,7 @@ struct statements_s {
 struct module_s {
     statements_t statements;
     list_t       functions;
+    list_node_t  link;
 };
 
 module_t module_new(void);

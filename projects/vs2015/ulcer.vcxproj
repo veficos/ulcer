@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <None Include="test.u" />
+    <None Include="test.ul" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\alloc.c" />
@@ -38,6 +38,8 @@
     <ClCompile Include="..\..\src\list.c" />
     <ClCompile Include="..\..\src\main.c" />
     <ClCompile Include="..\..\src\module.c" />
+    <ClCompile Include="..\..\src\native.c" />
+    <ClCompile Include="..\..\src\options.c" />
     <ClCompile Include="..\..\src\parser.c" />
     <ClCompile Include="..\..\src\source_code.c" />
     <ClCompile Include="..\..\src\statement.c" />
@@ -61,6 +63,8 @@
     <ClInclude Include="..\..\src\libsdl.h" />
     <ClInclude Include="..\..\src\list.h" />
     <ClInclude Include="..\..\src\module.h" />
+    <ClInclude Include="..\..\src\native.h" />
+    <ClInclude Include="..\..\src\options.h" />
     <ClInclude Include="..\..\src\parser.h" />
     <ClInclude Include="..\..\src\source_code.h" />
     <ClInclude Include="..\..\src\stack.h" />
@@ -120,6 +124,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>C:\Cygwin\home\veficos\projects\ulcer\nonparty\SDL2\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Cygwin\home\veficos\projects\ulcer\nonparty\SDL2\lib\x86;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -142,6 +148,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>SDL2main.lib;SDL2.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
