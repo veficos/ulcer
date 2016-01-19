@@ -282,15 +282,31 @@ static value_t __evaluator_search_function__(environment_t env, expression_t fun
 {
     value_t value;
 
+    environment_push_local_context(env);
+
     switch (function_expr->type) {
     case EXPRESSION_TYPE_IDENTIFIER:
         environment_push_string(env, function_expr->u.identifier_expr);
         
         value = __evaluator_search_identifier_variable__(env);
-        if (value) {
-            value = value_dup(value);
-        } else {
+
+        if (!value) {
             value = value_new(VALUE_TYPE_NULL);
+        }
+
+        if (value && (value->type == VALUE_TYPE_FUNCTION || value->type == VALUE_TYPE_NATIVE_FUNCTION)) {
+            local_context_t context;
+            
+            value = value_dup(value);
+
+            context = list_element(list_rbegin(env->local_context_stack), local_context_t, link);
+
+            list_push_back(value->u.object_value->u.function->scopes, context->object->link_scope);
+        } else {
+            runtime_error("(%d, %d): called object type '%s' is not a function",
+                           function_expr->line,
+                           function_expr->column,
+                           get_value_type_string(value->type));
         }
 
         environment_pop_value(env);
@@ -299,9 +315,17 @@ static value_t __evaluator_search_function__(environment_t env, expression_t fun
     default:
         evaluator_expression(env, function_expr);
         value = list_element(list_rbegin(env->stack), value_t, link);
+        if (value->type != VALUE_TYPE_FUNCTION && value->type != VALUE_TYPE_NATIVE_FUNCTION) {
+            runtime_error("(%d, %d): called object type '%s' is not a function",
+                           function_expr->line,
+                           function_expr->column,
+                           get_value_type_string(value->type));
+        }
         list_pop_back(env->stack);
         break;
     }
+
+    environment_pop_local_context(env);
 
     return value;
 }
@@ -393,30 +417,15 @@ static value_t __evaluator_index_expression__(environment_t env, expression_t ex
             if (elem->type == VALUE_TYPE_FUNCTION || elem->type == VALUE_TYPE_NATIVE_FUNCTION) {
                 local_context_t context;
 
-                if (list_is_empty(elem->u.object_value->u.function->scopes)) {
-                    environment_push_local_context(env);
+                context = list_element(list_rbegin(env->local_context_stack), local_context_t, link);
 
-                    context = list_element(list_rbegin(env->local_context_stack), local_context_t, link);
+                list_push_back(elem->u.object_value->u.function->scopes, context->object->link_scope);
 
-                    list_push_back(elem->u.object_value->u.function->scopes, context->object->link_scope);
+                environment_push_str(env, "this");
 
-                    environment_push_str(env, "this");
+                environment_xchg_stack(env);
 
-                    environment_xchg_stack(env);
-                    
-                    table_push_pair(context->object->u.table, env);
-
-                    environment_pop_local_context(env);
-
-                } else {
-                    object_t object = list_element(list_rbegin(elem->u.object_value->u.function->scopes), object_t, link_scope);
-
-                    environment_push_str(env, "this");
-
-                    environment_xchg_stack(env);
-
-                    table_push_pair(object->u.table, env);
-                }
+                table_push_pair(context->object->u.table, env);
 
             } else {
                 environment_pop_value(env);
@@ -556,30 +565,16 @@ static value_t __evaluator_table_dot_member__(environment_t env, expression_t ex
         if (elem->type == VALUE_TYPE_FUNCTION || elem->type == VALUE_TYPE_NATIVE_FUNCTION) {
             local_context_t context;
 
-            if (list_is_empty(elem->u.object_value->u.function->scopes)) {
-                environment_push_local_context(env);
+            context = list_element(list_rbegin(env->local_context_stack), local_context_t, link);
 
-                context = list_element(list_rbegin(env->local_context_stack), local_context_t, link);
+            list_push_back(elem->u.object_value->u.function->scopes, context->object->link_scope);
 
-                list_push_back(elem->u.object_value->u.function->scopes, context->object->link_scope);
+            environment_push_str(env, "this");
 
-                environment_push_str(env, "this");
-
-                environment_xchg_stack(env);
+            environment_xchg_stack(env);
                     
-                table_push_pair(context->object->u.table, env);
+            table_push_pair(context->object->u.table, env);
 
-                environment_pop_local_context(env);
-
-            } else {
-                object_t object = list_element(list_rbegin(elem->u.object_value->u.function->scopes), object_t, link_scope);
-
-                environment_push_str(env, "this");
-
-                environment_xchg_stack(env);
-
-                table_push_pair(object->u.table, env);
-            }
         } else {
             environment_pop_value(env);
         }
@@ -631,29 +626,21 @@ static void __evaluator_call_expression__(environment_t env, expression_t call_e
 
     function_value = __evaluator_search_function__(env, call_expr->u.call_expr->function_expr);
 
-    if (function_value) {
-        environment_push_value(env, function_value);
+    environment_push_value(env, function_value);
 
-        switch (function_value->type) {
-        case VALUE_TYPE_FUNCTION:
-            __evaluator_function_call_expression__(env, function_value, call_expr->u.call_expr->args);
-            break;
+    switch (function_value->type) {
+    case VALUE_TYPE_FUNCTION:
+        __evaluator_function_call_expression__(env, function_value, call_expr->u.call_expr->args);
+        break;
 
-        case VALUE_TYPE_NATIVE_FUNCTION:
-            __evaluator_native_function_call_expression__(env, function_value, call_expr->u.call_expr->args);
-            break;
-
-        default:
-            runtime_error("(%d, %d): called object type '%s' is not a function", 
-                          call_expr->line, 
-                          call_expr->column, 
-                          get_value_type_string(function_value->type));
-            break;
-        }
-
-        environment_xchg_stack(env);
-        environment_pop_value(env);
+    case VALUE_TYPE_NATIVE_FUNCTION:
+        __evaluator_native_function_call_expression__(env, function_value, call_expr->u.call_expr->args);
+        break;
     }
+
+    list_pop_back(function_value->u.object_value->u.function->scopes);
+    environment_xchg_stack(env);
+    environment_pop_value(env);
 }
 
 static void __evaluator_function_call_expression__(environment_t env, value_t function_value, list_t args)
@@ -733,11 +720,9 @@ static void __evaluator_native_function_call_expression__(environment_t env, val
 
     native_function = function_value->u.object_value->u.function->f.native_function;
 
-    array = value_new(VALUE_TYPE_ARRAY);
+    environment_push_array(env);
 
-    array->u.object_value = heap_alloc_array(env);
-
-    environment_push_value(env, array);
+    array = list_element(list_rbegin(env->stack), value_t, link);
 
     list_for_each(args, iter) {
         expr = list_element(iter, expression_t, link);

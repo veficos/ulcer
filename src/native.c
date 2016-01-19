@@ -1,5 +1,7 @@
 
 #include "native.h"
+#include "error.h"
+#include "evaluator.h"
 #include "environment.h"
 
 #include <stdio.h>
@@ -162,4 +164,30 @@ void import_native_library(environment_t env)
     environment_push_str(env, "len");
     environment_push_native_function(env, native_len);
     table_push_pair(environment_get_global_table(env), env);
+}
+
+void* native_check_pointer_value(value_t value)
+{
+    if (value->type == VALUE_TYPE_NULL) {
+        return NULL;
+    } else if (value->type == VALUE_TYPE_POINTER) {
+        return value->u.pointer_value;
+    } else {
+        runtime_error("passing '%s' to parameter of incompatible type 'pointer'",
+            get_value_type_string(value->type));
+    }
+
+    return NULL;
+}
+
+int native_check_int_value(value_t value)
+{
+    if (value->type == VALUE_TYPE_INT) {
+        return value->u.int_value;
+    } else {
+        runtime_error("passing '%s' to parameter of incompatible type 'int'",
+            get_value_type_string(value->type));
+    }
+
+    return 0;
 }

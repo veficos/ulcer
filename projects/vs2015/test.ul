@@ -1,4 +1,4 @@
-/*
+
 print(sdl, "\n");
 
 sdl.init();
@@ -50,13 +50,30 @@ sdl.destroy_renderer(renderer);
 sdl.destroy_window(window);
 
 sdl.quit();
-*/
 
-
-
-t = {f:function() { print(this, "\n"); }};
-
+t = {};
 t.abc = "helloworld";
 
+f = function() {print(this, "\n");};
 
-t.f();
+f();
+
+function(){
+    t.f = f;
+
+    t.f();
+
+    f();
+}();
+
+function new_counter() {
+    i = 0;
+    return function() {
+        i++;
+        return i;
+    }
+}
+
+c1 = new_counter();
+print(c1(), "\n");
+print(c1(), "\n");

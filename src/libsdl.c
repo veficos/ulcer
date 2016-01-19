@@ -5,6 +5,7 @@
 
 #include "libsdl.h"
 #include "alloc.h"
+#include "native.h"
 
 static void native_sdl_init(environment_t env, unsigned int argc)
 {
@@ -37,11 +38,11 @@ static void native_sdl_create_window(environment_t env, unsigned int argc)
     }
 
     window = SDL_CreateWindow(values[0]->u.object_value->u.string,
-        values[1]->u.int_value,
-        values[2]->u.int_value,
-        values[3]->u.int_value,
-        values[4]->u.int_value,
-        values[5]->u.int_value);
+        native_check_int_value(values[1]),
+        native_check_int_value(values[2]),
+        native_check_int_value(values[3]),
+        native_check_int_value(values[4]),
+        native_check_int_value(values[5]));
 
     if (window) {
         environment_push_pointer(env, (void*)window);
@@ -89,7 +90,7 @@ static void native_sdl_create_renderer(environment_t env, unsigned int argc)
         goto leave;
     }
 
-    renderer = SDL_CreateRenderer((SDL_Window*)values[0]->u.pointer_value,
+    renderer = SDL_CreateRenderer((SDL_Window*)native_check_pointer_value(values[0]),
         -1, 
         values[1]->u.int_value);
 
@@ -253,9 +254,8 @@ static void native_sdl_create_texture_from_surface(environment_t env, unsigned i
         goto leave;
     }
 
-    texture = SDL_CreateTextureFromSurface(
-        (SDL_Renderer*)values[0]->u.pointer_value,
-        (SDL_Surface*)values[1]->u.pointer_value);
+    texture = SDL_CreateTextureFromSurface((SDL_Renderer*)values[0]->u.pointer_value,
+                                           (SDL_Surface*)values[1]->u.pointer_value);
 
     if (texture) {
         environment_push_pointer(env, (void*)texture);

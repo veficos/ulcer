@@ -315,6 +315,7 @@ static void __heap_mark_object__(object_t obj)
     obj->marked = true;
 
     switch (obj->type) {
+    case OBJECT_TYPE_NATIVE_FUNCTION:
     case OBJECT_TYPE_FUNCTION:
         list_for_each(obj->u.function->scopes, iter) {
             object_t object = list_element(iter, object_t, link_scope);
