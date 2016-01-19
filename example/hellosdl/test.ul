@@ -1,4 +1,3 @@
-/*
 print(sdl, "\n");
 
 sdl.init();
@@ -10,7 +9,7 @@ window = sdl.create_window("helloworld",
                            480, 
                            sdl.SDL_WINDOW_SHOWN);
 
-renderer = sdl.create_renderer(window,
+renderer = sdl.create_renderer(window, 
                                sdl.SDL_RENDERER_ACCELERATED);
 
 bitmap = sdl.load_bitmap("hello.bmp");
@@ -27,9 +26,9 @@ sdl.renderer_present(renderer);
 
 event = sdl.create_event();
 
-print("ticks: ", sdl.get_ticks(), "\n");
+print("ticks: ", sdl.get_ticks());
 
-while (true) {
+for (;;) {
     et = sdl.poll_event(event);
      
     if (et == sdl.SDL_QUIT) {
@@ -39,7 +38,7 @@ while (true) {
     }
 }
 
-print("ticks: ", sdl.get_ticks(), "\n");
+print("ticks: ", sdl.get_ticks());
 
 sdl.destroy_event(event);
 
@@ -50,13 +49,3 @@ sdl.destroy_renderer(renderer);
 sdl.destroy_window(window);
 
 sdl.quit();
-*/
-
-
-
-t = {f:function() { print(this, "\n"); }};
-
-t.abc = "helloworld";
-
-
-t.f();

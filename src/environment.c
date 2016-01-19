@@ -24,8 +24,19 @@ value_t value_new(value_type_t type)
 
 value_t value_dup(const value_t src)
 {
-    value_t value = value_new(src->type);
+    value_t value;
+    value_t cpy;
+    list_iter_t iter;
+    
+    value = value_new(src->type);
     *value = *src;
+
+    switch (value->type) {
+    case VALUE_TYPE_FUNCTION:
+    case VALUE_TYPE_NATIVE_FUNCTION:
+        list_init(value->u.object_value->u.function->scopes);
+        break;
+    }
     return value;
 }
 

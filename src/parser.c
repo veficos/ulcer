@@ -211,6 +211,7 @@ static statement_t __parser_statement__(parser_t parse)
         break;
     }
 
+    assert(stmt != NULL);
     return stmt;
 }
 
@@ -258,8 +259,10 @@ static statement_t __parser_if_statement__(parser_t parse)
         }
         break;
     }
+    
+    if_stmt = statement_new_if(line, column, if_condition, if_block, elifs, else_block);
 
-    assert((if_stmt = statement_new_if(line, column, if_condition, if_block, elifs, else_block)) != NULL);
+    assert(if_stmt != NULL);
     return if_stmt;
 }
 
@@ -372,7 +375,8 @@ static statement_t __parser_switch_statement__(parser_t parse)
 
     __parser_expect__(parse, TOKEN_VALUE_RC, "expected '}'");
 
-    assert((switch_stmt = statement_new_switch(line, column, switch_expr, cases, default_block)) != NULL);
+    switch_stmt = statement_new_switch(line, column, switch_expr, cases, default_block);
+    assert(switch_stmt != NULL);
     return switch_stmt;
 }
 
@@ -402,7 +406,8 @@ static statement_t __parser_while_statement__(parser_t parse)
 
     block = __parser_block__(parse);
 
-    assert((while_stmt = statement_new_while(line, column, condition, block)) != NULL);
+    while_stmt = statement_new_while(line, column, condition, block);
+    assert(while_stmt != NULL);
     return while_stmt;
 }
 
@@ -454,7 +459,8 @@ static statement_t __parser_for_statement__(parser_t parse)
 
     block = __parser_block__(parse);
 
-    assert((for_stmt = statement_new_for(line, column, init, condition, post, block)) != NULL);
+    for_stmt = statement_new_for(line, column, init, condition, post, block);
+    assert(for_stmt != NULL);
     return for_stmt;
 }
 
@@ -504,7 +510,8 @@ static statement_t __parser_foreach_statement__(parser_t parse)
 
     block = __parser_block__(parse);
 
-    assert((foreach_stmt = statement_new_foreach(line, column, key, value, at, block)) != NULL);
+    foreach_stmt = statement_new_foreach(line, column, key, value, at, block);
+    assert(foreach_stmt != NULL);
     return foreach_stmt;
 }
 
