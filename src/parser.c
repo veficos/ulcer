@@ -330,10 +330,6 @@ static statement_t __parser_switch_statement__(parser_t parse)
 
     switch_expr = __parser_expression__(parse);
 
-    if (!__parser_check_lvalue_expression__(switch_expr)) {
-        error(tok->filename, line, column, "expected lvalue expression");
-    }
-
     __parser_expect__(parse, TOKEN_VALUE_RP, "expected ')'");
 
     __parser_expect__(parse, TOKEN_VALUE_LC, "expected '{'");
@@ -348,10 +344,6 @@ static statement_t __parser_switch_statement__(parser_t parse)
             lexer_next(parse->lex);
 
             case_expr = __parser_expression__(parse);
-
-            if (__parser_check_lvalue_expression__(case_expr)) {
-                error(tok->filename, case_expr->line, case_expr->column, "expected const expression");
-            }
 
             __parser_expect__(parse, TOKEN_VALUE_COLON, "expected ':'");
 

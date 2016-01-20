@@ -1,0 +1,11 @@
+function new_counter() {
+    i = 0;
+    return function() {
+        i++;
+        return i;
+    }
+}
+
+c1 = new_counter();
+print(c1(), "\n");
+print(c1(), "\n");

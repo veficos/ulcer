@@ -1,5 +1,3 @@
-print(sdl, "\n");
-
 sdl.init();
 
 window = sdl.create_window("helloworld", 
@@ -9,7 +7,8 @@ window = sdl.create_window("helloworld",
                            480, 
                            sdl.SDL_WINDOW_SHOWN);
 
-renderer = sdl.create_renderer(window, 
+renderer = sdl.create_renderer(window,
+                               -1,
                                sdl.SDL_RENDERER_ACCELERATED);
 
 bitmap = sdl.load_bitmap("hello.bmp");
@@ -20,25 +19,22 @@ sdl.free_surface(bitmap);
 
 sdl.renderer_clear(renderer);
 
-sdl.renderer_copy(renderer, texture);
+sdl.renderer_copy(renderer, texture, null, null);
 
 sdl.renderer_present(renderer);
 
 event = sdl.create_event();
 
-print("ticks: ", sdl.get_ticks());
-
-for (;;) {
-    et = sdl.poll_event(event);
-     
-    if (et == sdl.SDL_QUIT) {
-        break;
-    } elif (et == sdl.SDL_KEYDOWN) {
-        print("key down!\n");
+while (true) {
+    switch (sdl.poll_event(event)) {
+    case sdl.SDL_QUIT: {
+            break;
+        }
+    case sdl.SDL_KEYDOWN: {
+            print("key down!\n");
+        }
     }
 }
-
-print("ticks: ", sdl.get_ticks());
 
 sdl.destroy_event(event);
 

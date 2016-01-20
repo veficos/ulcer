@@ -32,12 +32,14 @@ int main(int argc, char** args)
 
         if (argc < 2) {
             printf("usage: ulcer souce_code.ul\n");
+            printf("press any key to exit\n");
+            getchar();
             exit(-1);
         }
 
         sc = source_code_new(args[1], SOURCE_CODE_TYPE_FILE);
         if (sc == NULL) {
-            fprintf(stderr, "ulcer: cannot open %s: No such file or directory", args[1]);
+            fprintf(stderr, "ulcer: cannot open %s: No such file or directory\n", args[1]);
             exit(-1);
         }
 
@@ -51,9 +53,7 @@ int main(int argc, char** args)
 
         environment_add_module(env, module);
 
-        import_native_library(env);
-
-        import_libsdl_library(env);
+        setup_native_module(env);
 
         executor_run((executor = executor_new(env)));
 

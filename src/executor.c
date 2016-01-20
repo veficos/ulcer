@@ -277,7 +277,6 @@ static executor_result_t __executor_elif_statement__(environment_t env, statemen
 static executor_result_t __executor_switch_statement__(environment_t env, statement_t stmt)
 {
     bool compare_result;
-    executor_result_t result;
     value_t lvalue;
     value_t rvalue;
     list_iter_t iter;
@@ -314,25 +313,15 @@ static executor_result_t __executor_switch_statement__(environment_t env, statem
             list_pop_back(env->stack); /* pop lvalue */
 
             value_free(lvalue);
-
-            result = __executor_block_statement__(env, stmt_case->block);
-            if (result == EXECUTOR_RESULT_BREAK) {
-                result = EXECUTOR_RESULT_NORMAL;
-            }
-
-            return result;
+          
+            return __executor_block_statement__(env, stmt_case->block);
         }
     }
 
     list_pop_back(env->stack);
     value_free(lvalue);
 
-    result = __executor_block_statement__(env, stmt_switch->default_block);
-    if (result == EXECUTOR_RESULT_BREAK) {
-        result = EXECUTOR_RESULT_NORMAL;
-    }
-
-    return result;
+    return __executor_block_statement__(env, stmt_switch->default_block);
 }
 
 static executor_result_t __executor_while_statement__(environment_t env, statement_t stmt)

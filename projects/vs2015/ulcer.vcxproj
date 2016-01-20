@@ -34,12 +34,13 @@
     <ClCompile Include="..\..\src\hash_table.c" />
     <ClCompile Include="..\..\src\heap.c" />
     <ClCompile Include="..\..\src\lexer.c" />
+    <ClCompile Include="..\..\src\libnative.c" />
     <ClCompile Include="..\..\src\libsdl.c" />
+    <ClCompile Include="..\..\src\libstr.c" />
     <ClCompile Include="..\..\src\list.c" />
     <ClCompile Include="..\..\src\main.c" />
     <ClCompile Include="..\..\src\module.c" />
     <ClCompile Include="..\..\src\native.c" />
-    <ClCompile Include="..\..\src\options.c" />
     <ClCompile Include="..\..\src\parser.c" />
     <ClCompile Include="..\..\src\source_code.c" />
     <ClCompile Include="..\..\src\statement.c" />
@@ -60,11 +61,12 @@
     <ClInclude Include="..\..\src\heap.h" />
     <ClInclude Include="..\..\src\hlist.h" />
     <ClInclude Include="..\..\src\lexer.h" />
+    <ClInclude Include="..\..\src\libnative.h" />
     <ClInclude Include="..\..\src\libsdl.h" />
+    <ClInclude Include="..\..\src\libstr.h" />
     <ClInclude Include="..\..\src\list.h" />
     <ClInclude Include="..\..\src\module.h" />
     <ClInclude Include="..\..\src\native.h" />
-    <ClInclude Include="..\..\src\options.h" />
     <ClInclude Include="..\..\src\parser.h" />
     <ClInclude Include="..\..\src\source_code.h" />
     <ClInclude Include="..\..\src\stack.h" />
@@ -154,7 +156,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>SDL2main.lib;SDL2.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -169,7 +171,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">

@@ -5,6 +5,11 @@
 
 #define DEBUG
 
+/* enable stdlib */
+#define USE_LIBNATIVE
+#define USE_LIBSTR
+//#define USE_LIBSDL
+
 #if defined(_WIN32) || defined(WIN32) 
 #define _CRT_SECURE_NO_WARNINGS   1
 #define _CRT_NONSTDC_NO_DEPRECATE 1

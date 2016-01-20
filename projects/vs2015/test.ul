@@ -1,79 +1,11 @@
 
-print(sdl, "\n");
 
-sdl.init();
 
-window = sdl.create_window("helloworld", 
-                           sdl.SDL_WINDOWPOS_UNDEFINED, 
-                           sdl.SDL_WINDOWPOS_UNDEFINED, 
-                           640,
-                           480, 
-                           sdl.SDL_WINDOW_SHOWN);
+l = string.length("HelloWorld");
+print(l, "\n");
 
-renderer = sdl.create_renderer(window,
-                               sdl.SDL_RENDERER_ACCELERATED);
+c = string.copy("Helloworld");
+print(c, "\n");
 
-bitmap = sdl.load_bitmap("hello.bmp");
-
-texture = sdl.create_texture_from_surface(renderer, bitmap);
-
-sdl.free_surface(bitmap);
-
-sdl.renderer_clear(renderer);
-
-sdl.renderer_copy(renderer, texture);
-
-sdl.renderer_present(renderer);
-
-event = sdl.create_event();
-
-print("ticks: ", sdl.get_ticks(), "\n");
-
-while (true) {
-    et = sdl.poll_event(event);
-     
-    if (et == sdl.SDL_QUIT) {
-        break;
-    } elif (et == sdl.SDL_KEYDOWN) {
-        print("key down!\n");
-    }
-}
-
-print("ticks: ", sdl.get_ticks(), "\n");
-
-sdl.destroy_event(event);
-
-sdl.destroy_texture(texture);
-
-sdl.destroy_renderer(renderer);
-
-sdl.destroy_window(window);
-
-sdl.quit();
-
-t = {};
-t.abc = "helloworld";
-
-f = function() {print(this, "\n");};
-
-f();
-
-function(){
-    t.f = f;
-
-    t.f();
-
-    f();
-}();
-
-function new_counter() {
-    i = 0;
-    return function() {
-        i++;
-        return i;
-    }
-}
-
-c1 = new_counter();
-print(c1(), "\n");
-print(c1(), "\n");
+r = string.replace(c, "o", "helloworld");
+print(r, "\n");

@@ -57,7 +57,6 @@ struct object_s {
 };
 
 enum value_type_e {
-    VALUE_TYPE_NIL,
     VALUE_TYPE_NULL,
 
     VALUE_TYPE_CHAR,

@@ -1061,7 +1061,7 @@ static value_type_t __evaluator_implicit_cast_expression__(value_t left_value, v
         return VALUE_TYPE_NULL;
     }
     
-    return VALUE_TYPE_NIL;
+    return left_value->type;
 }
 
 static void __evaluator_char_binary_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right)

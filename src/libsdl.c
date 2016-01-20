@@ -1,11 +1,21 @@
 
 
+#include "config.h"
+
+#undef bool
+#undef true
+#undef false
+
+#ifdef USE_LIBSDL
+
 #include <SDL.h>
 #include <SDL_surface.h>
 
-#include "libsdl.h"
 #include "alloc.h"
 #include "native.h"
+
+#pragma comment (lib, "SDL2.lib")
+#pragma comment (lib, "SDL2main.lib")
 
 static void native_sdl_init(environment_t env, unsigned int argc)
 {
@@ -37,12 +47,12 @@ static void native_sdl_create_window(environment_t env, unsigned int argc)
         goto leave;
     }
 
-    window = SDL_CreateWindow(values[0]->u.object_value->u.string,
-        native_check_int_value(values[1]),
-        native_check_int_value(values[2]),
-        native_check_int_value(values[3]),
-        native_check_int_value(values[4]),
-        native_check_int_value(values[5]));
+    window = SDL_CreateWindow(native_check_string_value(values[0]),
+                              native_check_int_value(values[1]),
+                              native_check_int_value(values[2]),
+                              native_check_int_value(values[3]),
+                              native_check_int_value(values[4]),
+                              native_check_int_value(values[5]));
 
     if (window) {
         environment_push_pointer(env, (void*)window);
@@ -68,7 +78,7 @@ static void native_sdl_destroy_window(environment_t env, unsigned int argc)
         goto leave;
     }
 
-    SDL_DestroyWindow((SDL_Window*)values[0]->u.pointer_value);
+    SDL_DestroyWindow((SDL_Window*)native_check_pointer_value(values[0]));
 
 leave:
     environment_push_null(env);
@@ -86,13 +96,13 @@ static void native_sdl_create_renderer(environment_t env, unsigned int argc)
 
     environment_pop_value(env);
 
-    if (argc < 2) {
+    if (argc < 3) {
         goto leave;
     }
 
     renderer = SDL_CreateRenderer((SDL_Window*)native_check_pointer_value(values[0]),
-        -1, 
-        values[1]->u.int_value);
+                                   native_check_int_value(values[1]),
+                                   native_check_int_value(values[2]));
 
     if (renderer) {
         environment_push_pointer(env, (void*)renderer);
@@ -118,7 +128,7 @@ static void native_sdl_destroy_renderer(environment_t env, unsigned int argc)
         goto leave;
     }
 
-    SDL_DestroyRenderer((SDL_Renderer*)values[0]->u.pointer_value);
+    SDL_DestroyRenderer((SDL_Renderer*)native_check_pointer_value(values[0]));
 
 leave:
     environment_push_null(env);
@@ -139,7 +149,7 @@ static void native_sdl_renderer_clear(environment_t env, unsigned int argc)
         goto leave;
     }
 
-    SDL_RenderClear((SDL_Renderer*)values[0]->u.pointer_value);
+    SDL_RenderClear((SDL_Renderer*)native_check_pointer_value(values[0]));
 
 leave:
     environment_push_null(env);
@@ -160,7 +170,7 @@ static void native_sdl_renderer_present(environment_t env, unsigned int argc)
         goto leave;
     }
 
-    SDL_RenderPresent((SDL_Renderer*)values[0]->u.pointer_value);
+    SDL_RenderPresent((SDL_Renderer*)native_check_pointer_value(values[0]));
 
 leave:
     environment_push_null(env);
@@ -177,14 +187,14 @@ static void native_sdl_renderer_copy(environment_t env, unsigned int argc)
 
     environment_pop_value(env);
 
-    if (argc < 2) {
+    if (argc < 4) {
         goto leave;
     }
 
-    SDL_RenderCopy((SDL_Renderer*)values[0]->u.pointer_value, 
-                   (SDL_Texture*)values[1]->u.pointer_value,
-                   NULL,
-                   NULL);
+    SDL_RenderCopy((SDL_Renderer*)native_check_pointer_value(values[0]),
+                   (SDL_Texture*)native_check_pointer_value(values[1]),
+                   (SDL_Rect*)native_check_pointer_value(values[2]),
+                   (SDL_Rect*)native_check_pointer_value(values[3]));
 
 leave:
     environment_push_null(env);
@@ -206,7 +216,7 @@ static void native_sdl_load_bitmap(environment_t env, unsigned int argc)
         goto leave;
     }
 
-    bmp = SDL_LoadBMP(values[0]->u.object_value->u.string);
+    bmp = SDL_LoadBMP(native_check_string_value(values[0]));
 
     if (bmp) {
         environment_push_pointer(env, (void*)bmp);
@@ -232,7 +242,7 @@ static void native_sdl_free_surface(environment_t env, unsigned int argc)
         goto leave;
     }
 
-    SDL_FreeSurface((SDL_Surface*)values[0]->u.pointer_value);
+    SDL_FreeSurface((SDL_Surface*)native_check_pointer_value(values[0]));
 
 leave:
     environment_push_null(env);
@@ -250,12 +260,12 @@ static void native_sdl_create_texture_from_surface(environment_t env, unsigned i
 
     environment_pop_value(env);
 
-    if (argc < 1) {
+    if (argc < 2) {
         goto leave;
     }
 
-    texture = SDL_CreateTextureFromSurface((SDL_Renderer*)values[0]->u.pointer_value,
-                                           (SDL_Surface*)values[1]->u.pointer_value);
+    texture = SDL_CreateTextureFromSurface((SDL_Renderer*)native_check_pointer_value(values[0]),
+                                           (SDL_Surface*)native_check_pointer_value(values[1]));
 
     if (texture) {
         environment_push_pointer(env, (void*)texture);
@@ -281,7 +291,7 @@ static void native_sdl_destroy_texture(environment_t env, unsigned int argc)
         goto leave;
     }
 
-    SDL_DestroyTexture((SDL_Texture *)values[0]->u.pointer_value);
+    SDL_DestroyTexture((SDL_Texture *)native_check_pointer_value(values[0]));
 
 leave:
     environment_push_null(env);
@@ -303,7 +313,7 @@ static void native_sdl_delay(environment_t env, unsigned int argc)
         goto leave;
     }
 
-    SDL_Delay(values[0]->u.int_value);
+    SDL_Delay(native_check_int_value(values[0]));
 
 leave:
     environment_push_null(env);
@@ -341,7 +351,7 @@ static void native_sdl_destroy_event(environment_t env, unsigned int argc)
         goto leave;
     }
 
-    mem_free(values[0]->u.pointer_value);
+    mem_free(native_check_pointer_value(values[0]));
 
 leave:
     environment_push_null(env);
@@ -362,7 +372,7 @@ static void native_sdl_poll_event(environment_t env, unsigned int argc)
         goto leave;
     }
 
-    SDL_PollEvent((SDL_Event*)values[0]->u.pointer_value);
+    SDL_PollEvent((SDL_Event*)native_check_pointer_value(values[0]));
 
     environment_push_int(env, (int)((SDL_Event*)values[0]->u.pointer_value)->type);
 
@@ -522,3 +532,5 @@ void import_libsdl_library(environment_t env)
         table_push_pair(sdl_table->u.object_value->u.table, env);
     }
 }
+
+#endif
