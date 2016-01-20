@@ -649,7 +649,7 @@ static void __evaluator_function_call_expression__(environment_t env, value_t fu
     list_iter_t args_iter;
     statement_t stmt;
     object_t object;
-    executor_result_t result;
+    executor_result_t result = EXECUTOR_RESULT_NORMAL;
     expression_function_t function;
     int scopecount = 0;
 

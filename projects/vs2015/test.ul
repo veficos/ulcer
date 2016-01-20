@@ -1,11 +1,18 @@
 
 
+function() {
+    print("h");
+    return function() {
+        print("e");
+        return function() {
+            print("l");
+            return function() {
+                print("l");
+                return function() {
+                    print("o");
+                };
+            };
+        };
+    };
+}()()();
 
-l = string.length("HelloWorld");
-print(l, "\n");
-
-c = string.copy("Helloworld");
-print(c, "\n");
-
-r = string.replace(c, "o", "helloworld");
-print(r, "\n");
