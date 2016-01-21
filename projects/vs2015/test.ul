@@ -1,6 +1,8 @@
 
 
-function() {
+t = {};
+
+t.f = function() {
     print("h");
     return function() {
         print("e");
@@ -10,9 +12,15 @@ function() {
                 print("l");
                 return function() {
                     print("o");
+                    return function() {
+                        print("\n");
+                    };
                 };
             };
         };
     };
-}()()();
+}()()()()();
 
+t.f();
+
+print(version());

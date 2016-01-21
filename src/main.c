@@ -32,7 +32,7 @@ int main(int argc, char** args)
 
         if (argc < 2) {
             printf("usage: ulcer souce_code.ul\n");
-            printf("press any key to exit\n");
+            printf("press any key to exit");
             getchar();
             exit(-1);
         }

@@ -224,6 +224,12 @@ static void native_len(environment_t env, unsigned int argc)
     }
 }
 
+static void native_version(environment_t env, unsigned int argc)
+{
+    environment_pop_value(env);
+    environment_push_str(env, ULCER_VERSION);
+}
+
 void import_native_library(environment_t env)
 {
     int i;
@@ -235,6 +241,7 @@ void import_native_library(environment_t env)
         { "print",          native_print },
         { "type",           native_type },
         { "len",            native_len },
+        { "version",        native_version },
     };
 
     global_table = environment_get_global_table(env);

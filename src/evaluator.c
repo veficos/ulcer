@@ -282,32 +282,20 @@ static value_t __evaluator_search_function__(environment_t env, expression_t fun
 {
     value_t value;
 
-    environment_push_local_context(env);
-
     switch (function_expr->type) {
     case EXPRESSION_TYPE_IDENTIFIER:
         environment_push_string(env, function_expr->u.identifier_expr);
         
         value = __evaluator_search_identifier_variable__(env);
 
-        if (!value) {
-            value = value_new(VALUE_TYPE_NULL);
-        }
-
-        if (value && (value->type == VALUE_TYPE_FUNCTION || value->type == VALUE_TYPE_NATIVE_FUNCTION)) {
-            local_context_t context;
-            
-            value = value_dup(value);
-
-            context = list_element(list_rbegin(env->local_context_stack), local_context_t, link);
-
-            list_push_back(value->u.object_value->u.function->scopes, context->object->link_scope);
-        } else {
+        if (!value || !(value->type == VALUE_TYPE_FUNCTION || value->type == VALUE_TYPE_NATIVE_FUNCTION)) {
             runtime_error("(%d, %d): called object type '%s' is not a function",
                            function_expr->line,
                            function_expr->column,
-                           get_value_type_string(value->type));
+                           value ? get_value_type_string(value->type) : "null");
         }
+
+        value = value_dup(value);
 
         environment_pop_value(env);
         break;
@@ -324,8 +312,6 @@ static value_t __evaluator_search_function__(environment_t env, expression_t fun
         list_pop_back(env->stack);
         break;
     }
-
-    environment_pop_local_context(env);
 
     return value;
 }
@@ -413,28 +399,7 @@ static value_t __evaluator_index_expression__(environment_t env, expression_t ex
 
     case VALUE_TYPE_TABLE:
         elem = table_search_by_value(value->u.object_value->u.table, index_value);
-        if (elem) {
-            if (elem->type == VALUE_TYPE_FUNCTION || elem->type == VALUE_TYPE_NATIVE_FUNCTION) {
-                local_context_t context;
-
-                context = list_element(list_rbegin(env->local_context_stack), local_context_t, link);
-
-                list_push_back(elem->u.object_value->u.function->scopes, context->object->link_scope);
-
-                environment_push_str(env, "this");
-
-                environment_xchg_stack(env);
-
-                table_push_pair(context->object->u.table, env);
-
-            } else {
-                environment_pop_value(env);
-            }
-
-            environment_pop_value(env);
-            return elem;
-
-        } else {
+        if (!elem) {
             environment_push_null(env);
             elem = list_element(list_rbegin(env->stack), value_t, link);
             table_push_pair(value->u.object_value->u.table, env);
@@ -562,23 +527,6 @@ static value_t __evaluator_table_dot_member__(environment_t env, expression_t ex
 
     elem = table_search_by_value(table_value->u.object_value->u.table, member_name_value);
     if (elem) {
-        if (elem->type == VALUE_TYPE_FUNCTION || elem->type == VALUE_TYPE_NATIVE_FUNCTION) {
-            local_context_t context;
-
-            context = list_element(list_rbegin(env->local_context_stack), local_context_t, link);
-
-            list_push_back(elem->u.object_value->u.function->scopes, context->object->link_scope);
-
-            environment_push_str(env, "this");
-
-            environment_xchg_stack(env);
-                    
-            table_push_pair(context->object->u.table, env);
-
-        } else {
-            environment_pop_value(env);
-        }
-        
         environment_pop_value(env);
 
     } else {
@@ -589,10 +537,9 @@ static value_t __evaluator_table_dot_member__(environment_t env, expression_t ex
         elem = list_element(list_rbegin(env->stack), value_t, link);
         
         table_push_pair(table_value->u.object_value->u.table, env);
-
-        environment_pop_value(env);
     }
 
+    environment_pop_value(env);
     return elem;
 }
 
@@ -638,7 +585,6 @@ static void __evaluator_call_expression__(environment_t env, expression_t call_e
         break;
     }
 
-    list_pop_back(function_value->u.object_value->u.function->scopes);
     environment_xchg_stack(env);
     environment_pop_value(env);
 }

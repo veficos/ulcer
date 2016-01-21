@@ -5,10 +5,12 @@
 
 #define DEBUG
 
-/* enable stdlib */
+/* stdlib */
 #define USE_LIBNATIVE
 #define USE_LIBSTR
 //#define USE_LIBSDL
+
+#define ULCER_VERSION   "ulcer alpha 1.0.0"
 
 #if defined(_WIN32) || defined(WIN32) 
 #define _CRT_SECURE_NO_WARNINGS   1
