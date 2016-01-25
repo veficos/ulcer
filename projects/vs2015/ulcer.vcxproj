@@ -19,9 +19,6 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <None Include="test.ul" />
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="..\..\src\alloc.c" />
     <ClCompile Include="..\..\src\array.c" />
     <ClCompile Include="..\..\src\cstring.c" />
@@ -34,6 +31,8 @@
     <ClCompile Include="..\..\src\hash_table.c" />
     <ClCompile Include="..\..\src\heap.c" />
     <ClCompile Include="..\..\src\lexer.c" />
+    <ClCompile Include="..\..\src\libfile.c" />
+    <ClCompile Include="..\..\src\libheap.c" />
     <ClCompile Include="..\..\src\libnative.c" />
     <ClCompile Include="..\..\src\libsdl.c" />
     <ClCompile Include="..\..\src\libstr.c" />
@@ -61,6 +60,8 @@
     <ClInclude Include="..\..\src\heap.h" />
     <ClInclude Include="..\..\src\hlist.h" />
     <ClInclude Include="..\..\src\lexer.h" />
+    <ClInclude Include="..\..\src\libfile.h" />
+    <ClInclude Include="..\..\src\libheap.h" />
     <ClInclude Include="..\..\src\libnative.h" />
     <ClInclude Include="..\..\src\libsdl.h" />
     <ClInclude Include="..\..\src\libstr.h" />
@@ -72,6 +73,9 @@
     <ClInclude Include="..\..\src\stack.h" />
     <ClInclude Include="..\..\src\statement.h" />
     <ClInclude Include="..\..\src\token.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="test.ul" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{09549DA9-64BE-4FF5-A5C8-7FD0C6694227}</ProjectGuid>

@@ -1,0 +1,12 @@
+h = heap.alloc(1024*1024);
+
+r = file.open("file.ul", "r");
+w = file.open("file_dup.ul", "w");
+
+count = file.read(r, h, 1024*1024);
+file.write(w, h, count);
+
+file.close(r);
+file.close(w);
+
+heap.free(h);

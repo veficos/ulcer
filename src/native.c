@@ -24,6 +24,16 @@ void setup_native_module(environment_t env)
 #   include "libsdl.h"
     import_libsdl_library(env);
 #endif
+
+#ifdef USE_LIBHEAP
+#   include "libheap.h"
+    import_heap_library(env);
+#endif
+
+#ifdef USE_LIBFILE
+#   include "libfile.h"
+    import_file_library(env);
+#endif
 }
 
 void* native_check_pointer_value(value_t value)

@@ -1,9 +1,9 @@
-
+print(version(), "\n");
 
 t = {};
 
 t.f = function() {
-    print("h");
+    print("H");
     return function() {
         print("e");
         return function() {
@@ -13,7 +13,22 @@ t.f = function() {
                 return function() {
                     print("o");
                     return function() {
-                        print("\n");
+                        print("W");
+                        return function() {
+                            print("o");
+                            return function() {
+                                print("r");
+                                return function() {
+                                    print("l");
+                                    return function() {
+                                        print("d");
+                                        return function() {
+                                            print("\n");
+                                        };
+                                    };
+                                };
+                            };
+                        };
                     };
                 };
             };
@@ -21,6 +36,4 @@ t.f = function() {
     };
 }()()()()();
 
-t.f();
-
-print(version());
+t.f()()()()()();

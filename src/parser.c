@@ -973,7 +973,7 @@ static expression_t __parser_shift_bitop_expression__(parser_t parse)
 
     while (tok->value == TOKEN_VALUE_LEFT_SHIFT  ||
            tok->value == TOKEN_VALUE_RIGHT_SHIFT || 
-           tok->value == TOKEN_VALUE_LOGIC_RIGHT_SHIFT_ASSIGN) {
+           tok->value == TOKEN_VALUE_LOGIC_RIGHT_SHIFT) {
         __parser_without_function_expression__(tok->filename, lexpr);
 
         tv = tok->value;
@@ -988,7 +988,7 @@ static expression_t __parser_shift_bitop_expression__(parser_t parse)
             expr_type = EXPRESSION_TYPE_RIGHT_SHIFT;
             break;
 
-        case TOKEN_VALUE_LOGIC_RIGHT_SHIFT_ASSIGN:
+        case TOKEN_VALUE_LOGIC_RIGHT_SHIFT:
             expr_type = EXPRESSION_TYPE_LOGIC_RIGHT_SHIFT;
             break;
 

@@ -1,0 +1,40 @@
+
+print(version(), "\n");
+
+t = {};
+
+t.f = function() {
+    print("H");
+    return function() {
+        print("e");
+        return function() {
+            print("l");
+            return function() {
+                print("l");
+                return function() {
+                    print("o");
+                    return function() {
+                        print("W");
+                        return function() {
+                            print("o");
+                            return function() {
+                                print("r");
+                                return function() {
+                                    print("l");
+                                    return function() {
+                                        print("d");
+                                        return function() {
+                                            print("\n");
+                                        };
+                                    };
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+}()()()()();
+
+t.f()()()()()();

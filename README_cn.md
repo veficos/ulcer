@@ -1,3 +1,92 @@
+##运算符（按优先级排序）
+
+// 赋值表达式
+```
+v = 1024;
+v += 10;
+v -= 10;
+v *= 10;
+v /= 10;
+v %= 10;
+v &= 10;
+v |= 10;
+v ^= 10;
+v >>= 10;
+v >>>= 10;
+v <<= 10;
+print(v);
+```
+
+// 逻辑或表达式，支持短路求值
+```
+print(true || false); 
+```
+
+// 逻辑与表达式，支持短路求值
+```
+print(true && true);  
+```
+
+// 相等表达式
+```
+print(1 == 1);
+print(1 != 2);
+```
+
+// 关系表达式
+```
+print(1 < 2);
+print(1 <= 2);
+print(2 > 1);
+print(2 >= 1);
+```
+
+// 加法表达式
+```
+print(1+2);
+print(1-2);
+```
+
+// 乘法表达式
+```
+print(1*2);
+print(2/1);
+print(3%2);
+```
+
+// 位运算表达式
+```
+print(1 | 2);
+print(1 & 3);
+print(1 ^ 1);
+```
+
+// 位移表达式
+```
+print(1 << 1);
+print(2 >> 1);
+print(-1 >>> 1);
+```
+
+// 一元表达式
+```
+print(+1);
+print(-1);
+print(!true);
+print(~1);
+```
+
+// 最高优先级
+```
+print( (1+2+3) );
+print( [1,2,3][2] );
+print( [1,2,3] <- 4 );
+print( [1,2,3,4] -> a);
+print( {a:"helloworld"}.a );
+a = 1;
+print( a++ );
+print( a-- );
+```
 
 ##函数
 
@@ -39,7 +128,7 @@ print(c1(), "\n");
 
 ##流程控制
 
-`ulcer`支持`if/elif/else`和`switch`两种循环控制方式，语法同javascript/C类似。
+`ulcer`支持`if/elif/else`和`switch`两种分支控制方式，语法同javascript/C类似。
 
 ```
 if (condition) {
@@ -93,6 +182,25 @@ varray = [1,2,3,4,5];
 vtable = {1:vint, "hello":"world"};
 vfunction = function(){};
 vpointer = file.open("test.txt", "r");
+```
+
+##table
+
+`ulcer`的table目前只实现了一个简单的hash table功能，但是table的key和value都可以是`ulcer`支持的所有类型。同时，可以使用成员操作符直接访问用key为string的成员。
+
+```
+t = {1:"one", "hello":"world"}
+t.field = "helloworld";
+print(t.field, t.hello);
+```
+
+##array
+
+`ulcer`的array于js的array差不多，它的成员可以是任意的ulcer支持的类型的值，但是`ulcer`多提供了两个stack操作语法。
+
+```
+[1,2,3] <- 4;   // push ([1,2,3], 4) ==>> [1,2,3,4]
+[1,2,3,4] -> v; // v = pop ([1,2,3,4]) ==>> v == 4
 ```
 
 ##包管理

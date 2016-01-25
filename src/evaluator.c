@@ -703,6 +703,62 @@ static void __evaluator_assign_expression__(environment_t env, expression_type_t
 
 static void __evaluator_do_assign_expression__(environment_t env, long line, long column, expression_type_t type, value_t left, value_t right)
 {
+    switch (type) {
+    case EXPRESSION_TYPE_ASSIGN:
+        *left = *right;
+        return;
+
+    case EXPRESSION_TYPE_ADD_ASSIGN:
+        evaluator_binary_value(env, line, column, EXPRESSION_TYPE_ADD, left, right);
+        break;
+
+    case EXPRESSION_TYPE_SUB_ASSIGN:
+        evaluator_binary_value(env, line, column, EXPRESSION_TYPE_SUB, left, right);
+        break;
+
+    case EXPRESSION_TYPE_MUL_ASSIGN:
+        evaluator_binary_value(env, line, column, EXPRESSION_TYPE_MUL, left, right);
+        break;
+
+    case EXPRESSION_TYPE_DIV_ASSIGN:
+        evaluator_binary_value(env, line, column, EXPRESSION_TYPE_DIV, left, right);
+        break;
+
+    case EXPRESSION_TYPE_MOD_ASSIGN:
+        evaluator_binary_value(env, line, column, EXPRESSION_TYPE_MOD, left, right);
+        break;
+
+    case EXPRESSION_TYPE_BITAND_ASSIGN:
+        evaluator_binary_value(env, line, column, EXPRESSION_TYPE_BITAND, left, right);
+        break;
+
+    case EXPRESSION_TYPE_BITOR_ASSIGN:
+        evaluator_binary_value(env, line, column, EXPRESSION_TYPE_BITOR, left, right);
+        break;
+
+    case EXPRESSION_TYPE_XOR_ASSIGN:
+        evaluator_binary_value(env, line, column, EXPRESSION_TYPE_XOR, left, right);
+        break;
+
+    case EXPRESSION_TYPE_LEFT_SHIFT_ASSIGN:
+        evaluator_binary_value(env, line, column, EXPRESSION_TYPE_LEFT_SHIFT, left, right);
+        break;
+
+    case EXPRESSION_TYPE_RIGHT_SHIFT_ASSIGN:
+        evaluator_binary_value(env, line, column, EXPRESSION_TYPE_RIGHT_SHIFT, left, right);
+        break;
+
+    case EXPRESSION_TYPE_LOGIC_RIGHT_SHIFT_ASSIGN:
+        evaluator_binary_value(env, line, column, EXPRESSION_TYPE_RIGHT_SHIFT, left, right);
+        break;
+
+    default:
+        assert(false);
+    }
+
+    environment_xchg_stack(env);
+    environment_pop_value(env);
+    right = list_element(list_rbegin(env->stack), value_t, link);
     *left = *right;
 }
 
@@ -1005,8 +1061,25 @@ static value_type_t __evaluator_implicit_cast_expression__(value_t left_value, v
 
     } else if (left_value->type == VALUE_TYPE_NULL || right_value->type == VALUE_TYPE_NULL) {
         return VALUE_TYPE_NULL;
+
+    } else if (left_value->type == VALUE_TYPE_TABLE || right_value->type == VALUE_TYPE_TABLE) {
+        return VALUE_TYPE_TABLE;
+
+    } else if (left_value->type == VALUE_TYPE_POINTER || right_value->type == VALUE_TYPE_POINTER) {
+        return VALUE_TYPE_POINTER;
+
+    } else if (left_value->type == VALUE_TYPE_FUNCTION || right_value->type == VALUE_TYPE_FUNCTION) {
+        return VALUE_TYPE_FUNCTION;
+
+    } else if (left_value->type == VALUE_TYPE_NATIVE_FUNCTION || right_value->type == VALUE_TYPE_NATIVE_FUNCTION) {
+        return VALUE_TYPE_NATIVE_FUNCTION;
+
+    } else if (left_value->type == VALUE_TYPE_ARRAY || right_value->type == VALUE_TYPE_ARRAY) {
+        return VALUE_TYPE_ARRAY;
     }
-    
+
+    assert(false);
+         
     return left_value->type;
 }
 

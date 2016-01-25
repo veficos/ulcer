@@ -8,6 +8,8 @@
 /* stdlib */
 #define USE_LIBNATIVE
 #define USE_LIBSTR
+#define USE_LIBHEAP
+#define USE_LIBFILE
 //#define USE_LIBSDL
 
 #define ULCER_VERSION   "ulcer alpha 1.0.0"

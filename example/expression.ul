@@ -1,0 +1,54 @@
+v = 1024;
+v += 10;
+v -= 10;
+v *= 10;
+v /= 10;
+v %= 10;
+v &= 0xFFFF;
+v |= 0xFFFF;
+v ^= 0xF0F0;
+v >>= 2;
+v <<= 2;
+v >>>= 2;
+print(v, "\n");
+
+print(true || false, "\n"); 
+
+print(true && true, "\n");  
+
+print(1 == 1, "\n");
+print(1 != 2, "\n");
+
+print(1 < 2, "\n");
+print(1 <= 2, "\n");
+print(2 > 1, "\n");
+print(2 >= 1, "\n");
+
+print(1+2, "\n");
+print(1-2, "\n");
+
+print(1*2, "\n");
+print(2/1, "\n");
+print(3%2, "\n");
+
+print(1 | 2, "\n");
+print(1 & 3, "\n");
+print(1 ^ 1, "\n");
+
+print(1 << 1, "\n");
+print(2 >> 1, "\n");
+print(-2 >> 1, "\n");
+
+print(+1, "\n");
+print(-1, "\n");
+print(!true, "\n");
+print(~1, "\n");
+
+print( (1+2+3), "\n" );
+print( [1,2,3][2], "\n" );
+print( [1,2,3] <- 4, "\n" );
+print( [1,2,3,4] -> a, "\n");
+print( {"a":"helloworld"}.a, "\n" );
+a = 1;
+print( a++, "\n" );
+print( a--, "\n" );
