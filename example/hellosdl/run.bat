@@ -1,2 +1,2 @@
 
-ulcer.exe test.ul
+ulcer.exe gui.ul

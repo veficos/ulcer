@@ -33,7 +33,9 @@
     <ClCompile Include="..\..\src\lexer.c" />
     <ClCompile Include="..\..\src\libfile.c" />
     <ClCompile Include="..\..\src\libheap.c" />
+    <ClCompile Include="..\..\src\libmath.c" />
     <ClCompile Include="..\..\src\libnative.c" />
+    <ClCompile Include="..\..\src\libruntime.c" />
     <ClCompile Include="..\..\src\libsdl.c" />
     <ClCompile Include="..\..\src\libstr.c" />
     <ClCompile Include="..\..\src\list.c" />
@@ -62,7 +64,9 @@
     <ClInclude Include="..\..\src\lexer.h" />
     <ClInclude Include="..\..\src\libfile.h" />
     <ClInclude Include="..\..\src\libheap.h" />
+    <ClInclude Include="..\..\src\libmath.h" />
     <ClInclude Include="..\..\src\libnative.h" />
+    <ClInclude Include="..\..\src\libruntime.h" />
     <ClInclude Include="..\..\src\libsdl.h" />
     <ClInclude Include="..\..\src\libstr.h" />
     <ClInclude Include="..\..\src\list.h" />
@@ -73,9 +77,6 @@
     <ClInclude Include="..\..\src\stack.h" />
     <ClInclude Include="..\..\src\statement.h" />
     <ClInclude Include="..\..\src\token.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="test.ul" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{09549DA9-64BE-4FF5-A5C8-7FD0C6694227}</ProjectGuid>
@@ -188,6 +189,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

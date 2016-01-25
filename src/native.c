@@ -20,6 +20,11 @@ void setup_native_module(environment_t env)
     import_string_library(env);
 #endif
 
+#ifdef USE_LIBMATH
+#   include "libmath.h"
+    import_math_library(env);
+#endif
+
 #ifdef USE_LIBSDL
 #   include "libsdl.h"
     import_libsdl_library(env);
@@ -33,6 +38,11 @@ void setup_native_module(environment_t env)
 #ifdef USE_LIBFILE
 #   include "libfile.h"
     import_file_library(env);
+#endif
+
+#ifdef USE_LIBRUNTIME
+#   include "libruntime.h"
+    import_runtime_library(env);
 #endif
 }
 
@@ -86,3 +96,20 @@ bool native_check_bool_value(value_t value)
     return false;
 }
 
+double native_check_double_value(value_t value)
+{
+    switch (value->type) {
+    case VALUE_TYPE_CHAR:
+        return (double)value->u.char_value;
+    case VALUE_TYPE_INT:
+        return (double)value->u.int_value;
+    case VALUE_TYPE_LONG:
+        return (double)value->u.long_value;
+    case VALUE_TYPE_FLOAT:
+        return (double)value->u.float_value;
+    case VALUE_TYPE_DOUBLE:
+        return (double)value->u.double_value;
+    }
+
+    return 0.0;
+}

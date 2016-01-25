@@ -14,7 +14,7 @@ struct heap_s {
 };
 
 #ifndef HEAP_THRESHOLD_SIZE
-#define HEAP_THRESHOLD_SIZE (1024*256)
+#define HEAP_THRESHOLD_SIZE (128)
 #endif
 
 #define __heap_value_is_object__(value)                                       \
@@ -161,12 +161,16 @@ static object_t __heap_alloc_object__(environment_t env, object_type_t type)
 
     list_push_back(env->heap->objects, object->link_heap);
 
+    env->heap->allocated++;
+
     return object;
 }
 
 static void __heap_auto_gc__(environment_t env)
 {
-    heap_gc(env);
+    if (env->heap->allocated >= env->heap->threshold) {
+        heap_gc(env);
+    }
 }
 
 static void __heap_mark_objects__(environment_t env)
@@ -257,6 +261,7 @@ static void __heap_sweep_objects__(environment_t env)
         if (!object->marked) {
             list_erase(env->heap->objects, *iter);
             __heap_dispose_object__(object);
+            env->heap->allocated--;
         }
     }
 }

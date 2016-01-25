@@ -230,3 +230,22 @@ print(fibonacci(10), "\n");
 
 这个功能我还在考虑着要不要加上。
 
+## 内置库
+
+```
+string
+math
+runtime
+heap
+file
+sdl
+```
+
+## 内置函数
+
+```
+print(any_value...);
+len(any_value);
+type(any_value);
+version();
+```
