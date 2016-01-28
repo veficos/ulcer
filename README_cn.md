@@ -1,5 +1,6 @@
 ##运行示例
 
+![](vim-syntax/picture.jpg)
 ![](example/hellosdl/run.jpg)
 
 ##运算符（按优先级排序）
