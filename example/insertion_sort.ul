@@ -1,0 +1,14 @@
+function insertion_sort(a) {
+    for (i = 1; i < len(a); i++) {
+        for (j = 0; j < i; j++) {
+            if (a[j] > a[i]) {
+                tmp = a[j];
+                a[j] = a[i];
+                a[i] = tmp;
+            }
+        }
+    }
+    return a;
+}
+
+print(insertion_sort([7,3,6,8,0,9,7,4,5]));
