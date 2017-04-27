@@ -1,9 +1,9 @@
-##运行示例
+## 运行示例
 
 ![](vim-syntax/picture.jpg)
 ![](example/hellosdl/run.jpg)
 
-##运算符（按优先级排序）
+## 运算符（按优先级排序）
 
 // 赋值表达式
 ```
@@ -93,7 +93,7 @@ print( a++ );
 print( a-- );
 ```
 
-##函数
+## 函数
 
 `ulcer`的函数声明同javascript一样。
 
@@ -131,7 +131,7 @@ print(c1(), "\n");
 2
 ```
 
-##流程控制
+## 流程控制
 
 `ulcer`支持`if/elif/else`和`switch`两种分支控制方式，语法同javascript/C类似。
 
@@ -171,7 +171,7 @@ foreach(k, v : table) {
 }
 ```
 
-##类型
+## 类型
 
 `ulcer`支持以下几种类型，其中，array和table属于引用类型，而其它属于值类型。
 
@@ -189,7 +189,7 @@ vfunction = function(){};
 vpointer = file.open("test.txt", "r");
 ```
 
-##table
+## table
 
 `ulcer`的table目前只实现了一个简单的hash table功能，但是table的key和value都可以是`ulcer`支持的所有类型。同时，可以使用成员操作符直接访问用key为string的成员。
 
@@ -199,7 +199,7 @@ t.field = "helloworld";
 print(t.field, t.hello);
 ```
 
-##array
+## array
 
 `ulcer`的array于js的array差不多，它的成员可以是任意的ulcer支持的类型的值，但是`ulcer`多提供了两个stack操作语法。
 
@@ -208,7 +208,7 @@ print(t.field, t.hello);
 [1,2,3,4] -> v; // v = pop ([1,2,3,4]) ==>> v == 4
 ```
 
-##包管理
+## 包管理
 
 `ulcer`的包管理同lua类似。
 
