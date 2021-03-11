@@ -21,6 +21,7 @@ typedef struct value_s*         value_t;
 typedef struct table_pair_s*    table_pair_t;
 typedef struct table_s*         table_t;
 typedef struct local_context_s* local_context_t;
+typedef struct local_context_stack_s* local_context_stack_t;
 typedef struct package_s*       package_t;
 
 enum object_type_e {
@@ -120,6 +121,11 @@ struct local_context_s {
     list_node_t link;
 };
 
+struct local_context_stack_s {
+  list_t context_stack;
+  list_node_t link;
+};
+
 struct package_s {
     cstring_t name;
     hlist_node_t link;
@@ -128,6 +134,7 @@ struct package_s {
 struct environment_s {
     stack_t statement_stack;
     list_t  local_context_stack;
+    list_t  previous_context_frames;
     list_t  stack;
     heap_t  heap;
     table_t global_table;
@@ -143,6 +150,10 @@ table_t       environment_get_global_table(environment_t env);
 void          environment_push_local_context(environment_t env);
 void          environment_push_scope_local_context(environment_t env, object_t object);
 void          environment_pop_local_context(environment_t env);
+
+/* Push/pop local context stack to/from previous frames */
+void          environment_push_context_frame(environment_t env);
+void          environment_pop_context_frame(environment_t env);
 
 /* stack op */
 void          environment_clear_stack(environment_t env);

@@ -275,6 +275,14 @@ static hlist_node_ops_t __environment_package_operators__ = {
     NULL,
 };
 
+static void __environment_free_context_stack__(list_t context_stack) {
+    list_iter_t iter, next_iter;
+    list_safe_for_each(context_stack, iter, next_iter) {
+        list_erase(context_stack, *iter);
+        mem_free(list_element(iter, local_context_t, link));
+    }
+}
+
 environment_t environment_new(void)
 {
     environment_t env = (environment_t) mem_alloc(sizeof(struct environment_s));
@@ -286,6 +294,7 @@ environment_t environment_new(void)
     list_init(env->stack);
     list_init(env->modules);
     list_init(env->local_context_stack);
+    list_init(env->previous_context_frames);
 
     stack_init(env->statement_stack);
 
@@ -297,8 +306,13 @@ void environment_free(environment_t env)
     list_iter_t iter, next_iter;
 
     table_clear(env->global_table);
+    __environment_free_context_stack__(env->local_context_stack);
 
-    list_init(env->local_context_stack);
+    list_safe_for_each(env->previous_context_frames, iter, next_iter) {
+        list_erase(env->previous_context_frames, *iter);
+        __environment_free_context_stack__(
+            list_element(iter, local_context_stack_t, link)->context_stack);
+    }
 
     heap_gc(env);
 
@@ -399,6 +413,35 @@ void environment_pop_local_context(environment_t env)
     list_pop_back(env->local_context_stack);
 
     mem_free(context);
+}
+
+void environment_push_context_frame(environment_t env)
+{
+    local_context_stack_t stack;
+
+    stack =
+      (local_context_stack_t) mem_alloc(sizeof(struct local_context_stack_s));
+
+    stack->context_stack = env->local_context_stack;
+
+    list_init(env->local_context_stack);
+
+    list_push_back(env->previous_context_frames, stack->link);
+}
+
+void environment_pop_context_frame(environment_t env)
+{
+    local_context_stack_t stack;
+
+    stack = list_element(
+        list_rbegin(env->previous_context_frames),
+        local_context_stack_t, link);
+
+    env->local_context_stack = stack->context_stack;
+
+    list_pop_back(env->previous_context_frames);
+
+    mem_free(stack);
 }
 
 void environment_clear_stack(environment_t env)
