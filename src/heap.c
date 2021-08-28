@@ -26,6 +26,7 @@ static void     __heap_unmark_object__(object_t obj);
 static void     __heap_mark_object__(object_t obj);
 static void     __heap_dispose_object__(object_t obj);
 static void     __heap_mark_objects__(environment_t env);
+static void     __heap_mark_objects_in_context__(list_t ctx);
 static void     __heap_sweep_objects__(environment_t env);
 static object_t __heap_alloc_object__(environment_t env, object_type_t type);
 static void     __heap_auto_gc__(environment_t env);
@@ -221,33 +222,47 @@ static void __heap_mark_objects__(environment_t env)
         }
     }
 
+    __heap_mark_objects_in_context__(env->local_context_stack);
+    
     {
-        /* mark local context */
+        /* mark previous contexts frames */
         list_iter_t iter;
-        local_context_t context;
-        table_pair_t variable;
-        hash_table_iter_t hiter;
+        local_context_stack_t stack;
+        list_for_each(env->previous_context_frames, iter) {
+            stack = list_element(iter, local_context_stack_t, link);
+            __heap_mark_objects_in_context__(stack->context_stack);
+        }
 
-        list_for_each(env->local_context_stack, iter) {
-            context = list_element(iter, local_context_t, link);
+    }
+}
 
-            __heap_mark_object__(context->object);
+static void __heap_mark_objects_in_context__(list_t ctx)
+{
+    /* mark local context */
+    list_iter_t iter;
+    local_context_t context;
+    table_pair_t variable;
+    hash_table_iter_t hiter;
 
-            hiter = hash_table_iter_new(context->object->u.table->table);
-            hash_table_for_each(context->object->u.table->table, hiter) {
-                variable = hash_table_iter_element(hiter, table_pair_t, link);
+    list_for_each(ctx, iter) {
+        context = list_element(iter, local_context_t, link);
 
-                if (__heap_value_is_object__(variable->key)) {
-                    __heap_mark_object__(variable->key->u.object_value);
-                }
+        __heap_mark_object__(context->object);
 
-                if (__heap_value_is_object__(variable->value)) {
-                    __heap_mark_object__(variable->value->u.object_value);
-                }
+        hiter = hash_table_iter_new(context->object->u.table->table);
+        hash_table_for_each(context->object->u.table->table, hiter) {
+            variable = hash_table_iter_element(hiter, table_pair_t, link);
+
+            if (__heap_value_is_object__(variable->key)) {
+                __heap_mark_object__(variable->key->u.object_value);
             }
 
-            hash_table_iter_free(hiter);
+            if (__heap_value_is_object__(variable->value)) {
+                __heap_mark_object__(variable->value->u.object_value);
+            }
         }
+
+        hash_table_iter_free(hiter);
     }
 }
 
